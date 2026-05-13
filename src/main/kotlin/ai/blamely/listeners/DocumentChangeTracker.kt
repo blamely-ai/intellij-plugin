@@ -5,6 +5,7 @@ import ai.blamely.core.BranchSessionLifecycleService
 import ai.blamely.core.LineBlame
 import ai.blamely.core.TraceStoreService
 import ai.blamely.persistence.BlameSerializer
+import ai.blamely.settings.BlamelySettings
 import ai.blamely.utils.Platform.normalizePath
 import ai.blamely.utils.matchSuggestion
 import com.intellij.openapi.application.ApplicationManager
@@ -166,7 +167,8 @@ class DocumentChangeTracker(
             if (FileEditorManager.getInstance(project).getAllEditors(file).isEmpty()) return@runReadAction
 
             project.getService(BlameMapService::class.java)?.ensureBranchLoaded()
-            if (EXCLUDE_PATTERNS.any { relativePath.contains(it) }) return@runReadAction
+            val excludePatterns = BlamelySettings.getInstance().mergedExcludePatterns()
+            if (excludePatterns.any { relativePath.contains(it) }) return@runReadAction
             val pathLower = relativePath.lowercase()
             val ext = pathLower.substringAfterLast('.')
             if (ext in EXCLUDE_EXTENSIONS || pathLower.endsWith(".min.js") || pathLower.endsWith(".min.css")) return@runReadAction
@@ -532,14 +534,6 @@ class DocumentChangeTracker(
     }
 
     companion object {
-        /** Exclude log files, build outputs, caches, and other non-source so only real file changes are counted. */
-        private val EXCLUDE_PATTERNS = listOf(
-            "node_modules", ".git", "dist", "build", "out", "target",
-            "detector.ai", "blamely-report.md",
-            ".log", "/log/", "\\log\\", "/logs/", "\\logs\\",
-            ".tmp", ".temp", ".cache", ".min.js", ".min.css",
-            ".lock", ".lockb", ".idea/", ".vscode/"
-        )
         private val EXCLUDE_EXTENSIONS = setOf("log", "lock", "lockb", "tmp", "temp", "cache", "map")
 
         /** Minimum replaced text length (chars) to treat as rollback bulk (not a single keystroke). */

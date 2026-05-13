@@ -118,10 +118,12 @@ Notes are pushed to the remote **automatically** when you push:
 - **Auto-install Blamely git hooks on project open** ↔ `blamely.autoInstallHook`
 - **Generate report.yml on document save** ↔ `blamely.reportOnSave`
 - **AI suggestion timeout (ms)** ↔ `blamely.suggestionTimeout`
+- **Exclude path patterns** ↔ `blamely.excludePatterns` (one per line; substring match on project-relative paths)
+- **Additional exclude patterns** ↔ `blamely.additionalExcludePatterns` (merged with the list above; default includes `.snap`)
 
 ## Configuration
 
-Per-branch working state and snapshots live under `.git/blamely`; **IntelliJ** mirrors session metadata under **`~/.blamely/intellij/repos/<repoKey>/sessions/`** (not in the workspace). Excluded paths (e.g. `node_modules`, `.git`, `dist`) are applied when tracking document changes so those files are not attributed.
+Per-branch working state and snapshots live under `.git/blamely`; **IntelliJ** mirrors session metadata under **`~/.blamely/intellij/repos/<repoKey>/sessions/`** (not in the workspace). Excluded paths are configurable under **Settings → Tools → Blamely** (same defaults as the VS Code extension); substring patterns prevent attribution noise under `node_modules`, `.git`, build dirs, `.snap`, and similar paths.
 
 ### Migration from `~/.blamely/session/`
 
