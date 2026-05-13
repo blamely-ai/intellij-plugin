@@ -1,0 +1,98 @@
+<!-- Plugin configuration file. See https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+  <id>ai.blamely</id>
+  <name>Blamely</name>
+  <version>1.0.0</version>
+  <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
+
+  <description><![CDATA[
+    <h2>Stop guessing your codes origin. Know every human and AI contribution</h2>
+
+    <p>Blamely brings AI contribution tracking directly into IntelliJ IDEA. As AI-assisted coding becomes the norm, Blamely answers the question every developer and every team is starting to ask: <b>how much of this codebase is actually human?</b></p>
+
+    <p>Blamely sits quietly in your IDE and analyzes your git history commit by commit. It detects which lines were written by AI tools - GitHub Copilot, Cursor, Codeium, Claude, and others - and which were written by hand. The results appear instantly in a clean, native-feeling tool window: no external services, no sign-up, no telemetry.</p>
+
+    <h3>What Blamely tracks</h3>
+    <ul>
+      <li>AI / Human line count per commit and per file</li>
+      <li>Which AI models contributed and how much</li>
+      <li>Contribution percentage visualized with inline progress bars</li>
+      <li>Full commit history with diff stats, branch tags, and authorship breakdown</li>
+    </ul>
+
+    <h3>Why developers use Blamely</h3>
+    <ul>
+      <li>Understand your real contribution before a code review</li>
+      <li>Track how your AI usage evolves over time</li>
+      <li>Make informed decisions about what to refactor or own</li>
+      <li>Satisfy team or company policies around AI-generated code</li>
+    </ul>
+
+    <p>Blamely doesn't judge. It just shows you the numbers - and lets you decide what they mean.</p>
+
+    <p><i>Because git blame only tells half the story.</i></p>
+
+    <h3>Supported AI providers</h3>
+    <p>GitHub Copilot (Chat, Inline, Completion) | Claude  (Chat, Inline, Completion) | JetBrains AI</p>
+
+    <p>Part of the <a href="https://blamely.ai">Blamely</a> open standard - same .git/blamely format for cross-IDE compatibility. Learn more at <a href="https://blamely.ai">blamely.ai</a></p>
+  ]]></description>
+
+  <change-notes><![CDATA[
+    <h3>1.0.0</h3>
+    <ul>
+      <li><b>Intellij 1.0.0 data layout</b> - Primary blame snapshots and per-branch <code>report.yml</code> under <code>~/.blamely/repos/&lt;stableId&gt;/</code> (same 8-char repo hash as the Intellij extension); optional migration when legacy <code>.git/blamely</code> contained snapshots/trace-style data</li>
+      <li><b>Pre-commit hookRunner.js</b> - Bundled Node runner: tries user-layout copy then <code>.git/blamely/hookRunner.js</code>; shows contribution bars from <code>blamely-detector.ai</code> (<code>node</code> on PATH required)</li>
+      <li><b>blamely-detector.ai</b> - Written under <code>.git/blamely/</code> after commits with <code># ai_lines_deleted</code> / human delete totals for hookRunner</li>
+      <li><b>Repo-local branch sessions</b> - Per-branch state under <code>.git/blamely/&lt;branch&gt;/{open,stash,closed}/</code>; IntelliJ mirrors session metadata under <code>~/.blamely/intellij/repos/&lt;repoKey&gt;/sessions/&lt;id&gt;/blamely.json</code> (not in the project folder); blame snapshots still readable from old <code>.git/blamely/snapshots/...</code> paths during migration</li>
+      <li><b>Session paths</b> - <code>getRepoRoot</code> accepts a file or directory; legacy <code>~/.blamely/session</code> migration unchanged</li>
+      <li><b>Settings</b> - <code>showGutterDecorations</code>, <code>autoInstallHook</code>, <code>reportOnSave</code>, <code>suggestionTimeout</code></li>
+      <li><b>Pre-push</b> - Shell helper still pushes <code>refs/notes/blamely</code></li>
+    </ul>
+  ]]></change-notes>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>Git4Idea</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceImplementation="ai.blamely.settings.BlamelySettings"/>
+    <applicationConfigurable parentId="tools" instance="ai.blamely.settings.BlamelyConfigurable"
+      id="ai.blamely.settings.BlamelyConfigurable" displayName="Blamely" icon="/icons/Blamely16.png"
+      groupWeight="-100"/>
+    <notificationGroup id="Blamely" displayType="BALLOON"/>
+    <projectService serviceImplementation="ai.blamely.core.BlameMapService"/>
+    <projectService serviceImplementation="ai.blamely.core.BranchSessionLifecycleService"/>
+    <projectService serviceImplementation="ai.blamely.core.TraceStoreService"/>
+    <projectService serviceImplementation="ai.blamely.ui.BlameDecorations"/>
+    <postStartupActivity implementation="ai.blamely.BlamelyStartupActivity"/>
+    <toolWindow id="Blamely" factoryClass="ai.blamely.ui.BlamelyToolWindowFactory"
+          secondary="false" anchor="bottom" icon="/icons/toolwindow-ai.svg"/>
+    <statusBarWidgetFactory implementation="ai.blamely.ui.BlamelyStatusBarWidgetFactory" id="Blamely.BlameStatus"/>
+  </extensions>
+
+  <actions>
+    <group id="Blamely.MainMenu" text="Blamely" description="AI / Human" icon="/icons/Blamely16.png">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+      <action id="Blamely.GenerateReport" class="ai.blamely.actions.GenerateReportAction"
+          text="Generate Report Now" description="Regenerate report.yml and blame state"/>
+      <action id="Blamely.ShowBlame" class="ai.blamely.actions.ShowBlameAction"
+          text="Show Blame for Current File" description="Show AI / Human for active editor"/>
+      <action id="Blamely.InstallHook" class="ai.blamely.actions.InstallHookAction"
+          text="Install Git Commit Hook" description="Install pre-commit hook for blamely"/>
+      <action id="Blamely.RestoreHook" class="ai.blamely.actions.RestoreGitHookAction"
+          text="Restore/Remove Git Hook" description="Restore pre-commit from backup or remove hook"/>
+      <action id="Blamely.ShowCommitReport" class="ai.blamely.actions.ShowCommitReportAction"
+          text="Show Report for Latest Commit (Git Note)" description="Open report from git notes"/>
+      <action id="Blamely.AttachGitNote" class="ai.blamely.actions.AttachGitNoteAction"
+          text="Attach Git Note for Current Commit" description="Add or overwrite Blamely note for HEAD (fix 'no note found')"/>
+      <action id="Blamely.AttachGitNoteForSha" class="ai.blamely.actions.AttachGitNoteForShaAction"
+          text="Attach Git Note for Commit SHA..." description="Paste a commit SHA (e.g. from 'no note found' error) and attach the note"/>
+      <action id="Blamely.PushNotesToRemote" class="ai.blamely.actions.PushNotesToRemoteAction"
+          text="Push AI Notes to Remote" description="Push refs/notes/blamely to origin (run after VCS -&gt; Push so remote has notes)"/>
+      <action id="Blamely.ShowSessionChanges" class="ai.blamely.actions.ShowSessionChangesAction"
+          text="Show Changes for Commit/Session..." description="Open a read-only git show summary for a session commit or any SHA"/>
+      <action id="Blamely.ShowMemoryDiagnostics" class="ai.blamely.actions.ShowMemoryDiagnosticsAction"
+          text="Show Memory / Diagnostics" description="Approximate plugin memory usage and how to capture a heap snapshot"/>
+    </group>
+  </actions>
+</idea-plugin>

@@ -1,0 +1,92 @@
+# Build outputs
+/build/
+/out/
+/dist/
+
+# Gradle
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ / IDEA
+.idea/
+.intellijPlatform/
+*.iml
+*.ipr
+*.iws
+bin/
+
+# Kotlin
+*.class
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and temp
+*.log
+*.tmp
+*.temp
+*.swp
+*~
+.blamely.log
+blamely.log
+
+# Plugin run / sandbox (optional)
+# .run/
+
+# Manual sandbox plugins (see sandbox-extra-plugins/README.txt); keep only placeholders in git
+sandbox-extra-plugins/*
+!sandbox-extra-plugins/README.txt
+!sandbox-extra-plugins/.gitkeep
+
+# Additional common ignores
+
+# IntelliJ plugin sandbox, distributions and build outputs
+/idea-sandbox/
+/distributions/
+/build/distributions/
+/build/libs/
+/build/tmp/
+/tmp/
+
+# Gradle wrapper properties (keep wrapper jar and properties in VCS) - ensure properties/jar exceptions are preserved
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Gradle caches (safe to ignore)
+.gradle/
+
+# Project user and workspace files
+/.idea/**/workspace.xml
+/.idea/**/tasks.xml
+/.idea/**/usage.statistics.xml
+/.idea/**/shelf
+*.iws
+.idea_modules/
+
+# Local config / env
+/local.properties
+/.env
+
+# Node
+node_modules/
+
+# Coverage and reports
+coverage/
+reports/
+
+# Packaged artifacts
+*.jar
+*.war
+*.ear
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Keep macOS artifacts ignored
+**/.DS_Store
+
+# End of file

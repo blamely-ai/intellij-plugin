@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blamely — AI / Human for IntelliJ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0f12;
+      --surface: #161a1f;
+      --border: #2a3038;
+      --text: #e6e9ef;
+      --muted: #8b92a0;
+      --accent: #3b82f6;
+      --accent-dim: #2563eb;
+      --success: #22c55e;
+      --callout-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container { max-width: 720px; margin: 0 auto; padding: 0 1.5rem; }
+    header {
+      padding: 2rem 0 3rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-logo {
+      width: 96px;
+      height: 96px;
+      display: block;
+      margin-bottom: 1.25rem;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+    }
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    .tagline {
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .callout-box {
+      margin-top: 1.5rem;
+      padding: 1rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--callout-muted);
+    }
+    .callout-box a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .callout-box a:hover { text-decoration: underline; }
+    section {
+      padding: 2.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    section:last-of-type { border-bottom: none; }
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+    p { margin-bottom: 1rem; color: var(--muted); }
+    p:last-child { margin-bottom: 0; }
+    ul {
+      list-style: none;
+      margin-bottom: 1rem;
+    }
+    ul li {
+      position: relative;
+      padding-left: 1.25rem;
+      margin-bottom: 0.5rem;
+      color: var(--muted);
+    }
+    ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.5rem;
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+    }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+    code { color: var(--accent); }
+    pre code { color: var(--text); }
+    .step {
+      margin-bottom: 1.5rem;
+    }
+    .step strong { color: var(--text); }
+    .badge {
+      display: inline-block;
+      background: var(--accent-dim);
+      color: white;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      margin-left: 0.5rem;
+    }
+    footer {
+      padding: 2rem 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img class="brand-logo" src="images/logo.png" width="96" height="96" alt="Blamely" />
+      <h1>Blamely</h1>
+      <p class="tagline">AI &amp; Human attribution for IntelliJ and JetBrains IDEs. Track which lines are from AI (Copilot, Cursor, etc.) and which are human-written — then commit with Git notes.</p>
+      <div class="callout-box">
+        <strong>Open standard &amp; ecosystem.</strong> Blamely uses the same idea as <a href="https://blamely.ai/" target="_blank" rel="noopener">Blamely</a>: track AI code through the SDLC with <strong>Git Notes</strong> (<code>refs/notes/blamely</code>), so attribution survives rebases, merges, and cherry-picks. Blamely’s docs and CLI complement this plugin for a full workflow. <a href="https://blamely.ai/" target="_blank" rel="noopener">blamely.ai</a>
+      </div>
+    </header>
+
+    <section id="screenshots">
+      <h2>Screenshots</h2>
+      <p>Changes tab (per-file AI / Human breakdown), History tab (commits, authors, AI models), and status bar (click to open details).</p>
+      <p>
+        <img src="images/blamely-changes.png" alt="Blamely Changes tab" width="600" />
+        <img src="images/blamely-history.png" alt="Blamely History tab" width="600" />
+        <img src="images/blamely-status-bar.png" alt="Blamely status bar tooltip" width="600" />
+      </p>
+    </section>
+
+    <section id="how-it-works">
+      <h2>How it works</h2>
+      <ul>
+        <li><strong>Line-level blame</strong> — Each line is attributed to AI or human (e.g. 50% rule: line is AI if ≥50% of its characters came from AI).</li>
+        <li><strong>Persistence under <code>.git/blamely</code></strong> — Session and per-file blame snapshots; no workspace clutter.</li>
+        <li><strong>Git notes</strong> — A <code>report.yml</code> summary is attached to each commit via <code>git notes --ref=blamely</code>.</li>
+        <li><strong>Status bar</strong> — Live AI / Human character and line counts; click to open the Blamely tool window.</li>
+        <li><strong>Supported in-IDE AI</strong> — Detects GitHub Copilot (completions, chat panel, inline), Cursor, Codeium, and similar agents when you accept their suggestions.</li>
+      </ul>
+    </section>
+
+    <section id="install">
+      <h2>Install</h2>
+      <div class="step">
+        <strong>1. Build the plugin</strong>
+        <pre><code># From the plugin project root (JDK 17)
+./gradlew buildPlugin</code></pre>
+        <p>Output: <code>build/distributions/Blamely-0.2.0.zip</code></p>
+      </div>
+      <div class="step">
+        <strong>2. Install in IntelliJ</strong>
+        <p>Settings → Plugins → ⚙️ → <em>Install Plugin from Disk</em> → select the <code>.zip</code> file.</p>
+      </div>
+      <div class="step">
+        <strong>3. Restart the IDE</strong>
+        <p>After restart, the Blamely status bar widget and tool window are available.</p>
+      </div>
+    </section>
+
+    <section id="use">
+      <h2>How to use</h2>
+      <ul>
+        <li><strong>Code as usual</strong> — Type (human) or accept AI suggestions (Copilot, Cursor, etc.). The plugin attributes changes and updates the status bar (e.g. <code>🤖 AI: 20 ⓒ 2 ≡ 40% | 👤 Human: 30 ⓒ 3 ≡ 60%</code>).</li>
+        <li><strong>Tool window</strong> — Open <em>View → Tool Windows → Blamely</em> (or click the status bar) to see per-file AI / Human character and line breakdown.</li>
+        <li><strong>Commit</strong> — On commit, the plugin writes a blame snapshot and report into a Git note for that commit. The status bar resets for the next session.</li>
+        <li><strong>Push notes to remote</strong> — Automatic. A git <code>pre-push</code> hook pushes <code>refs/notes/blamely</code> whenever you push (IDE or CLI). If you already have a pre-push hook, Blamely only appends its block (your hook is never overwritten).</li>
+        <li><strong>Tools menu</strong> — <em>Tools → Blamely</em>: Generate Report Now, Show Blame for Current File, Install Git Commit Hook, Show Report for Latest Commit (Git Note), Push AI Notes to Remote.</li>
+      </ul>
+    </section>
+
+    <section id="report">
+      <h2>Report format</h2>
+      <p>Each commit can have a Git note (ref <code>refs/notes/blamely</code>) containing YAML metadata and a <code>blame_snapshot</code> JSON (per-file line blame: author_type, provider, model, prompt, interaction_type). Same layout as the Blamely VS Code extension so you can use one repo in both IDEs with shared attribution.</p>
+    </section>
+
+    <footer>
+      <p>Blamely IntelliJ plugin · <a href="https://github.com/Blamely/Blamely-intellij" target="_blank" rel="noopener">GitHub</a> · Compatible with the <a href="https://blamely.ai/" target="_blank" rel="noopener">Blamely</a> ecosystem · MIT</p>
+    </footer>
+  </div>
+</body>
+</html>
