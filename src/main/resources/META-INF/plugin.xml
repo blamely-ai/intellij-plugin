@@ -41,13 +41,11 @@
   <change-notes><![CDATA[
     <h3>1.0.0</h3>
     <ul>
-      <li><b>Intellij 1.0.0 data layout</b> - Primary blame snapshots and per-branch <code>report.yml</code> under <code>~/.blamely/repos/&lt;stableId&gt;/</code> (same 8-char repo hash as the Intellij extension); optional migration when legacy <code>.git/blamely</code> contained snapshots/trace-style data</li>
-      <li><b>Pre-commit hookRunner.js</b> - Bundled Node runner: tries user-layout copy then <code>.git/blamely/hookRunner.js</code>; shows contribution bars from <code>blamely-detector.ai</code> (<code>node</code> on PATH required)</li>
-      <li><b>blamely-detector.ai</b> - Written under <code>.git/blamely/</code> after commits with <code># ai_lines_deleted</code> / human delete totals for hookRunner</li>
-      <li><b>Repo-local branch sessions</b> - Per-branch state under <code>.git/blamely/&lt;branch&gt;/{open,stash,closed}/</code>; IntelliJ mirrors session metadata under <code>~/.blamely/intellij/repos/&lt;repoKey&gt;/sessions/&lt;id&gt;/blamely.json</code> (not in the project folder); blame snapshots still readable from old <code>.git/blamely/snapshots/...</code> paths during migration</li>
-      <li><b>Session paths</b> - <code>getRepoRoot</code> accepts a file or directory; legacy <code>~/.blamely/session</code> migration unchanged</li>
-      <li><b>Settings</b> - <code>showGutterDecorations</code>, <code>autoInstallHook</code>, <code>reportOnSave</code>, <code>suggestionTimeout</code></li>
-      <li><b>Pre-push</b> - Shell helper still pushes <code>refs/notes/blamely</code></li>
+      <li><b>Data layout</b> — Blame snapshots and per-branch <code>report.yml</code> under <code>~/.blamely/repos/&lt;id&gt;/</code>; optional migration from legacy <code>.git/blamely</code> layouts.</li>
+      <li><b>Hooks</b> — Bundled <code>hookRunner.js</code> + <code>blamely-detector.ai</code> under <code>.git/blamely/</code> (<code>node</code> on PATH when using the JS runner).</li>
+      <li><b>Sessions</b> — Per-branch dirs under <code>.git/blamely/&lt;branch&gt;/</code>; session metadata mirrored under <code>~/.blamely/intellij/</code>.</li>
+      <li><b>Settings</b> — <code>showGutterDecorations</code>, <code>autoInstallHook</code>, <code>reportOnSave</code>, <code>suggestionTimeout</code>.</li>
+      <li><b>Git notes</b> — Pre-push continues to support <code>refs/notes/blamely</code>.</li>
     </ul>
   ]]></change-notes>
 
@@ -57,7 +55,7 @@
   <extensions defaultExtensionNs="com.intellij">
     <applicationService serviceImplementation="ai.blamely.settings.BlamelySettings"/>
     <applicationConfigurable parentId="tools" instance="ai.blamely.settings.BlamelyConfigurable"
-      id="ai.blamely.settings.BlamelyConfigurable" displayName="Blamely" icon="/icons/Blamely16.png"
+      id="ai.blamely.settings.BlamelyConfigurable" displayName="Blamely" icon="/META-INF/pluginIcon.svg"
       groupWeight="-100"/>
     <notificationGroup id="Blamely" displayType="BALLOON"/>
     <projectService serviceImplementation="ai.blamely.core.BlameMapService"/>
@@ -71,7 +69,7 @@
   </extensions>
 
   <actions>
-    <group id="Blamely.MainMenu" text="Blamely" description="AI / Human" icon="/icons/Blamely16.png">
+    <group id="Blamely.MainMenu" text="Blamely" description="AI / Human" icon="/META-INF/pluginIcon.svg">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
       <action id="Blamely.GenerateReport" class="ai.blamely.actions.GenerateReportAction"
           text="Generate Report Now" description="Regenerate report.yml and blame state"/>

@@ -788,8 +788,6 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
         private const val COMMIT_COL_ADDDEL_W = 44
         private const val COMMIT_COL_CODING_W = 76
         private const val COMMIT_COL_BRANCH_W = 92
-        /** Scroll viewport height for commit list (rows scroll inside). */
-        private const val COMMIT_TABLE_VIEWPORT_H = 312
     }
 
     private val refreshAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
@@ -1579,22 +1577,18 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
             commitsRowsPanel.add(row)
         }
 
-        val commitsScroll = JScrollPane(commitsRowsPanel).apply {
-            border = BorderFactory.createEmptyBorder()
-            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
-            verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
-            setColumnHeaderView(tableHeader)
-            columnHeader.background = colBgElevated
-            viewport.background = colBgSecondary
-            background = colBgSecondary
-            preferredSize = java.awt.Dimension(0, COMMIT_TABLE_VIEWPORT_H)
-            minimumSize = java.awt.Dimension(80, 120)
+        /** Commit list + header: single vertical block (no nested JScrollPane) so wheel / scrollbar target the History tab scroll only. */
+        val commitsBlock = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isOpaque = false
             alignmentX = LEFT_ALIGNMENT
+            add(tableHeader)
+            add(commitsRowsPanel)
         }
 
-        /** Header + body share one viewport width so GridBag columns line up (Swing column header otherwise drifts). */
+        /** Header + rows share one width so GridBag columns line up. */
         fun syncCommitHistoryColumnWidths() {
-            val w = commitsScroll.viewport.width.coerceAtLeast(1)
+            val w = maxOf(commitsBlock.width, contentPanel.width).coerceAtLeast(1)
             if (w < 48) return
             val headerH = tableHeader.preferredSize.height.coerceIn(34, 44)
             tableHeader.minimumSize = Dimension(w, headerH)
@@ -1609,17 +1603,12 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
             }
             commitsRowsPanel.revalidate()
             tableHeader.revalidate()
-            commitsScroll.revalidate()
+            commitsBlock.revalidate()
         }
 
-        commitsScroll.viewport.addComponentListener(object : ComponentAdapter() {
+        commitsBlock.addComponentListener(object : ComponentAdapter() {
             override fun componentResized(e: ComponentEvent) {
                 syncCommitHistoryColumnWidths()
-            }
-        })
-        commitsScroll.addComponentListener(object : ComponentAdapter() {
-            override fun componentShown(e: ComponentEvent) {
-                SwingUtilities.invokeLater { syncCommitHistoryColumnWidths() }
             }
         })
 
@@ -1627,11 +1616,7 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
             init {
                 alignmentX = LEFT_ALIGNMENT
                 isOpaque = false
-                add(commitsScroll, BorderLayout.CENTER)
-            }
-            override fun getMaximumSize(): java.awt.Dimension {
-                val pref = preferredSize
-                return java.awt.Dimension(Short.MAX_VALUE.toInt(), pref.height)
+                add(commitsBlock, BorderLayout.CENTER)
             }
             override fun paintComponent(g: java.awt.Graphics) {
                 val g2 = g as java.awt.Graphics2D
