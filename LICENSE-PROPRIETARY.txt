@@ -1,0 +1,37 @@
+Proprietary license — not open source
+
+Copyright (c) [YEAR] [COPYRIGHT HOLDER]. All rights reserved.
+
+The Software (this software and its documentation) is proprietary and
+confidential. It is licensed, not sold. [COPYRIGHT HOLDER] retains all rights
+not expressly granted.
+
+Unless you have a separate written agreement with [COPYRIGHT HOLDER] that
+explicitly grants broader rights, you may not, and you agree not to allow any
+third party to:
+
+  • copy, modify, adapt, translate, or create derivative works of the Software;
+  • distribute, publish, sublicense, rent, lease, loan, sell, or otherwise
+    transfer or make available the Software or any portion of it to third
+    parties;
+  • reverse engineer, decompile, disassemble, or otherwise attempt to derive
+    source code or underlying ideas from the Software, except to the limited
+    extent mandatory law expressly forbids such restriction;
+  • use the Software for any purpose beyond what your written agreement with
+    [COPYRIGHT HOLDER] permits;
+  • remove, obscure, or alter any proprietary notices on the Software.
+
+Any limited license granted to you exists only as set forth in your written
+agreement. No grant is implied by this file alone.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+[COPYRIGHT HOLDER] OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--- Replace before use ---
+[YEAR]           e.g. 2026
+[COPYRIGHT HOLDER]  your legal entity name

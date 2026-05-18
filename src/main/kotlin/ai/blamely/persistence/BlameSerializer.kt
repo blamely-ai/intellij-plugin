@@ -6,8 +6,10 @@ import ai.blamely.git.GitUtils
 import ai.blamely.utils.BlamelyLogger
 import ai.blamely.utils.Platform
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.intellij.openapi.project.Project
 import java.io.File
+import java.util.Locale
 
 /**
  * Save/load per-file blame: primary location **`~/.blamely/repos/<id>/snapshots/<branch>/`**
@@ -16,7 +18,7 @@ import java.io.File
  */
 object BlameSerializer {
 
-    private val gson = Gson()
+    private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 
     /** Primary snapshot dir (~/.blamely/repos/…). */
     private fun userSnapshotsDir(project: Project, explicitBranch: String? = null): File? {
@@ -53,7 +55,8 @@ object BlameSerializer {
         try {
             val snapshots = userSnapshotsDir(project) ?: return
             if (!snapshots.exists()) snapshots.mkdirs()
-            val encoded = Platform.encodeFilePath(filePath) + ".blame.json"
+            val key = Platform.normalizeBlamePersistenceKey(filePath, project.basePath)
+            val encoded = Platform.encodeFilePath(key) + ".blame.json"
             val target = File(snapshots, encoded)
             target.writeText(serialize(entries))
             BlamelyLogger.info("Saved blame state to ${target.absolutePath}")
@@ -62,8 +65,32 @@ object BlameSerializer {
         }
     }
 
+    /** Remove persisted sidecars for a file (SCM / local history rollback — do not leave empty `[ ]` snapshots). */
+    fun removeSnapshot(project: Project, filePath: String) {
+        try {
+            val key = Platform.normalizeBlamePersistenceKey(filePath, project.basePath)
+            val encodedBlame = Platform.encodeFilePath(key) + ".blame.json"
+            val encodedPlain = Platform.encodeFilePath(key) + ".json"
+            val dirs = listOfNotNull(
+                userSnapshotsDir(project),
+                legacyFlatSnapshots(project),
+                legacyNestedSnapshots(project),
+                gitSnapshotsDir(project)
+            ).distinct()
+            for (dir in dirs) {
+                if (!dir.isDirectory) continue
+                File(dir, encodedBlame).takeIf { it.isFile }?.delete()
+                File(dir, encodedPlain).takeIf { it.isFile }?.delete()
+            }
+            BlamelyLogger.info("Removed persisted blame snapshot(s) for $filePath")
+        } catch (e: Exception) {
+            BlamelyLogger.warn("Could not remove blame snapshot for $filePath: ${e.message}")
+        }
+    }
+
     fun load(project: Project, filePath: String): List<LineBlame> {
-        val encoded = Platform.encodeFilePath(filePath) + ".blame.json"
+        val key = Platform.normalizeBlamePersistenceKey(filePath, project.basePath)
+        val encoded = Platform.encodeFilePath(key) + ".blame.json"
         try {
             userSnapshotsDir(project)?.let { dir ->
                 val t = File(dir, encoded)
@@ -85,6 +112,29 @@ object BlameSerializer {
             BlamelyLogger.warn("Could not load blame state for $filePath: ${e.message}")
         }
         return emptyList()
+    }
+
+    /** Load *.blame.json from an absolute file (e.g. under closed/<sha>/snapshots/). */
+    fun loadSnapshotFile(f: File): List<LineBlame> {
+        if (!f.isFile) return emptyList()
+        return try {
+            parse(f.readText())
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Prefer repo-relative encoded name, then project-relative (multi-root parity with VS Code).
+     */
+    fun resolveArchivedSnapshotFile(closedDir: File?, repoRel: String, projectRel: String): File? {
+        if (closedDir == null || !closedDir.isDirectory) return null
+        val r = repoRel.replace('\\', '/')
+        val p = projectRel.replace('\\', '/')
+        val c1 = File(closedDir, Platform.encodeFilePath(r) + ".blame.json")
+        if (c1.isFile) return c1
+        val c2 = File(closedDir, Platform.encodeFilePath(p) + ".blame.json")
+        return if (c2.isFile) c2 else null
     }
 
     fun loadAll(project: Project): Map<String, List<LineBlame>> {
@@ -117,17 +167,19 @@ object BlameSerializer {
         return memory
     }
 
-    /** Delete all persisted blame snapshots for the current branch (primary location). */
+    /** Delete all persisted blame snapshots for the current branch (primary + legacy dirs). */
     fun clearCurrentBranchSnapshots(project: Project) {
         try {
-            val snapshots = userSnapshotsDir(project) ?: return
-            if (!snapshots.isDirectory) return
-            snapshots.listFiles()?.filter {
-                it.name.endsWith(".blame.json") || it.name == "session.json"
-            }?.forEach { it.delete() }
-            gitSnapshotsDir(project)?.takeIf { it.isDirectory }?.listFiles()?.filter {
-                it.name.endsWith(".blame.json") || it.name == "session.json"
-            }?.forEach { it.delete() }
+            val dirs = listOfNotNull(
+                userSnapshotsDir(project),
+                legacyFlatSnapshots(project),
+                legacyNestedSnapshots(project),
+                gitSnapshotsDir(project)
+            ).distinct()
+            for (snapshots in dirs) {
+                if (!snapshots.isDirectory) continue
+                snapshots.listFiles()?.filter { it.name.endsWith(".blame.json") }?.forEach { it.delete() }
+            }
         } catch (e: Exception) {
             BlamelyLogger.warn("Could not clear branch snapshots: ${e.message}")
         }
@@ -185,7 +237,8 @@ object BlameSerializer {
         data.forEach { (filePath, entries) ->
             if (entries.isEmpty()) return@forEach
             try {
-                val encoded = Platform.encodeFilePath(filePath) + ".blame.json"
+                val key = Platform.normalizeBlamePersistenceKey(filePath, project.basePath)
+                val encoded = Platform.encodeFilePath(key) + ".blame.json"
                 File(snapshots, encoded).writeText(serialize(entries))
             } catch (e: Exception) {
                 BlamelyLogger.error("Failed to save blame for $filePath to branch $branch", e)
@@ -195,25 +248,51 @@ object BlameSerializer {
     }
 
     private fun serialize(entries: List<LineBlame>): String {
-        val sb = StringBuilder("[\n")
-        entries.forEachIndexed { i, e ->
-            if (i > 0) sb.append(",\n")
-            sb.append("  {\n")
-            sb.append("    \"line_number\": ${e.lineNumber},\n")
-            sb.append("    \"author_type\": \"${e.authorType.name.lowercase()}\",\n")
-            sb.append("    \"provider\": ${e.provider?.let { "\"${it.replace("\"", "\\\"")}\"" } ?: "null"},\n")
-            sb.append("    \"timestamp\": \"${e.timestamp.replace("\"", "\\\"")}\",\n")
-            sb.append("    \"commit_sha\": ${e.commitSha?.let { "\"$it\"" } ?: "null"},\n")
-            sb.append("    \"model\": ${e.model?.let { "\"${it.replace("\"", "\\\"")}\"" } ?: "null"},\n")
-            sb.append("    \"prompt\": ${e.prompt?.let { "\"${it.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\"" } ?: "null"},\n")
-            sb.append("    \"interaction_type\": ${e.interactionType?.let { "\"${it.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\"" } ?: "null"},\n")
-            sb.append("    \"ai_chars\": ${e.aiChars},\n")
-            sb.append("    \"human_chars\": ${e.humanChars},\n")
-            sb.append("    \"coding_type\": \"${e.codingType.name.lowercase()}\"\n")
-            sb.append("  }")
+        val arr = com.google.gson.JsonArray()
+        for (e in entries) {
+            arr.add(lineBlameToJsonObject(e))
         }
-        sb.append("\n]")
-        return sb.toString()
+        return gson.toJson(arr)
+    }
+
+    private fun normalizeAiInteractionTypeForDisk(raw: String?): String {
+        val t = raw?.trim().orEmpty()
+        if (t.isEmpty()) return "completion"
+        val lower = t.lowercase(Locale.ROOT)
+        if (lower == "ai_cli_trace" || lower.startsWith("blamely-cli-")) return "cli"
+        if (lower == "chat_panel" || lower == "panel") return "panel"
+        if (lower == "chat_inline" || lower == "chat") return "chat"
+        if (lower == "completion") return "completion"
+        if (lower.contains("cli") || lower.contains("trace")) return "cli"
+        if (lower.contains("panel") || (lower.contains("chat") && lower.contains("workbench"))) return "panel"
+        if (lower.contains("inline") || lower.contains("ghost")) return "chat"
+        return "completion"
+    }
+
+    /** Same coarse buckets as VS Code `blameJsonPersist.ts`: human → JsonNull; AI → completion | chat | panel | cli. */
+    private fun interactionTypeForBlameJson(e: LineBlame): com.google.gson.JsonElement {
+        if (e.authorType == LineBlame.AuthorType.HUMAN) {
+            return com.google.gson.JsonNull.INSTANCE
+        }
+        return com.google.gson.JsonPrimitive(normalizeAiInteractionTypeForDisk(e.interactionType))
+    }
+
+    private fun lineBlameToJsonObject(e: LineBlame): com.google.gson.JsonObject {
+        val o = com.google.gson.JsonObject()
+        o.addProperty("lineNumber", e.lineNumber)
+        o.addProperty("authorType", if (e.authorType == LineBlame.AuthorType.AI) "AI" else "HUMAN")
+        o.addProperty("changeType", e.changeType.name)
+        if (e.model != null && e.model!!.isNotBlank()) o.addProperty("model", e.model)
+        o.addProperty("codingType", e.codingType.name)
+        o.add("interactionType", interactionTypeForBlameJson(e))
+        if (e.timestamp.isNotEmpty()) o.addProperty("timestamp", e.timestamp)
+        if (e.commitSha != null && e.commitSha!!.isNotBlank()) o.addProperty("commitSha", e.commitSha)
+        if (e.prompt != null && e.prompt!!.isNotBlank()) o.addProperty("prompt", e.prompt)
+        if (e.ide != null && e.ide!!.isNotBlank()) o.addProperty("ide", e.ide)
+        if (e.aiChars != 0) o.addProperty("aiChars", e.aiChars)
+        if (e.humanChars != 0) o.addProperty("humanChars", e.humanChars)
+        e.oldLineNumber?.let { o.addProperty("oldLineNumber", it) }
+        return o
     }
 
     private fun parse(json: String): List<LineBlame> {
@@ -225,35 +304,76 @@ object BlameSerializer {
                 val e = arr.get(i)
                 if (!e.isJsonObject) return@mapNotNull null
                 val o = e.asJsonObject
-                fun num(key: String): Int = run {
-                    val p = o.get(key)?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive ?: return@run 0
-                    try {
-                        p.asInt
-                    } catch (_: Exception) {
-                        0
+                fun prim(key: String) = o.get(key)?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive
+
+                fun num(vararg keys: String): Int {
+                    for (k in keys) {
+                        val p = prim(k) ?: continue
+                        try {
+                            return p.asInt
+                        } catch (_: Exception) {
+                            try {
+                                return p.asString.toInt()
+                            } catch (_: Exception) {
+                                continue
+                            }
+                        }
                     }
+                    return 0
                 }
-                fun str(key: String): String? = o.get(key)?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive?.asString
+
+                fun str(vararg keys: String): String? {
+                    for (k in keys) {
+                        val p = prim(k) ?: continue
+                        if (p.isString) return p.asString
+                    }
+                    return null
+                }
+
+                val authorRaw = str("authorType", "author_type").orEmpty()
+                val authorType = when (authorRaw.uppercase()) {
+                    "AI" -> LineBlame.AuthorType.AI
+                    else -> LineBlame.AuthorType.HUMAN
+                }
+                var aiChars = num("aiChars", "ai_chars")
+                var humanChars = num("humanChars", "human_chars")
+                if (aiChars == 0 && humanChars == 0) {
+                    if (authorType == LineBlame.AuthorType.AI) aiChars = 1 else humanChars = 1
+                }
+
+                val codingRaw = str("codingType", "coding_type").orEmpty()
+                val codingType = when (codingRaw.uppercase()) {
+                    "BULK_INSERT", "BULKINSERT" -> LineBlame.CodingType.BULK_INSERT
+                    "bulk_insert" -> LineBlame.CodingType.BULK_INSERT
+                    "FILE_ADD", "file_add", "FILE_MOVE", "file_move" -> LineBlame.CodingType.TYPING
+                    else -> LineBlame.CodingType.TYPING
+                }
+
+                val changeRaw = str("changeType", "change_type").orEmpty()
+                val changeType = when (changeRaw.uppercase()) {
+                    "DELETE" -> LineBlame.ChangeType.DELETE
+                    else -> LineBlame.ChangeType.ADD
+                }
+
+                val newLn = prim("newLineNumber") ?: prim("new_line_number")
+                val oldLn = prim("oldLineNumber") ?: prim("old_line_number")
+
                 LineBlame(
-                    lineNumber = num("line_number"),
-                    authorType = when (str("author_type").orEmpty()) {
-                        "ai" -> LineBlame.AuthorType.AI
-                        else -> LineBlame.AuthorType.HUMAN
-                    },
-                    provider = str("provider"),
+                    lineNumber = num("lineNumber", "line_number"),
+                    authorType = authorType,
+                    provider = null,
                     timestamp = str("timestamp") ?: "",
-                    commitSha = str("commit_sha"),
+                    commitSha = str("commitSha", "commit_sha"),
                     model = str("model"),
                     prompt = str("prompt"),
-                    interactionType = str("interaction_type"),
-                    aiChars = num("ai_chars"),
-                    humanChars = num("human_chars"),
-                    codingType = when (str("coding_type").orEmpty()) {
-                        "bulk_insert" -> LineBlame.CodingType.BULK_INSERT
-                        "file_add" -> LineBlame.CodingType.TYPING
-                        "file_move" -> LineBlame.CodingType.TYPING
-                        else -> LineBlame.CodingType.TYPING
-                    }
+                    interactionType = str("interactionType", "interaction_type"),
+                    aiChars = aiChars,
+                    humanChars = humanChars,
+                    changeType = changeType,
+                    newLineNumber = newLn?.takeIf { it.isNumber }?.asInt,
+                    oldLineNumber = oldLn?.takeIf { it.isNumber }?.asInt,
+                    codingType = codingType,
+                    ide = str("ide", "ide_label")
                 )
             }
         } catch (_: Exception) {

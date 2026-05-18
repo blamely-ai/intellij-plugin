@@ -341,22 +341,23 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         }
         branchSessionsInner.add(branchHeader)
         branchSessionsInner.add(Box.createVerticalStrut(4))
-        val openCount = sessions.count { it.status == HomeBranchSession.STATUS_OPEN || it.status == HomeBranchSession.STATUS_STASHED }
-        val stashCount = sessions.sumOf { it.stashLinkCount }
-        val closedCount = sessions.count { it.status == HomeBranchSession.STATUS_CLOSED }
         val sessionsTruncated = sessionsAll.size > sessions.size
         val sessionsTitle = buildString {
-            append("Sessions")
-            if (sessionsTruncated) append(" (latest ").append(MAX_BRANCH_SESSIONS_ON_CHANGES_TAB).append(")")
-            if (openCount > 0) append(" · ").append(openCount).append(" open")
-            if (stashCount > 0) append(" · ").append(stashCount).append(" stash")
-            if (closedCount > 0) append(" · ").append(closedCount).append(" recent")
+            append("Trace archives")
+            if (sessionsTruncated) {
+                append(" (latest ").append(MAX_BRANCH_SESSIONS_ON_CHANGES_TAB).append(')')
+            }
+            if (sessions.isNotEmpty()) {
+                append(" · ").append(sessions.size).append(" commit(s)")
+            }
         }
         branchSessionsInner.add(groupRow(sessionsTitle, sessions.size))
         when {
-            repoRoot == null -> branchSessionsInner.add(mutedRow("No Git repository — branch sessions are not available."))
+            repoRoot == null -> branchSessionsInner.add(mutedRow("No Git repository — trace archives are not available."))
             sessions.isEmpty() -> branchSessionsInner.add(
-                mutedRow("No sessions for this branch yet. They appear when you edit with Blamely tracking active.")
+                mutedRow(
+                    "No archived traces yet. After each commit, files under trace/ are moved to closed/<commit>/trace/ (shared with blamely-cli)."
+                )
             )
             else -> {
                 for (s in sessions) {
@@ -364,7 +365,7 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
                 }
                 if (sessionsTruncated) {
                     branchSessionsInner.add(
-                        mutedRow("+ ${sessionsAll.size - sessions.size} older session(s) — open History for committed reports.")
+                        mutedRow("+ ${sessionsAll.size - sessions.size} older archive(s) — open History for committed reports.")
                     )
                 }
             }

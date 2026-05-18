@@ -59,6 +59,9 @@ private fun gutterTooltipHtml(plain: String): String {
  *
  * **Icon rule** (same threshold as [ai.blamely.core.BlameMap]): compare `aiChars` vs `humanChars` on each line;
  * AI brain icon when AI chars ≥ human chars, otherwise the human (user) icon — so mixed edits flip the gutter when dominance changes.
+ *
+ * Rows with [LineBlame.commitSha] set still decorate (CLI snapshots record HEAD at trace end; filtering only
+ * uncommitted lines would hide them). [LineBlame.ChangeType.DELETE] rows are skipped.
  */
 class BlameDecorations(private val project: Project) : Disposable {
 
@@ -142,7 +145,7 @@ class BlameDecorations(private val project: Project) : Disposable {
         val path = toProjectRelativePath(file, basePath) ?: return
 
         val blameService = project.getService(BlameMapService::class.java) ?: return
-        val raw = blameService.blameMap.getBlame(path).filter { it.commitSha == null }
+        val raw = blameService.blameMap.getBlame(path).filter { it.changeType != LineBlame.ChangeType.DELETE }
         if (raw.isEmpty()) return
 
         val byLine = LinkedHashMap<Int, LineBlame>()
@@ -255,15 +258,8 @@ class BlameDecorations(private val project: Project) : Disposable {
                     }
                     appendLine("Author: AI")
                     appendLine("Changed: $changed")
-                    val provider = entry.provider?.takeIf { it.isNotBlank() }
-                    val model = entry.model?.takeIf { it.isNotBlank() }
-                    when {
-                        provider != null && model != null -> appendLine("Assistant: $provider · $model")
-                        provider != null -> appendLine("Assistant: $provider")
-                        model != null -> appendLine("Assistant: $model")
-                    }
-                    entry.interactionType?.takeIf { it.isNotBlank() }?.let {
-                        appendLine("Interaction: $it")
+                    entry.model?.takeIf { it.isNotBlank() }?.let {
+                        appendLine("Assistant: $it")
                     }
                     appendLine()
                     val prompt = entry.prompt
@@ -271,7 +267,6 @@ class BlameDecorations(private val project: Project) : Disposable {
                         appendLine("Prompt: ${prompt.take(120)}${if (prompt.length > 120) "…" else ""}")
                     }
                     appendLine(stats)
-                    commitLine?.let { appendLine(it) }
                 }
                 LineBlame.AuthorType.HUMAN -> buildString {
                     if (!relativePath.isNullOrBlank()) {

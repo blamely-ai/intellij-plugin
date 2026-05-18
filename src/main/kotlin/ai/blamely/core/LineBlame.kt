@@ -18,7 +18,9 @@ data class LineBlame(
     var changeType: ChangeType = ChangeType.ADD,
     var newLineNumber: Int? = null,
     var oldLineNumber: Int? = null,
-    var codingType: CodingType = CodingType.TYPING
+    var codingType: CodingType = CodingType.TYPING,
+    /** IDE / CLI label (e.g. full product name, `ai_cli`). Written to *.blame.json. */
+    var ide: String? = null
 ) {
     enum class AuthorType { HUMAN, AI }
     enum class ChangeType { ADD, DELETE }

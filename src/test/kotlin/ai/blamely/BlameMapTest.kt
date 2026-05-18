@@ -43,6 +43,20 @@ class BlameMapTest {
     }
 
     @Test
+    fun `getSummary includes snapshot lines with commitSha`() {
+        val map = BlameMap()
+        val entries = listOf(
+            LineBlame(1, LineBlame.AuthorType.AI, timestamp = "t", commitSha = "deadbeef", aiChars = 1, humanChars = 0),
+            LineBlame(2, LineBlame.AuthorType.HUMAN, timestamp = "t", commitSha = "deadbeef", aiChars = 0, humanChars = 1)
+        )
+        map.setFileBlame("f.kt", entries)
+        val summary = map.getSummary()
+        assertEquals(2, summary.totalLines)
+        assertEquals(1, summary.aiLines)
+        assertEquals(1, summary.humanLines)
+    }
+
+    @Test
     fun `getSummary counts ai and human lines`() {
         val map = BlameMap()
         map.setAttribute("a.kt", 1, 2, LineBlame.AuthorType.AI, charsInserted = 20)
@@ -196,13 +210,13 @@ class BlameMapTest {
     }
 
     @Test
-    fun `tie between ai and human chars favors human`() {
+    fun `tie between ai and human chars favors AI`() {
         val map = BlameMap()
         map.setAttribute("f.kt", 1, 1, LineBlame.AuthorType.AI, charsInserted = 10)
         map.setAttribute("f.kt", 1, 1, LineBlame.AuthorType.HUMAN, charsInserted = 10)
         val blame = map.getBlame("f.kt")
         assertEquals(1, blame.size)
-        assertEquals(LineBlame.AuthorType.HUMAN, blame[0].authorType)
+        assertEquals(LineBlame.AuthorType.AI, blame[0].authorType)
     }
 
     @Test
@@ -215,13 +229,13 @@ class BlameMapTest {
     }
 
     @Test
-    fun `setAttribute with TYPING does not overwrite existing non-TYPING codingType`() {
+    fun `setAttribute with TYPING after BULK_INSERT sets codingType to TYPING`() {
         val map = BlameMap()
         map.setAttribute("f.kt", 1, 1, LineBlame.AuthorType.HUMAN, charsInserted = 10, codingType = LineBlame.CodingType.BULK_INSERT)
         map.setAttribute("f.kt", 1, 1, LineBlame.AuthorType.HUMAN, charsInserted = 5, codingType = LineBlame.CodingType.TYPING)
         val blame = map.getBlame("f.kt")
         assertEquals(1, blame.size)
-        assertEquals(LineBlame.CodingType.BULK_INSERT, blame[0].codingType)
+        assertEquals(LineBlame.CodingType.TYPING, blame[0].codingType)
     }
 
     @Test

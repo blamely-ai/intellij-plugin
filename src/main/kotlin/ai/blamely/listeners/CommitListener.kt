@@ -15,15 +15,20 @@ import com.intellij.openapi.wm.WindowManager
 import com.intellij.openapi.wm.ToolWindowManager
 import ai.blamely.ui.BlamelyStatusBarWidget
 import com.intellij.util.Alarm
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
+import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Listens for new Git commits and: sets commit_sha on blame, generates report.yml,
- * writes blamely-detector.ai for hookRunner.js, attaches git note, clears on-disk snapshots
- * under ~/.blamely/repos/… (VS Code layout).
+ * Listens for new Git commits and: writes logs/commits/<sha>/report.yml, attaches git notes
+ * (YAML prefix from existing ~/.blamely/.../report.yml when present, else freshly generated),
+ * attaches git notes, clears on-disk snapshots.
  * Works with IntelliJ Git integration (Git4Idea) and polling fallback.
- * Uses Alarm instead of Thread.sleep to avoid holding pooled threads and reduce UI freeze risk.
+ * Git hook is not required: this listener uses the Git integration / polling, shows progress,
+ * archives `*.blame.json` to `logs/commits/<commitSha>/snapshots/`, builds the report from those snapshots,
  */
 class CommitListener(private val project: Project) {
 
@@ -129,6 +134,14 @@ class CommitListener(private val project: Project) {
     }
 
     fun handlePostCommit(commitSha: String) {
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Blamely: post-commit report", false) {
+            override fun run(indicator: ProgressIndicator) {
+                runPostCommitWithProgress(commitSha, indicator)
+            }
+        })
+    }
+
+    private fun runPostCommitWithProgress(commitSha: String, indicator: ProgressIndicator) {
         val repoRoot = GitUtils.getRepoRoot(project)
         if (repoRoot == null) return
 
@@ -138,6 +151,13 @@ class CommitListener(private val project: Project) {
         val blameMap = blameService.blameMap
         val traceStore = traceService.traceStore
 
+        indicator.text = "Archiving blame snapshots…"
+        val branchName = GitUtils.getBranchForCwd(repoRoot)
+        BlamelyUserRepoPaths.archiveBranchBlameSnapshotsToClosed(File(repoRoot), branchName, commitSha)
+        val closedDir = BlamelyUserRepoPaths.closedCommitSnapshotsDir(File(repoRoot), branchName, commitSha)
+        val legacyClosedDir = BlamelyUserRepoPaths.legacyClosedCommitSnapshotsDir(File(repoRoot), branchName, commitSha)
+
+        indicator.text = "Building report from blame.json…"
         var changedRepoRelative = GitUtils.getFilesChangedInCommit(repoRoot, commitSha).toSet()
         if (changedRepoRelative.isEmpty()) {
             changedRepoRelative = GitUtils.getFilesChangedInCommit(repoRoot, commitSha).toSet()
@@ -182,31 +202,75 @@ class CommitListener(private val project: Project) {
             val trackerBlame = blameMap.getBlame(projectRel)
             val trackerByLine = trackerBlame.associateBy { it.lineNumber }
             val entries = mutableListOf<ai.blamely.core.LineBlame>()
+            val repoPathForSnap = projectRelToRepoPath[projectRel] ?: projectRel
+            val snapFile = BlameSerializer.resolveArchivedSnapshotFile(closedDir, repoPathForSnap, projectRel)
+                ?: BlameSerializer.resolveArchivedSnapshotFile(legacyClosedDir, repoPathForSnap, projectRel)
+            val diskByLine: Map<Int, ai.blamely.core.LineBlame> =
+                if (snapFile != null) {
+                    BlameSerializer.loadSnapshotFile(snapFile)
+                        .filter { it.changeType == ai.blamely.core.LineBlame.ChangeType.ADD }
+                        .associateBy { it.lineNumber }
+                } else {
+                    emptyMap()
+                }
 
             for (line in stats.addedLines.sorted()) {
+                val disk = diskByLine[line]
                 val tracked = trackerByLine[line]
-                val authorType = tracked?.authorType ?: ai.blamely.core.LineBlame.AuthorType.HUMAN
-                val provider = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) (tracked?.provider ?: "unknown") else null
-                var rawModel = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) tracked?.model else null
+                val authorType = disk?.authorType ?: tracked?.authorType ?: ai.blamely.core.LineBlame.AuthorType.HUMAN
+                var rawModel = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) {
+                    disk?.model ?: tracked?.model
+                } else {
+                    null
+                }
                 if (authorType == ai.blamely.core.LineBlame.AuthorType.AI && (rawModel.isNullOrBlank() || rawModel == "unknown") && fallbackModel != null) {
                     rawModel = fallbackModel
                 }
-                val model = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) (ai.blamely.utils.AiContextExtractor.sanitizeModelForReport(rawModel) ?: "unknown") else null
-                val prompt = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) tracked?.prompt else null
-                entries.add(ai.blamely.core.LineBlame(
-                    lineNumber = line,
-                    authorType = authorType,
-                    provider = provider,
-                    model = model,
-                    prompt = prompt,
-                    timestamp = ts,
-                    commitSha = commitSha,
-                    aiChars = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) 1 else 0,
-                    humanChars = if (authorType == ai.blamely.core.LineBlame.AuthorType.HUMAN) 1 else 0,
-                    changeType = ai.blamely.core.LineBlame.ChangeType.ADD,
-                    newLineNumber = line,
-                    oldLineNumber = null
-                ))
+                val model = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) {
+                    ai.blamely.utils.AiContextExtractor.sanitizeModelForReport(rawModel) ?: "unknown"
+                } else {
+                    null
+                }
+                val prompt = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) {
+                    disk?.prompt ?: tracked?.prompt
+                } else {
+                    null
+                }
+                val interaction = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) {
+                    disk?.interactionType ?: tracked?.interactionType
+                } else {
+                    null
+                }
+                val aiChars = if (authorType == ai.blamely.core.LineBlame.AuthorType.AI) {
+                    (disk?.aiChars?.takeIf { it > 0 } ?: tracked?.aiChars?.takeIf { it > 0 } ?: 1)
+                } else {
+                    0
+                }
+                val humanChars = if (authorType == ai.blamely.core.LineBlame.AuthorType.HUMAN) {
+                    (disk?.humanChars?.takeIf { it > 0 } ?: tracked?.humanChars?.takeIf { it > 0 } ?: 1)
+                } else {
+                    0
+                }
+                val codingType = disk?.codingType ?: tracked?.codingType ?: ai.blamely.core.LineBlame.CodingType.TYPING
+                entries.add(
+                    ai.blamely.core.LineBlame(
+                        lineNumber = line,
+                        authorType = authorType,
+                        provider = null,
+                        model = model,
+                        prompt = prompt,
+                        interactionType = interaction,
+                        timestamp = ts,
+                        commitSha = commitSha,
+                        aiChars = aiChars,
+                        humanChars = humanChars,
+                        changeType = ai.blamely.core.LineBlame.ChangeType.ADD,
+                        newLineNumber = line,
+                        oldLineNumber = null,
+                        codingType = codingType,
+                        ide = disk?.ide ?: tracked?.ide
+                    )
+                )
             }
 
             for (oldLine in stats.deletedLines.sorted()) {
@@ -215,7 +279,7 @@ class CommitListener(private val project: Project) {
                 entries.add(ai.blamely.core.LineBlame(
                     lineNumber = oldLine,
                     authorType = authorType,
-                    provider = if (deletedByAi) "github-copilot" else null,
+                    provider = null,
                     model = if (deletedByAi) "unknown" else null,
                     timestamp = ts,
                     commitSha = commitSha,
@@ -230,7 +294,11 @@ class CommitListener(private val project: Project) {
             if (entries.isNotEmpty()) {
                 val filePath = projectRelToRepoPath[projectRel] ?: projectRel
                 entireBlame[filePath] = entries.sortedBy { it.newLineNumber ?: it.oldLineNumber ?: 0 }
-                val aiAdded = stats.addedLines.count { l -> trackerByLine[l]?.authorType == ai.blamely.core.LineBlame.AuthorType.AI }
+                val aiAdded = stats.addedLines.count { l ->
+                    val d = diskByLine[l]
+                    val t = trackerByLine[l]
+                    (d?.authorType ?: t?.authorType) == ai.blamely.core.LineBlame.AuthorType.AI
+                }
                 val humanAdded = stats.addedCount - aiAdded
                 val aiDeleted = stats.deletedLines.count { blameMap.wasLineDeletedByAi(projectRel, it) }
                 val humanDeleted = stats.deletedCount - aiDeleted
@@ -246,12 +314,21 @@ class CommitListener(private val project: Project) {
             firstStartCodingTimeMs = blameMap.firstStartCodingTimeMs,
             timeWaitingForAiMs = blameMap.totalTimeWaitingForAiMs
         )
-        val yamlReport = ReportYaml.generateFromBlameSnapshot(project, entireBlame, traceStore, commitSha, "IntelliJ", reportMetrics)
+        indicator.text = "Writing report and git note…"
+        val generatedReport = ReportYaml.generateFromBlameSnapshot(project, entireBlame, traceStore, commitSha, "IntelliJ", reportMetrics)
+        val branchForReport = GitUtils.getBranchForCwd(repoRoot)
+        val noteYamlPrefix =
+            try {
+                BlamelyUserRepoPaths.reportYamlFile(File(repoRoot), branchForReport)
+                    ?.takeIf { it.isFile && it.length() > 0 }
+                    ?.readText(Charsets.UTF_8)
+                    ?.trimEnd()
+                    ?.takeIf { it.isNotEmpty() }
+            } catch (_: Exception) {
+                null
+            } ?: generatedReport.trimEnd()
         val snapshotYaml = ReportYaml.blameSnapshotToYaml(entireBlame)
-        val noteContent = "${yamlReport}blames:\n$snapshotYaml"
-
-        val hookTotals = ReportYaml.computeHookTotalsFromBlameSnapshot(entireBlame)
-        ReportYaml.writeBlamelyDetectorAi(project, yamlReport, hookTotals)
+        val noteContent = "$noteYamlPrefix\n---\nblames:\n$snapshotYaml"
 
         if (entireBlame.isEmpty()) {
             log.info("Blamely: [COMMIT] no blame for changed files (${changedProjectRelative.size} files); attaching note with empty blames.")
@@ -260,23 +337,19 @@ class CommitListener(private val project: Project) {
         }
         log.info("Blamely: [COMMIT] adding git note from repo root: $repoRoot")
 
-        // Per-branch report.yml under `.git/blamely/<sanitized-branch>/report.yml`. We
-        // write the report (without the blame snapshot block) so the file mirrors what
-        // the VS Code extension keeps per branch and survives a `git checkout`.
+        // Per-commit report under logs/commits/<sha>/report.yml only. Do not overwrite ~/.blamely/.../report.yml
+        // or .git/blamely/.../report.yml on commit — users may maintain those; git notes use them when present.
         try {
-            val gitDirPath = GitUtils.getGitDirForCwd(repoRoot)
-            val branch = GitUtils.getBranchForCwd(repoRoot)
-            if (gitDirPath != null) {
-                val target = ai.blamely.persistence.BlamelyRepoPaths.reportFile(java.io.File(gitDirPath), branch)
-                target.parentFile?.mkdirs()
-                target.writeText(yamlReport)
-            }
-            BlamelyUserRepoPaths.reportYamlFile(java.io.File(repoRoot), branch)?.let { userReport ->
-                userReport.parentFile?.mkdirs()
-                userReport.writeText(yamlReport, Charsets.UTF_8)
+            BlamelyUserRepoPaths.commitLogDir(File(repoRoot), commitSha)?.let { logDir ->
+                try {
+                    logDir.mkdirs()
+                    File(logDir, "report.yml").writeText(generatedReport, Charsets.UTF_8)
+                } catch (e: Exception) {
+                    log.warn("Blamely: commit log report.yml: ${e.message}")
+                }
             }
         } catch (e: Exception) {
-            log.warn("Blamely: per-branch report.yml write failed: ${e.message}")
+            log.warn("Blamely: commit log report.yml write failed: ${e.message}")
         }
 
         var commitNoteAttached = GitUtils.addGitNote(repoRoot, commitSha, noteContent)
@@ -298,13 +371,32 @@ class CommitListener(private val project: Project) {
         project.getService(BranchSessionLifecycleService::class.java)
             ?.closeSessionAfterCommit(commitSha, commitNoteAttached)
 
-        // Clear snapshots on disk (safe from any thread)
+        // Clear branch working snapshots, then restore full-file maps from commit archive (git notes are diff-only).
         BlameSerializer.clearCurrentBranchSnapshots(project)
+        val restoredFromArchive = BlamelyUserRepoPaths.restoreCommitSnapshotsToBranchDir(
+            File(repoRoot),
+            branchName,
+            commitSha,
+        )
+        if (restoredFromArchive) {
+            log.info("Blamely: [COMMIT] restored full-file blame snapshots from archive for ${commitSha.take(8)}")
+        }
         // Schedule UI update on EDT without blocking this thread (avoids deadlock when EDT is stuck)
         ApplicationManager.getApplication().invokeLater outer@ {
             if (project.isDisposed) return@outer
             blameService.commitSuppressUntil = System.currentTimeMillis() + 5000
             blameMap.clear()
+            val diskBlame = BlameSerializer.loadAll(project)
+            diskBlame.forEach { (path, entries) ->
+                if (entries.isNotEmpty()) {
+                    blameMap.setFileBlame(path, entries)
+                }
+            }
+            val sessionFromDisk = BlameSerializer.loadSession(project)
+            blameMap.restoreSessionMetrics(
+                sessionFromDisk.first_start_coding_time_ms,
+                sessionFromDisk.total_time_waiting_for_ai_ms,
+            )
             WindowManager.getInstance().getStatusBar(project)?.updateWidget(BlamelyStatusBarWidget.WIDGET_ID)
             project.messageBus.syncPublisher(ai.blamely.core.BlameUpdateListener.TOPIC).blameUpdated()
             val tw = ToolWindowManager.getInstance(project).getToolWindow("Blamely")

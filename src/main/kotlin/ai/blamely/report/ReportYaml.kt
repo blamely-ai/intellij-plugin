@@ -8,6 +8,7 @@ import ai.blamely.utils.Platform
 import com.google.gson.Gson
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import java.io.File
 
 /**
  * Metrics for the report: first start coding time, time waiting for AI.
@@ -17,7 +18,7 @@ data class ReportMetrics(
     val timeWaitingForAiMs: Long = 0L
 )
 
-/** Aggregated counts for `blamely-detector.ai` + hookRunner.js (VS Code `hookTotals.ts`). */
+/** Aggregated counts for tests / parity (hookRunner reads snapshots, not a sidecar file). */
 data class HookTotals(
     val aiLinesAdded: Int,
     val aiLinesDeleted: Int,
@@ -30,7 +31,7 @@ data class HookTotals(
  */
 object ReportYaml {
 
-    private const val DETECTOR_VERSION = "0.2.0"
+    private const val DETECTOR_VERSION = "0.1.2"
     private val log = Logger.getInstance(ReportYaml::class.java)
     private val gson = Gson()
 
@@ -83,10 +84,13 @@ object ReportYaml {
                 continue
             }
             for (e in entries) {
-                sb.append("    - lineNumber: ${e.newLineNumber ?: e.lineNumber}\n")
+                val ln =
+                    if (e.changeType == LineBlame.ChangeType.DELETE) e.oldLineNumber ?: e.lineNumber
+                    else e.newLineNumber ?: e.lineNumber
+                sb.append("    - lineNumber: $ln\n")
                 sb.append("      authorType: \"${e.authorType.name}\"\n")
-                sb.append("      provider: ${yamlStr(e.provider)}\n")
                 sb.append("      model: ${yamlStr(e.model)}\n")
+                sb.append("      date: ${if (e.timestamp.isBlank()) "null" else yamlStr(e.timestamp)}\n")
                 if (!e.prompt.isNullOrBlank()) sb.append("      prompt: ${yamlStr(e.prompt)}\n")
                 if (!e.interactionType.isNullOrBlank()) sb.append("      interactionType: ${yamlStr(e.interactionType)}\n")
                 sb.append("      changeType: \"${e.changeType.name}\"\n")
@@ -119,7 +123,7 @@ object ReportYaml {
 
     /**
      * Generates report YAML from live blame (`commitSha == null`), merges staged `git diff --cached`
-     * deletions (VS Code parity), writes `<git-dir>/blamely/blamely-detector.ai` for pre-commit hookRunner.js.
+     * deletions (VS Code parity), persists only `report.yml` under ~/.blamely/repos/<repoKey>/branches/<branch>/.
      */
     fun generateAndPersistDetector(
         project: Project,
@@ -130,23 +134,10 @@ object ReportYaml {
     ): String {
         return try {
             val payload = buildLiveYamlPayload(project, blameMap, traceStore, commitHash, ideName) ?: return ""
-            writeBlamelyDetectorAi(project, payload.yaml, payload.hookTotals)
             payload.yaml
         } catch (e: Exception) {
-            log.error("Failed to generate report + detector", e)
+            log.error("Failed to generate report", e)
             ""
-        }
-    }
-
-    /** Writes hook preamble + YAML body to `.git/blamely/blamely-detector.ai`. */
-    fun writeBlamelyDetectorAi(project: Project, yamlReportBody: String, totals: HookTotals) {
-        try {
-            val gdPath = GitUtils.getGitDir(project) ?: return
-            val detector = java.io.File(java.io.File(gdPath, "blamely"), Platform.BLAMELY_REPO_DETECTOR_FILENAME)
-            detector.parentFile?.mkdirs()
-            detector.writeText(detectorHookPreamble(totals) + yamlReportBody)
-        } catch (e: Exception) {
-            log.warn("writeBlamelyDetectorAi failed: ${e.message}")
         }
     }
 
@@ -216,7 +207,7 @@ object ReportYaml {
                     LineBlame(
                         lineNumber = oldLine,
                         authorType = if (deletedByAi) LineBlame.AuthorType.AI else LineBlame.AuthorType.HUMAN,
-                        provider = if (deletedByAi) "github-copilot" else null,
+                        provider = null,
                         timestamp = timestampIso,
                         commitSha = null,
                         model = if (deletedByAi) "unknown" else null,
@@ -284,23 +275,24 @@ object ReportYaml {
 
             var aiLines = 0
             var humanLines = 0
-            val sources = mutableSetOf<String>()
             val models = mutableSetOf<String>()
-            val prompts = mutableSetOf<String>()
             for (e in addedEntries) {
                 if (e.authorType == LineBlame.AuthorType.AI) {
                     aiLines++
-                    e.provider?.let { sources.add(it) }
                     ai.blamely.utils.AiContextExtractor.sanitizeModelForReport(e.model)?.let { m -> models.add(m) }
-                    e.prompt?.let { prompts.add(it) }
                     e.interactionType?.takeIf { it.isNotBlank() }?.let { interactionTypesFromBlame.add(it) }
                 } else {
                     humanLines++
                 }
             }
-            val totalAdded = aiLines + humanLines
-            val totalAll = totalAdded + deletedCount
-            val pct = if (totalAll > 0) "%.1f".format(100.0 * aiLines / totalAll) + "%" else "0.0%"
+            var aiLinesDeleted = 0
+            var humanLinesDeleted = 0
+            for (e in entries.filter { it.changeType == LineBlame.ChangeType.DELETE }) {
+                when (e.authorType) {
+                    LineBlame.AuthorType.AI -> aiLinesDeleted++
+                    LineBlame.AuthorType.HUMAN -> humanLinesDeleted++
+                }
+            }
             val modelDisplay = when (models.size) {
                 0 -> "unknown"
                 1 -> models.first()
@@ -309,18 +301,63 @@ object ReportYaml {
             fileEntries.add(
                 FileEntry(
                     path = filePath,
-                    source = if (sources.size == 1) sources.first() else "multiple",
                     model = modelDisplay,
                     aiLinesAdded = aiLines,
                     humanLinesAdded = humanLines,
-                    linesDeleted = deletedCount,
-                    totalEntries = totalAll,
-                    percentage = pct,
-                    prompts = prompts.toList()
+                    aiLinesDeleted = aiLinesDeleted,
+                    humanLinesDeleted = humanLinesDeleted,
+                    linesDeleted = deletedCount
                 )
             )
         }
-        return buildReportYaml(generatedAt, branch, finalCommitHash, commitMessage, fileEntries, ideName, metrics, interactionTypesFromBlame)
+        return buildReportYaml(
+            generatedAt,
+            branch,
+            finalCommitHash,
+            commitMessage,
+            fileEntries,
+            entireBlame,
+            ideName,
+            metrics,
+            interactionTypesFromBlame
+        )
+    }
+
+    private fun collectIdesFromBlame(blameByFile: Map<String, List<LineBlame>>, fallbackIde: String): List<String> {
+        val s = mutableSetOf<String>()
+        for (rows in blameByFile.values) {
+            for (e in rows) {
+                e.ide?.trim()?.takeIf { it.isNotEmpty() }?.let { s.add(it) }
+            }
+        }
+        val fb = fallbackIde.trim()
+        if (fb.isNotEmpty() && !s.contains(fb)) s.add(fb)
+        return s.sorted()
+    }
+
+    /** Per-line rows under `files[].changes` (matches VS Code `emitChangeRows`). */
+    private fun emitChangeRows(entries: List<LineBlame>): String {
+        val sorted = entries.sortedWith(
+            compareBy { e ->
+                if (e.changeType == LineBlame.ChangeType.DELETE) e.oldLineNumber ?: e.lineNumber
+                else e.newLineNumber ?: e.lineNumber
+            }
+        )
+        val sb = StringBuilder()
+        for (e in sorted) {
+            val ln =
+                if (e.changeType == LineBlame.ChangeType.DELETE) e.oldLineNumber ?: e.lineNumber
+                else e.newLineNumber ?: e.lineNumber
+            sb.append("      - lineNumber: $ln\n")
+            sb.append("        authorType: \"${e.authorType.name}\"\n")
+            sb.append("        model: ${if (e.model.isNullOrBlank()) "null" else yamlStr(e.model)}\n")
+            sb.append("        date: ${if (e.timestamp.isBlank()) "null" else yamlStr(e.timestamp)}\n")
+            val it = e.interactionType?.takeIf { it.isNotBlank() }
+            sb.append("        interactionType: ${if (it != null) yamlStr(it) else "null"}\n")
+            sb.append("        changeType: \"${e.changeType.name}\"\n")
+            sb.append("        codingType: \"${e.codingType.name}\"\n")
+        }
+        return sb.toString()
     }
 
     private fun buildReportYaml(
@@ -329,6 +366,7 @@ object ReportYaml {
         finalCommitHash: String,
         commitMessage: String,
         fileEntries: List<FileEntry>,
+        blameByFile: Map<String, List<LineBlame>>,
         ideName: String,
         metrics: ReportMetrics? = null,
         interactionTypesFromBlame: Set<String> = emptySet()
@@ -344,18 +382,24 @@ object ReportYaml {
 
         val totalAiAdded = fileEntries.sumOf { it.aiLinesAdded }
         val totalHumanAdded = fileEntries.sumOf { it.humanLinesAdded }
+        val totalAiDeleted = fileEntries.sumOf { it.aiLinesDeleted }
+        val totalHumanDeleted = fileEntries.sumOf { it.humanLinesDeleted }
         val totalDeleted = fileEntries.sumOf { it.linesDeleted }
         val totalChanges = totalAiAdded + totalHumanAdded + totalDeleted
+        val aiMass = totalAiAdded + totalAiDeleted
         sb.append("summary:\n")
         sb.append("  total_files_changed: ${fileEntries.size}\n")
         sb.append("  total_lines_added: ${totalAiAdded + totalHumanAdded}\n")
         sb.append("  total_lines_deleted: $totalDeleted\n")
         sb.append("  total_changes: $totalChanges\n")
         sb.append("  ai_lines_added: $totalAiAdded\n")
+        sb.append("  ai_lines_deleted: $totalAiDeleted\n")
         sb.append("  human_lines_added: $totalHumanAdded\n")
-        val overallPct = if (totalChanges > 0) "%.1f".format(100.0 * totalAiAdded / totalChanges) + "%" else "0.0%"
+        sb.append("  human_lines_deleted: $totalHumanDeleted\n")
+        val overallPct = if (totalChanges > 0) "%.1f".format(100.0 * aiMass / totalChanges) + "%" else "0.0%"
         sb.append("  ai_percentage: \"$overallPct\"\n")
-        val modelCount = fileEntries.map { it.model }.toSet().count { it != "unknown" }
+        val allModelsDistinct = fileEntries.map { it.model }.filter { it != "unknown" }.toSet()
+        val modelCount = allModelsDistinct.size
         sb.append("  model_count: $modelCount\n\n")
 
         val m = metrics ?: ReportMetrics()
@@ -366,29 +410,39 @@ object ReportYaml {
         sb.append("  first_start_coding_time: ${if (firstStartCodingTimeDate != null) "\"$firstStartCodingTimeDate\"" else "null"}\n")
         sb.append("  time_waiting_for_ai_ms: ${m.timeWaitingForAiMs}\n\n")
 
+        val ideList = collectIdesFromBlame(blameByFile, ideName)
         sb.append("agent_info:\n")
-        sb.append("  ide: \"$ideName\"\n")
+        sb.append("  ide:\n")
+        if (ideList.isEmpty()) {
+            sb.append("    []\n")
+        } else {
+            ideList.forEach { sb.append("    - ${gson.toJson(it)}\n") }
+        }
         sb.append("  models:\n")
-        val allModels = fileEntries.map { it.model }.toSet().filter { it != "unknown" }
-        if (allModels.isEmpty()) sb.append("    - unknown\n") else allModels.forEach { sb.append("    - \"$it\"\n") }
+        if (allModelsDistinct.isEmpty()) {
+            sb.append("    []\n")
+        } else {
+            allModelsDistinct.sorted().forEach { sb.append("    - ${gson.toJson(it)}\n") }
+        }
         sb.append("  interaction_types:\n")
-        if (interactionTypes.isEmpty()) sb.append("    - unknown\n") else interactionTypes.forEach { sb.append("    - $it\n") }
+        if (interactionTypes.isEmpty()) {
+            sb.append("    []\n")
+        } else {
+            interactionTypes.sorted().forEach { sb.append("    - $it\n") }
+        }
         sb.append("\nfiles:\n")
         if (fileEntries.isEmpty()) {
             sb.append("  []\n")
         } else {
             fileEntries.forEach { e ->
-                sb.append("  - path: \"${e.path.replace("\\", "\\\\").replace("\"", "\\\"")}\"\n")
-                sb.append("    source: \"${e.source}\"\n")
-                sb.append("    model: \"${e.model}\"\n")
-                sb.append("    ai_lines_added: ${e.aiLinesAdded}\n")
-                sb.append("    human_lines_added: ${e.humanLinesAdded}\n")
-                sb.append("    lines_deleted: ${e.linesDeleted}\n")
-                sb.append("    total_changes: ${e.totalEntries}\n")
-                sb.append("    ai_percentage: \"${e.percentage}\"\n")
-                sb.append("    prompts:\n")
-                if (e.prompts.isEmpty()) sb.append("      []\n")
-                else e.prompts.forEach { sb.append("      - ${gson.toJson(it)}\n") }
+                sb.append("  - path: ${gson.toJson(e.path)}\n")
+                sb.append("    changes:\n")
+                val rows = blameByFile[e.path].orEmpty()
+                if (rows.isEmpty()) {
+                    sb.append("      []\n")
+                } else {
+                    sb.append(emitChangeRows(rows))
+                }
             }
         }
         return sb.toString()
@@ -396,13 +450,11 @@ object ReportYaml {
 
     private data class FileEntry(
         val path: String,
-        val source: String,
         val model: String,
         val aiLinesAdded: Int,
         val humanLinesAdded: Int,
-        val linesDeleted: Int,
-        val totalEntries: Int,
-        val percentage: String,
-        val prompts: List<String>
+        val aiLinesDeleted: Int,
+        val humanLinesDeleted: Int,
+        val linesDeleted: Int
     )
 }

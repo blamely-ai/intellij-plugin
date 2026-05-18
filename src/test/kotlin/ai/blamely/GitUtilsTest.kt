@@ -133,7 +133,7 @@ class GitUtilsTest {
             commit_hash: $sha
             branch: main
         """.trimIndent()
-        val blameSnapshot = """{"src/Main.kt":[{"line_number":1,"author_type":"ai","provider":"copilot"}]}"""
+        val blameSnapshot = """{"src/Main.kt":[{"line_number":1,"author_type":"ai"}]}"""
         val noteContent = "$yamlReport\n---\nblames:\n$blameSnapshot"
         assertTrue(GitUtils.addGitNote(cwd, sha, noteContent), "addGitNote with report format should succeed")
         val read = GitUtils.getNoteContent(cwd, sha)

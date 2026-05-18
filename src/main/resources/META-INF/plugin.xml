@@ -42,7 +42,7 @@
     <h3>1.0.0</h3>
     <ul>
       <li><b>Data layout</b> — Blame snapshots and per-branch <code>report.yml</code> under <code>~/.blamely/repos/&lt;id&gt;/</code>; optional migration from legacy <code>.git/blamely</code> layouts.</li>
-      <li><b>Hooks</b> — Bundled <code>hookRunner.js</code> + <code>blamely-detector.ai</code> under <code>.git/blamely/</code> (<code>node</code> on PATH when using the JS runner).</li>
+      <li><b>Hooks</b> — Bundled <code>hookRunner.js</code> reads <code>~/.blamely/repos/&lt;id&gt;/snapshots/&lt;branch&gt;/*.blame.json</code> (<code>node</code> on PATH when using the JS runner).</li>
       <li><b>Sessions</b> — Per-branch dirs under <code>.git/blamely/&lt;branch&gt;/</code>; session metadata mirrored under <code>~/.blamely/intellij/</code>.</li>
       <li><b>Settings</b> — <code>showGutterDecorations</code>, <code>autoInstallHook</code>, <code>reportOnSave</code>, <code>suggestionTimeout</code>.</li>
       <li><b>Git notes</b> — Pre-push continues to support <code>refs/notes/blamely</code>.</li>

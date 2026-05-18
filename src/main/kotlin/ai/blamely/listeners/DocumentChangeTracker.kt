@@ -6,7 +6,7 @@ import ai.blamely.core.LineBlame
 import ai.blamely.core.TraceStoreService
 import ai.blamely.persistence.BlameSerializer
 import ai.blamely.settings.BlamelySettings
-import ai.blamely.utils.Platform.normalizePath
+import ai.blamely.utils.Platform
 import ai.blamely.utils.matchSuggestion
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Document
@@ -175,7 +175,7 @@ class DocumentChangeTracker(
 
             val blameService = project.getService(BlameMapService::class.java) ?: return@runReadAction
             val blameMap = blameService.blameMap
-            val normalizedPath = normalizePath(relativePath)
+            val normalizedPath = Platform.normalizeBlamePersistenceKey(relativePath, basePath)
             val now = System.currentTimeMillis()
 
             val changeLineIdx = doc.getLineNumber(event.offset)
@@ -221,7 +221,7 @@ class DocumentChangeTracker(
                 val firstBulkForPath = rollbackBulkClearedPaths.add(normalizedPath)
                 if (firstBulkForPath) {
                     blameMap.removeFile(normalizedPath)
-                    BlameSerializer.save(project, normalizedPath, emptyList())
+                    BlameSerializer.removeSnapshot(project, normalizedPath)
                 } else {
                     if (newFragment.isEmpty() && oldFragment.isNotEmpty()) {
                         blameMap.recordFirstStartCodingTimeIfNeeded()
@@ -354,7 +354,11 @@ class DocumentChangeTracker(
             var promptForAttr = prompt
             var interactionTypeForAttr = when {
                 !isAi -> null
-                match != null -> lastDetectedInteractionType?.takeIf { it.isNotBlank() } ?: "completion"
+                match != null -> when (val it = lastDetectedInteractionType?.takeIf { s -> s.isNotBlank() }) {
+                    null -> "completion"
+                    "chat_panel", "chat_inline" -> it
+                    else -> "completion"
+                }
                 else -> lastDetectedInteractionType?.takeIf { it.isNotBlank() }
             }
             // Fill model/prompt from UI only when not holding write lock (UI scraping can trigger modal progress and must not run under write action)

@@ -6,6 +6,7 @@ import ai.blamely.listeners.CommitListener
 import ai.blamely.listeners.DocumentChangeTracker
 import ai.blamely.listeners.PushNoteListener
 import ai.blamely.persistence.BlameSerializer
+import ai.blamely.persistence.BlamelyUserRepoPaths
 import com.intellij.codeInsight.lookup.LookupManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
@@ -22,8 +23,10 @@ import com.intellij.openapi.vfs.newvfs.events.VFileCopyEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
 import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.util.Alarm
 import java.beans.PropertyChangeListener
+import java.io.File
 
 /**
  * Runs when project is opened: load persisted blame, register document listener and commit listener.
@@ -77,6 +80,30 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
 
         val onBlameUpdated: () -> Unit = { refreshStatusBarAndDecorations() }
 
+        val reloadBlameFromDiskAndCli: () -> Unit = fun() {
+            if (project.isDisposed) {
+                return
+            }
+            ApplicationManager.getApplication().executeOnPooledThread {
+                if (project.isDisposed) return@executeOnPooledThread
+                try {
+                    val restored = BlameSerializer.loadAll(project)
+                    if (project.isDisposed) return@executeOnPooledThread
+                    ApplicationManager.getApplication().invokeLater {
+                        if (project.isDisposed) return@invokeLater
+                        restored.forEach { (path, entries) ->
+                            if (entries.isEmpty()) return@forEach
+                            if (basePath != null && !isPathUnderProject(basePath, path)) return@forEach
+                            blameMap.setFileBlame(path, entries)
+                        }
+                        ai.blamely.cli.CliTraceToBlame.populateFromCliSessions(project, blameMap)
+                        refreshStatusBarAndDecorations()
+                    }
+                } catch (_: Exception) {
+                }
+            }
+        }
+
         val changeTracker = DocumentChangeTracker(project, onBlameUpdated)
         EditorFactory.getInstance().eventMulticaster.addDocumentListener(changeTracker, project)
 
@@ -95,6 +122,30 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
             )
         }
         scheduleStatusBarRefresh()
+
+        basePath?.let { bp ->
+            val dataDir = BlamelyUserRepoPaths.resolveBlamelyDataDir(File(bp), BlamelyUserRepoPaths.blamelyUserLayoutRoot())
+            val dataPrefix = dataDir?.absolutePath?.let { it + File.separator } ?: ""
+            val legacyPrefix = BlamelyUserRepoPaths.cliTraceParentDir(File(bp)).absolutePath + File.separator
+            project.messageBus.connect(project).subscribe(
+                VirtualFileManager.VFS_CHANGES,
+                object : BulkFileListener {
+                    override fun after(events: MutableList<out VFileEvent>) {
+                        if (events.none { ev ->
+                                val p = ev.file?.path ?: return@none false
+                                val underData =
+                                    dataPrefix.isNotEmpty() && p.startsWith(dataPrefix) &&
+                                        p.contains("${File.separator}snapshots${File.separator}") && p.endsWith(".blame.json")
+                                underData || p.startsWith(legacyPrefix)
+                            }) {
+                            return
+                        }
+                        if (project.isDisposed) return
+                        reloadBlameFromDiskAndCli()
+                    }
+                }
+            )
+        }
 
         // Restore blame history on a background thread to avoid blocking the EDT during startup.
         // File I/O + git CLI calls can deadlock if run under the IDE's write-lock contention.
@@ -119,6 +170,7 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
                     if (restored.isNotEmpty()) {
                         log.info("Blamely: blame map restored — ${restored.size} file(s), ${restored.values.sumOf { it.size }} line(s)")
                     }
+                    ai.blamely.cli.CliTraceToBlame.populateFromCliSessions(project, blameMap)
                     refreshStatusBarAndDecorations()
                 }
             } catch (e: Exception) {
@@ -461,9 +513,6 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
                     val typeText = presentation.typeText?.lowercase() ?: ""
                     val combined = "$presentText $tailText $typeText"
                     if (AI_PROVIDER_KEYWORDS.any { combined.contains(it) }) return true
-
-                    val lookupStr = item.lookupString
-                    if (lookupStr.length > 80 || lookupStr.contains("\n")) return true
                 }
             } catch (_: Throwable) {}
             return false

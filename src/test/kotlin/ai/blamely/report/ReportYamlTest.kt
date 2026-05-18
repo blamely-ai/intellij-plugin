@@ -14,7 +14,6 @@ class ReportYamlTest {
             LineBlame(
                 lineNumber = 1,
                 authorType = LineBlame.AuthorType.AI,
-                provider = "github-copilot",
                 timestamp = "2025-01-01T00:00:00Z",
                 model = "GPT-4",
                 prompt = "write a function",
@@ -30,8 +29,9 @@ class ReportYamlTest {
         val yaml = ReportYaml.blameSnapshotToYaml(entireBlame)
         assertTrue(yaml.contains("src/Main.kt"))
         assertTrue(yaml.contains("lineNumber:"))
+        assertTrue(yaml.contains("date:"))
         assertTrue(yaml.contains("authorType:"))
-        assertTrue(yaml.contains("provider:"))
+        assertFalse(yaml.contains("provider:"))
         assertTrue(yaml.contains("model:"))
         assertTrue(yaml.contains("prompt:"))
         assertTrue(yaml.contains("interactionType:"))

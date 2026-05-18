@@ -232,8 +232,20 @@ object AiContextExtractor {
         return when {
             actionId.contains("inline") && (actionId.contains("chat") || actionId.contains("edit")) -> "chat_inline"
             cls.contains("inline") && cls.contains("chat") -> "chat_inline"
-            actionId.contains("chat") || cls.contains("chatpanel") || cls.contains("chat.panel") -> "chat_panel"
-            actionId.contains("completion") || actionId.contains("inlay") || actionId.contains("tab") -> "completion"
+            (actionId.contains("apply") || actionId.contains("insert") || actionId.contains("keep")) &&
+                (
+                    actionId.contains("chat") || actionId.contains("copilot") ||
+                        actionId.contains("claude") || actionId.contains("anthropic") ||
+                        cls.contains("chatpanel") || cls.contains("chat.panel") ||
+                        cls.contains("copilot.chat") || cls.contains("chat.ui")
+                    ) -> "chat_panel"
+            actionId.contains("chat") || cls.contains("chatpanel") || cls.contains("chat.panel") ||
+                cls.contains("copilot.chat") -> "chat_panel"
+            actionId.contains("completion") || actionId.contains("inlay") -> "completion"
+            actionId.contains("tab") && (
+                actionId.contains("inline") || actionId.contains("suggest") || actionId.contains("completion") ||
+                    actionId.contains("accept") || actionId.contains("copilot") || actionId.contains("ghost")
+                ) -> "completion"
             cls.contains("completion") || cls.contains("inlay") -> "completion"
             else -> "unknown"
         }
@@ -660,7 +672,7 @@ object AiContextExtractor {
         if (PACKAGE_TO_PROVIDER.keys.any { lower == it }) return null
         if (lower.contains("(") || lower.contains(")")) return null
         if (!matchesKnownModel(lower)) return null
-        return clean
+        return dedupeSlashModelSegments(clean)
     }
 
     /**
@@ -669,10 +681,22 @@ object AiContextExtractor {
      */
     fun sanitizeModelForReport(model: String?): String? {
         if (model.isNullOrBlank()) return null
-        val trimmed = model.trim()
+        var trimmed = model.trim()
         if (looksLikePackageOrClassName(trimmed)) return null
+        trimmed = dedupeSlashModelSegments(trimmed)
+        if (trimmed.length < 2) return null
         val lower = trimmed.lowercase()
         if (!matchesKnownModel(lower)) return null
         return trimmed
+    }
+
+    private fun dedupeSlashModelSegments(s: String): String {
+        val parts = s.split('/').filter { it.isNotEmpty() }
+        val out = mutableListOf<String>()
+        for (p in parts) {
+            if (out.isNotEmpty() && out.last().equals(p, ignoreCase = true)) continue
+            out.add(p)
+        }
+        return out.joinToString("/")
     }
 }

@@ -9,6 +9,36 @@ class BlameMap {
 
     private fun normPath(path: String): String = path.replace('\\', '/')
 
+    private fun resolveAuthorTypeFromChars(
+        aiChars: Int,
+        humanChars: Int,
+        interactionType: String?,
+        codingType: LineBlame.CodingType
+    ): LineBlame.AuthorType {
+        val total = aiChars + humanChars
+        if (total <= 0) return LineBlame.AuthorType.HUMAN
+        if (aiChars > humanChars) return LineBlame.AuthorType.AI
+        if (humanChars > aiChars) return LineBlame.AuthorType.HUMAN
+        val cliBulk = (interactionType?.startsWith("blamely-cli-") == true) &&
+            codingType == LineBlame.CodingType.BULK_INSERT
+        return if (cliBulk) LineBlame.AuthorType.HUMAN else LineBlame.AuthorType.AI
+    }
+
+    private fun shouldPreserveIdeBlameOverDiskSnapshot(m: LineBlame, d: LineBlame?): Boolean {
+        if (m.authorType == LineBlame.AuthorType.HUMAN) return true
+        if (m.humanChars > m.aiChars) return true
+        val mCli = m.interactionType?.startsWith("blamely-cli-") == true
+        if (!mCli && m.interactionType != null) return true
+        if (m.codingType == LineBlame.CodingType.TYPING && m.humanChars > 0) return true
+        if (d?.interactionType?.startsWith("blamely-cli-") == true && m.codingType == LineBlame.CodingType.TYPING) return true
+        if (d?.interactionType?.startsWith("blamely-cli-") == true &&
+            (m.aiChars != d.aiChars || m.humanChars != d.humanChars)
+        ) {
+            return true
+        }
+        return false
+    }
+
     /** Tracks which old-file line numbers were deleted by AI (so commit can attribute them as AI, not human). */
     private val aiDeletedLines = mutableMapOf<String, MutableSet<Int>>()
 
@@ -124,17 +154,25 @@ class BlameMap {
                     entry.humanChars += charsThisLine
                 }
                 val total = entry.aiChars + entry.humanChars
-                // Strict majority: ties favor human so edits inside AI-generated lines flip gutter sooner.
-                entry.authorType = if (total > 0 && entry.aiChars > entry.humanChars) {
-                    LineBlame.AuthorType.AI
-                } else {
-                    LineBlame.AuthorType.HUMAN
-                }
+                entry.authorType = resolveAuthorTypeFromChars(
+                    entry.aiChars,
+                    entry.humanChars,
+                    entry.interactionType,
+                    entry.codingType
+                )
                 if (entry.authorType == LineBlame.AuthorType.AI) {
                     entry.provider = provider ?: entry.provider
                     entry.model = model ?: entry.model
                     entry.prompt = prompt ?: entry.prompt
                     entry.interactionType = interactionType ?: entry.interactionType
+                } else {
+                    entry.provider = null
+                    entry.model = null
+                    entry.prompt = null
+                    entry.interactionType = null
+                    if (authorType == LineBlame.AuthorType.HUMAN || codingType == LineBlame.CodingType.TYPING) {
+                        entry.codingType = LineBlame.CodingType.TYPING
+                    }
                 }
                 if (codingType != LineBlame.CodingType.TYPING) {
                     entry.codingType = codingType
@@ -152,7 +190,8 @@ class BlameMap {
                     interactionType = if (authorType == LineBlame.AuthorType.AI) interactionType else null,
                     aiChars = if (authorType == LineBlame.AuthorType.AI) charsThisLine else 0,
                     humanChars = if (authorType == LineBlame.AuthorType.HUMAN) charsThisLine else 0,
-                    codingType = codingType
+                    codingType = codingType,
+                    ide = ai.blamely.utils.IdeLabel.current()
                 )
                 val total = blame.aiChars + blame.humanChars
                 blame.authorType = if (total > 0 && blame.aiChars > blame.humanChars) {
@@ -277,8 +316,9 @@ class BlameMap {
     }
 
     /**
-     * Summary counts only uncommitted (commitSha == null) entries.
-     * Merges by normalized path and by line so duplicates are not double-counted.
+     * Summary counts ADD attribution lines currently in the map (merges by normalized path and line).
+     * Rows with commitSha set are included so CLI / disk snapshots (HEAD at trace end) update the status bar.
+     * DELETE rows are excluded.
      */
     fun getSummary(): BlameSummary {
         var total = 0
@@ -287,7 +327,7 @@ class BlameMap {
         var totalHumanChars = 0
         val providerCounts = mutableMapOf<String, Int>()
         val byNormPath = map.entries.groupBy { normPath(it.key) }.mapValues { (_, keyToEntries) ->
-            keyToEntries.flatMap { it.value }.filter { it.commitSha == null }
+            keyToEntries.flatMap { it.value }.filter { it.changeType != LineBlame.ChangeType.DELETE }
         }
         for (entries in byNormPath.values) {
             for (lineEntries in entries.groupBy { it.lineNumber }.values) {
