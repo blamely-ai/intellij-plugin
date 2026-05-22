@@ -90,8 +90,7 @@ class AttachGitNoteForShaAction : AnAction() {
         } else {
             ReportYaml.generate(project, blameMap, traceStore, fullSha, "IntelliJ")
         }
-        val snapshotYaml = ReportYaml.blameSnapshotToYaml(entireBlame)
-        val noteContent = "${yamlReport}blames:\n$snapshotYaml"
+        val noteContent = yamlReport.trimEnd()
         val result = GitUtils.addGitNoteWithResult(repoRoot, fullSha, noteContent)
         if (result.ok) {
             GitUtils.pushGitNotes(repoRoot)

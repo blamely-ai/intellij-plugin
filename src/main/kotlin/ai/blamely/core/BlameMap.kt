@@ -96,10 +96,17 @@ class BlameMap {
             val total = entry.aiChars + entry.humanChars
             if (total <= 0) continue
             val toRemove = lineChars.coerceAtMost(total)
-            val humanReduce = (toRemove * entry.humanChars / total).coerceIn(0, entry.humanChars)
-            val aiReduce = (toRemove - humanReduce).coerceIn(0, entry.aiChars)
+            // Prefer human chars first so backspace after manual typing on an AI line restores AI gutter.
+            val humanReduce = toRemove.coerceAtMost(entry.humanChars)
+            val aiReduce = (toRemove - humanReduce).coerceAtMost(entry.aiChars)
             entry.humanChars = (entry.humanChars - humanReduce).coerceAtLeast(0)
             entry.aiChars = (entry.aiChars - aiReduce).coerceAtLeast(0)
+            entry.authorType = resolveAuthorTypeFromChars(
+                entry.aiChars,
+                entry.humanChars,
+                entry.interactionType,
+                entry.codingType
+            )
             if (entry.aiChars == 0 && entry.humanChars == 0) {
                 list.remove(entry)
             }

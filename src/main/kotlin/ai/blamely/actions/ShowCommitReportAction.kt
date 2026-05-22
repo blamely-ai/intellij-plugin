@@ -23,11 +23,16 @@ class ShowCommitReportAction : AnAction() {
             notify(project, "No Blamely git note for commit ${sha.take(8)}")
             return
         }
-        val parts = out.trim().split("\nblames:")
-        val yamlContent = parts.firstOrNull()?.trim() ?: run {
-            notify(project, "Invalid note format")
-            return
-        }
+        val yamlContent = out.trim()
+            .let { raw ->
+                if (raw.startsWith("{")) {
+                    val sep = raw.indexOf("\n---\n")
+                    if (sep >= 0) raw.substring(sep + 5).trim() else raw
+                } else raw
+            }
+            .split("\n---\nblames:")[0]
+            .split("\nblames:")[0]
+            .trim()
         val dir = GitUtils.getBlamelyDir(project) ?: return
         dir.mkdirs()
         val reportFile = File(dir, "report.yml")

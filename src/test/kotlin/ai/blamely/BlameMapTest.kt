@@ -160,6 +160,23 @@ class BlameMapTest {
     }
 
     @Test
+    fun `decrementCharsForDeletion prefers human chars so backspace restores AI gutter`() {
+        val map = BlameMap()
+        map.setAttribute("f.kt", 5, 5, LineBlame.AuthorType.AI, provider = "copilot", charsInserted = 20)
+        map.setAttribute("f.kt", 5, 5, LineBlame.AuthorType.HUMAN, charsInserted = 3, charsPerLineOverride = listOf(3))
+        var entry = map.getBlame("f.kt").single { it.lineNumber == 5 }
+        assertEquals(LineBlame.AuthorType.AI, entry.authorType)
+        assertEquals(20, entry.aiChars)
+        assertEquals(3, entry.humanChars)
+
+        map.decrementCharsForDeletion("f.kt", 5, "xxx")
+        entry = map.getBlame("f.kt").single { it.lineNumber == 5 }
+        assertEquals(20, entry.aiChars)
+        assertEquals(0, entry.humanChars)
+        assertEquals(LineBlame.AuthorType.AI, entry.authorType)
+    }
+
+    @Test
     fun `reattributeToAi flips human entries to AI`() {
         val map = BlameMap()
         map.setAttribute("f.kt", 1, 2, LineBlame.AuthorType.HUMAN, charsInserted = 20)

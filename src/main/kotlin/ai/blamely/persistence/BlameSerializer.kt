@@ -15,6 +15,9 @@ import java.util.Locale
  * Save/load per-file blame: primary location **`~/.blamely/repos/<id>/snapshots/<branch>/`**
  * (VS Code 1.1.0), with reads/removals also touching `.git/blamely/snapshots/<branch>/` and legacy
  * `~/.blamely/session/` layouts for migration.
+ *
+ * Working snapshots are ephemeral (current uncommitted session only). Cleared on commit, rollback,
+ * discard, branch switch, and when the working tree is clean at startup.
  */
 object BlameSerializer {
 
@@ -167,22 +170,27 @@ object BlameSerializer {
         return memory
     }
 
-    /** Delete all persisted blame snapshots for the current branch (primary + legacy dirs). */
-    fun clearCurrentBranchSnapshots(project: Project) {
+    /** Delete all persisted blame snapshots for a specific branch (primary + legacy dirs). */
+    fun clearBranchSnapshots(project: Project, branch: String?) {
         try {
             val dirs = listOfNotNull(
-                userSnapshotsDir(project),
-                legacyFlatSnapshots(project),
-                legacyNestedSnapshots(project),
-                gitSnapshotsDir(project)
+                userSnapshotsDir(project, branch),
+                legacyFlatSnapshots(project, branch),
+                legacyNestedSnapshots(project, branch),
+                gitSnapshotsDir(project, branch)
             ).distinct()
             for (snapshots in dirs) {
                 if (!snapshots.isDirectory) continue
                 snapshots.listFiles()?.filter { it.name.endsWith(".blame.json") }?.forEach { it.delete() }
             }
         } catch (e: Exception) {
-            BlamelyLogger.warn("Could not clear branch snapshots: ${e.message}")
+            BlamelyLogger.warn("Could not clear branch snapshots for $branch: ${e.message}")
         }
+    }
+
+    /** Delete all persisted blame snapshots for the current branch (primary + legacy dirs). */
+    fun clearCurrentBranchSnapshots(project: Project) {
+        clearBranchSnapshots(project, GitUtils.getBranch(project))
     }
 
     data class SessionData(

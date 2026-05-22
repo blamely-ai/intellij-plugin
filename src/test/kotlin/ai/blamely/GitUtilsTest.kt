@@ -43,7 +43,7 @@ class GitUtilsTest {
         runGit(cwd, "add", "f.txt")
         runGit(cwd, "commit", "-m", "first")
         val sha = requireNotNull(GitUtils.run(cwd, "rev-parse", "HEAD")) { "no HEAD" }
-        val content = "report:\n  commit: $sha\n---\nblames: {}"
+        val content = "scope: test\ncommit_hash: $sha\n"
         val added = GitUtils.addGitNote(cwd, sha, content)
         assertTrue(added, "addGitNote should succeed")
         val read = GitUtils.getNoteContent(cwd, sha)
@@ -133,17 +133,16 @@ class GitUtilsTest {
             commit_hash: $sha
             branch: main
         """.trimIndent()
-        val blameSnapshot = """{"src/Main.kt":[{"line_number":1,"author_type":"ai"}]}"""
-        val noteContent = "$yamlReport\n---\nblames:\n$blameSnapshot"
+        val noteContent = yamlReport
         assertTrue(GitUtils.addGitNote(cwd, sha, noteContent), "addGitNote with report format should succeed")
         val read = GitUtils.getNoteContent(cwd, sha)
         assertNotNull(read)
         assertTrue(read!!.contains("detector_version"))
-        assertTrue(read.contains("blames"))
+        assertFalse(read.contains("blames:"))
     }
 
     @Test
-    fun `note with synthetic human blame has non-empty blames`() {
+    fun `addGitNote accepts report-only note without blames section`() {
         val cwd = tempDir.absolutePath
         runGit(cwd, "init")
         ensureGitUser(cwd)
@@ -151,20 +150,12 @@ class GitUtilsTest {
         runGit(cwd, "add", "newfile.txt")
         runGit(cwd, "commit", "-m", "add newfile")
         val sha = requireNotNull(GitUtils.run(cwd, "rev-parse", "HEAD"))
-        val added = GitUtils.getAddedLineNumbersInCommit(cwd, sha, "newfile.txt")
-        assertTrue(added.isNotEmpty(), "getAddedLineNumbersInCommit should return added lines")
-        val ts = java.time.Instant.now().toString()
-        val synthetic = added.map { line ->
-            """{"lineNumber":$line,"authorType":"HUMAN","timestamp":"$ts","commitSha":"$sha","humanChars":10}"""
-        }.joinToString(",")
-        val blameSnapshot = """{"newfile.txt":[$synthetic]}"""
         val yamlReport = "scope: \"this_commit\"\ncommit_hash: \"$sha\"\n"
-        val noteContent = "$yamlReport---\nblames:\n$blameSnapshot"
-        assertTrue(GitUtils.addGitNote(cwd, sha, noteContent), "addGitNote with synthetic blame should succeed")
+        assertTrue(GitUtils.addGitNote(cwd, sha, yamlReport), "addGitNote with report-only body should succeed")
         val read = GitUtils.getNoteContent(cwd, sha)
         assertNotNull(read)
-        assertTrue(read!!.contains("newfile.txt"))
-        assertTrue(read.contains("blames"))
+        assertTrue(read!!.contains("commit_hash"))
+        assertFalse(read.contains("blames:"))
     }
 
     @Test

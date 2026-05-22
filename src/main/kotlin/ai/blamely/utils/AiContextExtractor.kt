@@ -114,12 +114,14 @@ object AiContextExtractor {
             promptFromEditor?.takeIf { !isPlaceholderPrompt(it) }
         ).firstOrNull()
 
+        val modelFromDisk = CopilotDiskModel.discoverModel()
         val modelFromUI = tryExtractModelFromChatUI(project)
         val modelFromChatReflection = tryExtractModelFromCopilotChatReflection()
         val modelFromClasses = tryExtractModelFromLoadedClasses()
         val modelFromSettings = tryExtractModelFromCopilotSettings()
 
-        val rawModel = modelFromAction ?: modelFromUI ?: modelFromChatReflection ?: modelFromClasses ?: modelFromSettings
+        val rawModel = modelFromAction ?: modelFromDisk ?: modelFromUI ?: modelFromChatReflection
+            ?: modelFromClasses ?: modelFromSettings
         val model = sanitizeModelForReport(rawModel)
 
         val promptFinal = prompt?.takeIf { !isPlaceholderPrompt(prompt) }?.take(500)
@@ -137,12 +139,14 @@ object AiContextExtractor {
         if (ApplicationManager.getApplication().isWriteAccessAllowed()) return AiContext()
         val promptRaw = tryExtractFromChatToolWindow(project)
         val promptFinal = promptRaw?.takeIf { !isPlaceholderPrompt(promptRaw) }?.take(500)
+        val modelFromDisk = CopilotDiskModel.discoverModel()
         val modelFromUI = tryExtractModelFromChatUI(project)
         val modelFromChatReflection = tryExtractModelFromCopilotChatReflection()
         val modelFromClasses = tryExtractModelFromLoadedClasses()
         val modelFromSettings = tryExtractModelFromCopilotSettings()
         val modelFromAllWindows = tryExtractModelFromAllWindows()
-        val rawModel = modelFromUI ?: modelFromChatReflection ?: modelFromClasses ?: modelFromSettings ?: modelFromAllWindows
+        val rawModel = modelFromDisk ?: modelFromUI ?: modelFromChatReflection ?: modelFromClasses
+            ?: modelFromSettings ?: modelFromAllWindows
         val model = sanitizeModelForReport(rawModel)
 
         return AiContext(

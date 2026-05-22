@@ -151,6 +151,14 @@ class CommitListener(private val project: Project) {
         val blameMap = blameService.blameMap
         val traceStore = traceService.traceStore
 
+        indicator.text = "Saving blame snapshots…"
+        for (file in blameMap.getTrackedFiles()) {
+            val entries = blameMap.getBlame(file)
+            if (entries.isNotEmpty()) {
+                BlameSerializer.save(project, file, entries)
+            }
+        }
+
         indicator.text = "Archiving blame snapshots…"
         val branchName = GitUtils.getBranchForCwd(repoRoot)
         BlamelyUserRepoPaths.archiveBranchBlameSnapshotsToClosed(File(repoRoot), branchName, commitSha)
@@ -327,13 +335,12 @@ class CommitListener(private val project: Project) {
             } catch (_: Exception) {
                 null
             } ?: generatedReport.trimEnd()
-        val snapshotYaml = ReportYaml.blameSnapshotToYaml(entireBlame)
-        val noteContent = "$noteYamlPrefix\n---\nblames:\n$snapshotYaml"
+        val noteContent = noteYamlPrefix
 
         if (entireBlame.isEmpty()) {
-            log.info("Blamely: [COMMIT] no blame for changed files (${changedProjectRelative.size} files); attaching note with empty blames.")
+            log.info("Blamely: [COMMIT] no attributed diff lines for changed files (${changedProjectRelative.size} files); attaching report-only note.")
         } else {
-            log.info("Blamely: [BLAME] snapshot for commit ${commitSha.take(8)}: ${fileDiffs.size} file(s), +$totalAdded/-$totalDeleted")
+            log.info("Blamely: [BLAME] report for commit ${commitSha.take(8)}: ${fileDiffs.size} file(s), +$totalAdded/-$totalDeleted")
         }
         log.info("Blamely: [COMMIT] adding git note from repo root: $repoRoot")
 
@@ -371,27 +378,12 @@ class CommitListener(private val project: Project) {
         project.getService(BranchSessionLifecycleService::class.java)
             ?.closeSessionAfterCommit(commitSha, commitNoteAttached)
 
-        // Clear branch working snapshots, then restore full-file maps from commit archive (git notes are diff-only).
+        // Clear branch working snapshots; in-memory blame resets for the next edit session.
         BlameSerializer.clearCurrentBranchSnapshots(project)
-        val restoredFromArchive = BlamelyUserRepoPaths.restoreCommitSnapshotsToBranchDir(
-            File(repoRoot),
-            branchName,
-            commitSha,
-        )
-        if (restoredFromArchive) {
-            log.info("Blamely: [COMMIT] restored full-file blame snapshots from archive for ${commitSha.take(8)}")
-        }
-        // Schedule UI update on EDT without blocking this thread (avoids deadlock when EDT is stuck)
         ApplicationManager.getApplication().invokeLater outer@ {
             if (project.isDisposed) return@outer
             blameService.commitSuppressUntil = System.currentTimeMillis() + 5000
             blameMap.clear()
-            val diskBlame = BlameSerializer.loadAll(project)
-            diskBlame.forEach { (path, entries) ->
-                if (entries.isNotEmpty()) {
-                    blameMap.setFileBlame(path, entries)
-                }
-            }
             val sessionFromDisk = BlameSerializer.loadSession(project)
             blameMap.restoreSessionMetrics(
                 sessionFromDisk.first_start_coding_time_ms,

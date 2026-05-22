@@ -2,6 +2,7 @@ package ai.blamely
 
 import ai.blamely.core.BlameMapService
 import ai.blamely.core.TraceStoreService
+import ai.blamely.git.GitUtils
 import ai.blamely.listeners.CommitListener
 import ai.blamely.listeners.DocumentChangeTracker
 import ai.blamely.listeners.PushNoteListener
@@ -87,7 +88,13 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
             ApplicationManager.getApplication().executeOnPooledThread {
                 if (project.isDisposed) return@executeOnPooledThread
                 try {
-                    val restored = BlameSerializer.loadAll(project)
+                    val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath
+                    val hasLocalChanges =
+                        repoRoot != null && GitUtils.hasUncommittedChanges(repoRoot)
+                    val restored = if (hasLocalChanges) BlameSerializer.loadAll(project) else emptyMap()
+                    if (!hasLocalChanges) {
+                        BlameSerializer.clearCurrentBranchSnapshots(project)
+                    }
                     if (project.isDisposed) return@executeOnPooledThread
                     ApplicationManager.getApplication().invokeLater {
                         if (project.isDisposed) return@invokeLater
@@ -151,7 +158,13 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
         // File I/O + git CLI calls can deadlock if run under the IDE's write-lock contention.
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                val restored = BlameSerializer.loadAll(project)
+                val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath
+                val hasLocalChanges =
+                    repoRoot != null && GitUtils.hasUncommittedChanges(repoRoot)
+                if (!hasLocalChanges) {
+                    BlameSerializer.clearCurrentBranchSnapshots(project)
+                }
+                val restored = if (hasLocalChanges) BlameSerializer.loadAll(project) else emptyMap()
                 val branch = ai.blamely.git.GitUtils.getBranch(project)
                 if (project.isDisposed) return@executeOnPooledThread
                 ApplicationManager.getApplication().invokeLater {

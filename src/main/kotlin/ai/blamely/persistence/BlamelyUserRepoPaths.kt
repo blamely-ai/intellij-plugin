@@ -12,7 +12,7 @@ import java.security.MessageDigest
  * - `branches/<branch>/trace/session.json` + `report.yml` — blamely-cli (ai_cli_trace)
  * - Legacy hash bucket: `repos/<64-hex>/` (migration source; `cli-traces/<uuid>/` still read from there)
  * - `branches/<branch>/` — open|stash|closed, trace/ide-inline data, report.yml
- * - `snapshots/<branch>/` — working-tree blame JSON (pre-commit)
+ * - `snapshots/<branch>/` — ephemeral working-tree blame JSON (cleared on commit/rollback)
  * - `logs/commits/<sha>/snapshots/` + `report.yml` — blame + report archived at commit
  */
 object BlamelyUserRepoPaths {
@@ -236,21 +236,32 @@ object BlamelyUserRepoPaths {
         if (tip.isEmpty()) return
         val data = resolveBlamelyDataDir(repoRoot, userLayoutRoot) ?: return
         val bk = BlamelyRepoPaths.safeBranchName(branch)
-        val snapDir = File(File(data, "snapshots"), bk)
-        if (!snapDir.isDirectory) return
-        val files = snapDir.listFiles()?.filter { it.isFile && it.name.endsWith(".blame.json") } ?: return
-        if (files.isEmpty()) return
         val destDir = closedCommitSnapshotsDir(repoRoot, branch, tip, userLayoutRoot) ?: return
         destDir.mkdirs()
-        for (f in files) {
-            val t = File(destDir, f.name)
-            if (t.exists()) continue
-            try {
-                f.copyTo(t, overwrite = false)
-                f.delete()
-            } catch (e: Exception) {
-                BlamelyLogger.warn("Blamely: archive snapshot ${f.name}: ${e.message}")
+
+        fun archiveFromDir(snapDir: File) {
+            if (!snapDir.isDirectory) return
+            val files = snapDir.listFiles()?.filter { it.isFile && it.name.endsWith(".blame.json") } ?: return
+            if (files.isEmpty()) return
+            for (f in files) {
+                val t = File(destDir, f.name)
+                try {
+                    if (t.exists()) {
+                        f.delete()
+                        continue
+                    }
+                    f.copyTo(t, overwrite = false)
+                    f.delete()
+                } catch (e: Exception) {
+                    BlamelyLogger.warn("Blamely: archive snapshot ${f.name}: ${e.message}")
+                }
             }
+        }
+
+        archiveFromDir(File(File(data, "snapshots"), bk))
+        val gd = GitUtils.getGitDirForCwd(repoRoot.absolutePath)?.let { File(it) }
+        if (gd != null) {
+            archiveFromDir(BlamelyRepoPaths.snapshotsDir(gd, branch))
         }
     }
 
@@ -258,6 +269,8 @@ object BlamelyUserRepoPaths {
      * Copy archived per-commit .blame.json files from logs/commits/(sha)/snapshots/ back to
      * snapshots/(branch)/ after post-commit cleanup so the IDE keeps full-file line attribution
      * (git notes only carry diff hunks).
+     *
+     * @deprecated Working snapshots/&lt;branch&gt; are ephemeral; do not restore archived blame there.
      */
     fun restoreCommitSnapshotsToBranchDir(
         repoRoot: File,

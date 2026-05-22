@@ -47,8 +47,9 @@ class BlameMapService(val project: Project) {
         val cwd = GitUtils.getRepoRoot(project) ?: project.basePath ?: return
         val sessionBefore = Pair(blameMap.firstStartCodingTimeMs, blameMap.totalTimeWaitingForAiMs)
         val hasChanges = GitUtils.hasUncommittedChanges(cwd)
-        // Clean working tree: reset line blame; restore session metrics for this branch from session.json
+        // Clean working tree: reset line blame and drop stale working snapshots on disk.
         if (!hasChanges) {
+            BlameSerializer.clearCurrentBranchSnapshots(project)
             ApplicationManager.getApplication().invokeLater {
                 if (project.isDisposed) return@invokeLater
                 blameMap.clear()
@@ -62,42 +63,25 @@ class BlameMapService(val project: Project) {
         }
         val trackedFiles = blameMap.getTrackedFiles().toList()
         val dataToSave = trackedFiles.associateWith { blameMap.getBlame(it) }.filterValues { it.isNotEmpty() }
-        if (last != null && dataToSave.isNotEmpty()) {
-            BlameSerializer.saveAllToBranch(project, last, dataToSave, blameMap)
+        if (last != null) {
+            BlameSerializer.clearBranchSnapshots(project, last)
         }
-        val restored = BlameSerializer.loadAll(project)
-        val sessionFromDisk = BlameSerializer.loadSession(project)
-        val mergedForApply = if (dataToSave.isNotEmpty()) {
-            val m = restored.toMutableMap()
-            for ((path, entries) in dataToSave) {
-                if (entries.isNotEmpty()) m[path] = entries
-            }
-            m
-        } else {
-            restored
-        }
+        BlameSerializer.clearBranchSnapshots(project, currentBranch)
         val branchToSet = currentBranch
-        val isEmptyNewBranch = restored.isEmpty() && dataToSave.isNotEmpty()
-        val dataForNewBranch = if (isEmptyNewBranch) dataToSave else null
-        val restoredForApply = if (isEmptyNewBranch) null else mergedForApply
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) return@invokeLater
-            if (dataForNewBranch != null && dataForNewBranch.isNotEmpty()) {
-                BlameSerializer.saveAllToBranch(project, branchToSet, dataForNewBranch, blameMap)
-            }
-            if (restoredForApply != null) {
-                blameMap.clear()
-                restoredForApply.forEach { (path, entries) ->
+            blameMap.clear()
+            if (dataToSave.isNotEmpty()) {
+                dataToSave.forEach { (path, entries) ->
                     if (entries.isNotEmpty()) blameMap.setFileBlame(path, entries)
                 }
-                if (dataToSave.isNotEmpty()) {
-                    blameMap.restoreSessionMetrics(sessionBefore.first, sessionBefore.second)
-                } else {
-                    blameMap.restoreSessionMetrics(
-                        sessionFromDisk.first_start_coding_time_ms,
-                        sessionFromDisk.total_time_waiting_for_ai_ms
-                    )
-                }
+                blameMap.restoreSessionMetrics(sessionBefore.first, sessionBefore.second)
+            } else {
+                val sessionFromDisk = BlameSerializer.loadSession(project)
+                blameMap.restoreSessionMetrics(
+                    sessionFromDisk.first_start_coding_time_ms,
+                    sessionFromDisk.total_time_waiting_for_ai_ms
+                )
             }
             lastLoadedBranch = branchToSet
             project.getService(BranchSessionLifecycleService::class.java)?.onBranchChanged(branchToSet)
