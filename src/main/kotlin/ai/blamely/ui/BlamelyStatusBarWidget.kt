@@ -36,7 +36,15 @@ class BlamelyStatusBarWidget(project: Project) : EditorBasedWidget(project), Sta
         }
     }
 
-    override fun getTooltipText(): String = "Blamely — ⓒ chars, ≡ lines. Click to view details."
+    override fun getTooltipText(): String {
+        val daemon = project.getService(ai.blamely.cli.CliDataService::class.java)?.daemonStatus
+        val hint = when {
+            daemon?.running == true -> "blamely daemon :${daemon.port}"
+            daemon?.port != null -> "daemon offline"
+            else -> "run blamely daemon"
+        }
+        return "Blamely — $hint. Click for Changes."
+    }
 
     override fun getClickConsumer(): Consumer<MouseEvent>? = Consumer { _ ->
         com.intellij.openapi.wm.ToolWindowManager.getInstance(project).getToolWindow("Blamely")?.show()

@@ -1,5 +1,6 @@
 package ai.blamely.actions
 
+import ai.blamely.cli.CliDataService
 import ai.blamely.core.BlameMapService
 import ai.blamely.core.LineBlame
 import com.intellij.notification.NotificationGroupManager
@@ -19,6 +20,7 @@ class ShowBlameAction : AnAction() {
         val basePath = project.basePath ?: return
         var path = file.path
         if (path.startsWith(basePath)) path = path.substring(basePath.length).trimStart('/', '\\')
+        project.getService(CliDataService::class.java)?.refresh()
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val entries = blameService.blameMap.getBlame(path)
         val ai = entries.count { it.authorType == LineBlame.AuthorType.AI }

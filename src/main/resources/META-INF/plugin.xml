@@ -2,50 +2,19 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
-    <h2>Stop guessing your codes origin. Know every human and AI contribution</h2>
-
-    <p>Blamely brings AI contribution tracking directly into IntelliJ IDEA. As AI-assisted coding becomes the norm, Blamely answers the question every developer and every team is starting to ask: <b>how much of this codebase is actually human?</b></p>
-
-    <p>Blamely sits quietly in your IDE and analyzes your git history commit by commit. It detects which lines were written by AI tools - GitHub Copilot, Cursor, Codeium, Claude, and others - and which were written by hand. The results appear instantly in a clean, native-feeling tool window: no external services, no sign-up, no telemetry.</p>
-
-    <h3>What Blamely tracks</h3>
-    <ul>
-      <li>AI / Human line count per commit and per file</li>
-      <li>Which AI models contributed and how much</li>
-      <li>Contribution percentage visualized with inline progress bars</li>
-      <li>Full commit history with diff stats, branch tags, and authorship breakdown</li>
-    </ul>
-
-    <h3>Why developers use Blamely</h3>
-    <ul>
-      <li>Understand your real contribution before a code review</li>
-      <li>Track how your AI usage evolves over time</li>
-      <li>Make informed decisions about what to refactor or own</li>
-      <li>Satisfy team or company policies around AI-generated code</li>
-    </ul>
-
-    <p>Blamely doesn't judge. It just shows you the numbers - and lets you decide what they mean.</p>
-
-    <p><i>Because git blame only tells half the story.</i></p>
-
-    <h3>Supported AI providers</h3>
-    <p>GitHub Copilot (Chat, Inline, Completion) | Claude  (Chat, Inline, Completion) | JetBrains AI</p>
-
-    <p>Part of the <a href="https://blamely.ai">Blamely</a> open standard - same .git/blamely format for cross-IDE compatibility. Learn more at <a href="https://blamely.ai">blamely.ai</a></p>
+    <p>Display AI vs human code attribution from <b>oobeya-cli</b> (blamely) runtime data and git note reports.</p>
+    <p>Requires <code>blamely install</code> and <code>blamely daemon</code>. Reports are written by oobeya-cli on commit to <code>refs/notes/blamely</code>.</p>
   ]]></description>
 
   <change-notes><![CDATA[
-    <h3>1.0.0</h3>
+    <h3>1.1.0</h3>
     <ul>
-      <li><b>Data layout</b> — Blame snapshots and per-branch <code>report.yml</code> under <code>~/.blamely/repos/&lt;id&gt;/</code>; optional migration from legacy <code>.git/blamely</code> layouts.</li>
-      <li><b>Hooks</b> — Bundled <code>hookRunner.js</code> reads <code>~/.blamely/repos/&lt;id&gt;/snapshots/&lt;branch&gt;/*.blame.json</code> (<code>node</code> on PATH when using the JS runner).</li>
-      <li><b>Sessions</b> — Per-branch dirs under <code>.git/blamely/&lt;branch&gt;/</code>; session metadata mirrored under <code>~/.blamely/intellij/</code>.</li>
-      <li><b>Settings</b> — <code>showGutterDecorations</code>, <code>autoInstallHook</code>, <code>reportOnSave</code>, <code>suggestionTimeout</code>.</li>
-      <li><b>Git notes</b> — Pre-push continues to support <code>refs/notes/blamely</code>.</li>
+      <li>Read-only consumer of oobeya-cli SQLite runtime data and JSON git notes.</li>
+      <li>Removed IDE-side edit detection, hooks, and report generation.</li>
     </ul>
   ]]></change-notes>
 
@@ -59,9 +28,9 @@
       groupWeight="-100"/>
     <notificationGroup id="Blamely" displayType="BALLOON"/>
     <projectService serviceImplementation="ai.blamely.core.BlameMapService"/>
-    <projectService serviceImplementation="ai.blamely.core.BranchSessionLifecycleService"/>
-    <projectService serviceImplementation="ai.blamely.core.TraceStoreService"/>
+    <projectService serviceImplementation="ai.blamely.cli.CliDataService"/>
     <projectService serviceImplementation="ai.blamely.ui.BlameDecorations"/>
+    <projectService serviceImplementation="ai.blamely.completion.CompletionDetector"/>
     <postStartupActivity implementation="ai.blamely.BlamelyStartupActivity"/>
     <toolWindow id="Blamely" factoryClass="ai.blamely.ui.BlamelyToolWindowFactory"
           secondary="false" anchor="bottom" icon="/icons/toolwindow-ai.svg"/>
@@ -71,26 +40,8 @@
   <actions>
     <group id="Blamely.MainMenu" text="Blamely" description="AI / Human" icon="/META-INF/pluginIcon.svg">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
-      <action id="Blamely.GenerateReport" class="ai.blamely.actions.GenerateReportAction"
-          text="Generate Report Now" description="Regenerate report.yml and blame state"/>
       <action id="Blamely.ShowBlame" class="ai.blamely.actions.ShowBlameAction"
-          text="Show Blame for Current File" description="Show AI / Human for active editor"/>
-      <action id="Blamely.InstallHook" class="ai.blamely.actions.InstallHookAction"
-          text="Install Git Commit Hook" description="Install pre-commit hook for blamely"/>
-      <action id="Blamely.RestoreHook" class="ai.blamely.actions.RestoreGitHookAction"
-          text="Restore/Remove Git Hook" description="Restore pre-commit from backup or remove hook"/>
-      <action id="Blamely.ShowCommitReport" class="ai.blamely.actions.ShowCommitReportAction"
-          text="Show Report for Latest Commit (Git Note)" description="Open report from git notes"/>
-      <action id="Blamely.AttachGitNote" class="ai.blamely.actions.AttachGitNoteAction"
-          text="Attach Git Note for Current Commit" description="Add or overwrite Blamely note for HEAD (fix 'no note found')"/>
-      <action id="Blamely.AttachGitNoteForSha" class="ai.blamely.actions.AttachGitNoteForShaAction"
-          text="Attach Git Note for Commit SHA..." description="Paste a commit SHA (e.g. from 'no note found' error) and attach the note"/>
-      <action id="Blamely.PushNotesToRemote" class="ai.blamely.actions.PushNotesToRemoteAction"
-          text="Push AI Notes to Remote" description="Push refs/notes/blamely to origin (run after VCS -&gt; Push so remote has notes)"/>
-      <action id="Blamely.ShowSessionChanges" class="ai.blamely.actions.ShowSessionChangesAction"
-          text="Show Changes for Commit/Session..." description="Open a read-only git show summary for a session commit or any SHA"/>
-      <action id="Blamely.ShowMemoryDiagnostics" class="ai.blamely.actions.ShowMemoryDiagnosticsAction"
-          text="Show Memory / Diagnostics" description="Approximate plugin memory usage and how to capture a heap snapshot"/>
+          text="Show Blame for Current File" description="Refresh gutter attribution for active editor"/>
     </group>
   </actions>
 </idea-plugin>

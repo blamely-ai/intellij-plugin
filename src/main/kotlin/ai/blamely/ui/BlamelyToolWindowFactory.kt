@@ -1,12 +1,10 @@
 package ai.blamely.ui
 
+import ai.blamely.cli.CliDataService
 import ai.blamely.core.BlameMapService
 import ai.blamely.core.BlameUpdateListener
-import ai.blamely.core.BranchSessionLifecycleService
-import ai.blamely.core.BranchSessionListEntry
 import ai.blamely.core.LineBlame
 import ai.blamely.git.GitUtils
-import ai.blamely.persistence.HomeBranchSession
 import ai.blamely.settings.BlamelyConfigurable
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionManager
@@ -67,11 +65,6 @@ private class OpenBlamelySettingsAction(private val project: Project) : AnAction
 // ─── Current Changes ─────────────────────────────────────────────────────────
 
 private class CurrentChangesPanel(private val project: Project) : JPanel(BorderLayout()) {
-
-    companion object {
-        /** Changes tab lists only the most recent branch sessions to keep the panel compact. */
-        private const val MAX_BRANCH_SESSIONS_ON_CHANGES_TAB = 3
-    }
 
     // Design colors
     private val colBgSecondary = java.awt.Color(0x2B, 0x2D, 0x30)
@@ -157,7 +150,7 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
                 font = font.deriveFont(java.awt.Font.BOLD, 13f)
             })
             titles.add(Box.createVerticalStrut(3))
-            titles.add(JLabel("Live attribution and branch sessions").apply {
+            titles.add(JLabel("Runtime attribution from oobeya-cli").apply {
                 foreground = colTextMuted
                 font = font.deriveFont(11f)
             })
@@ -210,19 +203,8 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         val base = basePath
 
         val repoRoot = GitUtils.getRepoRoot(project)
-        val sessionsAll = if (repoRoot != null) {
-            project.getService(BranchSessionLifecycleService::class.java)?.listSessionsForToolWindow() ?: emptyList()
-        } else {
-            emptyList()
-        }
-        val sessions = sessionsAll
-            .sortedByDescending { e ->
-                e.closedAt?.takeIf { it.isNotBlank() }
-                    ?: e.updatedAt.takeIf { it.isNotBlank() }
-                    ?: e.openedAt
-            }
-            .take(MAX_BRANCH_SESSIONS_ON_CHANGES_TAB)
         val branchName = GitUtils.getBranch(project)
+        val daemon = project.getService(CliDataService::class.java)?.daemonStatus
 
         val trackedFiles = if (base.isNotEmpty()) {
             blameMap.getTrackedFiles().filter { isPathUnderProject(base, it) }
@@ -234,7 +216,7 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         val models = mutableSetOf<String>()
         for (fp in trackedFiles) {
             blameMap.getBlame(fp).filter { it.authorType == LineBlame.AuthorType.AI && !it.model.isNullOrBlank() }
-                .mapNotNull { ai.blamely.utils.AiContextExtractor.sanitizeModelForReport(it.model) }
+                .mapNotNull { it.model?.trim()?.takeIf { m -> m.isNotEmpty() && m != "unknown" } }
                 .forEach { models.add(it) }
         }
         modelValueLabel.text = if (models.isEmpty()) "\u2014" else models.sorted().joinToString(", ")
@@ -327,9 +309,9 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
             if (c is JComponent) c.alignmentY = java.awt.Component.CENTER_ALIGNMENT
         }
 
-        // File list: card — branch & sessions; card — working-tree files
+        // Runtime status card + file list
         fileListPanel.removeAll()
-        val branchSessionsInner = JPanel().apply {
+        val runtimeInner = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             isOpaque = false
         }
@@ -339,38 +321,15 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
             add(JLabel("Branch").apply { foreground = colTextMuted; font = font.deriveFont(java.awt.Font.BOLD, 10f) })
             add(branchBadge(branchName ?: "—"))
         }
-        branchSessionsInner.add(branchHeader)
-        branchSessionsInner.add(Box.createVerticalStrut(4))
-        val sessionsTruncated = sessionsAll.size > sessions.size
-        val sessionsTitle = buildString {
-            append("Trace archives")
-            if (sessionsTruncated) {
-                append(" (latest ").append(MAX_BRANCH_SESSIONS_ON_CHANGES_TAB).append(')')
-            }
-            if (sessions.isNotEmpty()) {
-                append(" · ").append(sessions.size).append(" commit(s)")
-            }
+        runtimeInner.add(branchHeader)
+        runtimeInner.add(Box.createVerticalStrut(4))
+        val daemonLabel = when {
+            daemon?.running == true -> "blamely daemon running on port ${daemon.port}"
+            daemon?.port != null -> "blamely daemon offline (port ${daemon.port})"
+            else -> "blamely daemon not detected — run blamely install && blamely daemon"
         }
-        branchSessionsInner.add(groupRow(sessionsTitle, sessions.size))
-        when {
-            repoRoot == null -> branchSessionsInner.add(mutedRow("No Git repository — trace archives are not available."))
-            sessions.isEmpty() -> branchSessionsInner.add(
-                mutedRow(
-                    "No archived traces yet. After each commit, files under trace/ are moved to closed/<commit>/trace/ (shared with blamely-cli)."
-                )
-            )
-            else -> {
-                for (s in sessions) {
-                    branchSessionsInner.add(sessionRow(s))
-                }
-                if (sessionsTruncated) {
-                    branchSessionsInner.add(
-                        mutedRow("+ ${sessionsAll.size - sessions.size} older archive(s) — open History for committed reports.")
-                    )
-                }
-            }
-        }
-        fileListPanel.add(changesRoundedCard(branchSessionsInner))
+        runtimeInner.add(mutedRow(daemonLabel))
+        fileListPanel.add(changesRoundedCard(runtimeInner))
         fileListPanel.add(Box.createVerticalStrut(12))
 
         val changesInner = JPanel().apply {
@@ -380,7 +339,7 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         changesInner.add(groupRow("Files", fileStatsList.size))
         changesInner.add(Box.createVerticalStrut(4))
         if (fileStatsList.isEmpty()) {
-            changesInner.add(mutedRow("No uncommitted attribution yet — edit tracked files to see AI vs human breakdown."))
+            changesInner.add(mutedRow("No runtime edits in oobeya-cli DB yet — use AI tools with blamely hooks installed."))
         } else {
             for (fs in fileStatsList) {
                 changesInner.add(fileRow(fs.displayName, fs.path, fs.aiChars, fs.humanChars, fs.aiLines, fs.humanLines, fs.aiPct, fs.gitInsertions, fs.gitDeletions))
@@ -529,60 +488,6 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
                 },
                 BorderLayout.WEST
             )
-        }
-    }
-
-    private fun sessionRow(e: BranchSessionListEntry): JPanel {
-        val (statusLabel, statusColor) = when (e.status) {
-            HomeBranchSession.STATUS_OPEN -> "Open" to colHuman
-            HomeBranchSession.STATUS_STASHED -> "Stashed" to colAi
-            HomeBranchSession.STATUS_CLOSED -> "Closed" to colTextMuted
-            else -> e.status to colTextSecondary
-        }
-        val idShort = e.sessionId.take(8)
-        val opened = e.openedAt.take(10).ifEmpty { "\u2014" }
-        val updated = e.updatedAt.take(10).ifEmpty { "\u2014" }
-        val commitPart = e.commitSha?.take(8)?.let { " \u00b7 $it" } ?: ""
-        val stashPart = if (e.stashLinkCount > 0) " \u00b7 stash\u00d7${e.stashLinkCount}" else ""
-
-        val badge = JLabel(" $statusLabel ").apply {
-            foreground = statusColor
-            font = font.deriveFont(java.awt.Font.BOLD, 9f)
-            border = BorderFactory.createEmptyBorder(1, 4, 1, 4)
-            isOpaque = true
-            background = withAlpha(statusColor, 35)
-        }
-        val detail = JLabel(
-            "<html><font color='${hex(colTextPrimary)}'>$idShort</font>" +
-                "<font color='${hex(colTextMuted)}'> \u00b7 opened $opened \u00b7 updated $updated$commitPart$stashPart</font></html>"
-        ).apply { font = font.deriveFont(10f) }
-
-        return JPanel(BorderLayout()).apply {
-            isOpaque = false
-            preferredSize = java.awt.Dimension(0, 28)
-            maximumSize = java.awt.Dimension(Short.MAX_VALUE.toInt(), 28)
-            border = BorderFactory.createEmptyBorder(2, 8, 2, 8)
-            val west = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply { isOpaque = false }
-            west.add(badge)
-            west.add(detail)
-            add(west, BorderLayout.WEST)
-            val sha = e.commitSha
-            if (!sha.isNullOrBlank()) {
-                val showChanges = JLabel("Show changes").apply {
-                    foreground = colAi
-                    font = font.deriveFont(10f)
-                    cursor = java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)
-                    toolTipText = "Open a read-only git show summary for $sha"
-                    addMouseListener(object : java.awt.event.MouseAdapter() {
-                        override fun mouseClicked(ev: java.awt.event.MouseEvent) {
-                            ai.blamely.actions.ShowSessionChangesAction.showFor(project, sha)
-                        }
-                    })
-                }
-                val east = JPanel(FlowLayout(FlowLayout.RIGHT, 6, 0)).apply { isOpaque = false }
-                east.add(showChanges)
-                add(east, BorderLayout.EAST)
-            }
         }
     }
 
@@ -898,50 +803,33 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
     }
 
     private fun parseReport(note: String, author: String = "", authorDate: String = ""): CommitReport? {
-        val lines = note.lines()
-        fun yamlVal(key: String): String? {
-            for (line in lines) {
-                val t = line.trim()
-                if (t.startsWith("$key:")) return t.removePrefix("$key:").trim().removeSurrounding("\"")
-            }
-            return null
-        }
-        val commitHash = yamlVal("commit_hash") ?: return null
-        val commitMessage = yamlVal("commit_message") ?: ""
-        val branch = yamlVal("branch") ?: ""
-        val generatedAt = yamlVal("commitDate") ?: yamlVal("generated_at") ?: ""
-        val totalFilesChanged = yamlVal("total_files_changed")?.toIntOrNull() ?: 0
-        val totalLinesAdded = yamlVal("total_lines_added")?.toIntOrNull() ?: 0
-        val totalLinesDeleted = yamlVal("total_lines_deleted")?.toIntOrNull() ?: 0
-        val aiLinesAdded = yamlVal("ai_lines_added")?.toIntOrNull() ?: 0
-        val humanLinesAdded = yamlVal("human_lines_added")?.toIntOrNull() ?: 0
-        val aiPercentage = yamlVal("ai_percentage") ?: "0%"
-        val timeWaitingForAiMs = yamlVal("time_waiting_for_ai_ms")?.toLongOrNull() ?: 0
-        val firstStartCodingTime = yamlVal("first_start_coding_time") ?: ""
-
-        var codingTimeMs = 0L
-        if (firstStartCodingTime.isNotBlank() && firstStartCodingTime != "null" && generatedAt.isNotBlank()) {
-            try {
-                val start = java.time.Instant.parse(firstStartCodingTime)
-                val end = java.time.Instant.parse(generatedAt)
-                codingTimeMs = java.time.Duration.between(start, end).toMillis().coerceAtLeast(0)
-            } catch (_: Exception) {}
-        }
-
-        val models = mutableListOf<String>()
-        val interactionTypes = mutableListOf<String>()
-        var inModels = false; var inInteraction = false
-        for (line in lines) {
-            val t = line.trim()
-            when {
-                t == "models:" -> { inModels = true; inInteraction = false; continue }
-                t == "interaction_types:" -> { inInteraction = true; inModels = false; continue }
-                t.endsWith(":") && !t.startsWith("-") -> { inModels = false; inInteraction = false }
-            }
-            if (inModels && t.startsWith("- ")) models.add(t.removePrefix("- ").removeSurrounding("\"").trim())
-            if (inInteraction && t.startsWith("- ")) interactionTypes.add(t.removePrefix("- ").removeSurrounding("\"").trim())
-        }
-        return CommitReport(commitHash, commitMessage, branch, generatedAt, author, authorDate, totalFilesChanged, totalLinesAdded, totalLinesDeleted, aiLinesAdded, humanLinesAdded, aiPercentage, models, interactionTypes, timeWaitingForAiMs, firstStartCodingTime, codingTimeMs)
+        val cli = ai.blamely.cli.CliNoteParser.parse(note) ?: return null
+        val aiLines = cli.totals.aiLines
+        val humanLines = cli.totals.humanLines
+        val total = aiLines + humanLines
+        val aiPct = if (total > 0) "${(aiLines * 100 / total)}%" else "0%"
+        val models = ai.blamely.cli.CliNoteParser.models(cli)
+        val interactionTypes = ai.blamely.cli.CliNoteParser.genTypes(cli)
+        val totalAdded = aiLines + humanLines
+        return CommitReport(
+            commitHash = cli.commit,
+            commitMessage = "",
+            branch = "",
+            generatedAt = authorDate,
+            author = author,
+            authorDate = authorDate,
+            totalFilesChanged = cli.totals.files,
+            totalLinesAdded = totalAdded,
+            totalLinesDeleted = cli.totals.deletedLines,
+            aiLinesAdded = aiLines,
+            humanLinesAdded = humanLines,
+            aiPercentage = aiPct,
+            models = models,
+            interactionTypes = interactionTypes,
+            timeWaitingForAiMs = 0,
+            firstStartCodingTime = "",
+            codingTimeMs = 0,
+        )
     }
 
     /** Distributes a commit's AI line count across named models (same heuristic as [loadOverallData] aggregation). */
