@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "commit": "541f5b781ddd35e4453dbfbe8f303700b0108564",
+  "branch": "main",
+  "message": "Merge remote-tracking branch 'origin/main'\n\n# Conflicts:\n#\tsrc/main/kotlin/ai/blamely/BlamelyStartupActivity.kt\n#\tsrc/main/kotlin/ai/blamely/actions/AttachGitNoteAction.kt\n#\tsrc/main/kotlin/ai/blamely/actions/AttachGitNoteForShaAction.kt\n#\tsrc/main/kotlin/ai/blamely/actions/ShowCommitReportAction.kt\n#\tsrc/main/kotlin/ai/blamely/core/BlameMap.kt\n#\tsrc/main/kotlin/ai/blamely/core/BlameMapService.kt\n#\tsrc/main/kotlin/ai/blamely/listeners/CommitListener.kt\n#\tsrc/main/kotlin/ai/blamely/persistence/BlameSerializer.kt\n#\tsrc/main/kotlin/ai/blamely/persistence/BlamelyUserRepoPaths.kt\n#\tsrc/main/kotlin/ai/blamely/utils/AiContextExtractor.kt\n#\tsrc/test/kotlin/ai/blamely/BlameMapTest.kt\n#\tsrc/test/kotlin/ai/blamely/GitUtilsTest.kt",
+  "coding_time_nanos": 2464256759000,
+  "totals": {
+    "ai_lines": 0,
+    "human_lines": 0,
+    "deleted_lines": 0,
+    "files": 0
+  },
+  "by_tool": {},
+  "by_gen_type": {
+    "chat": 0,
+    "cli": 0,
+    "completion": 0
+  },
+  "files": null,
+  "generated_by": "blamely 0.1.0"
+}
