@@ -1,0 +1,137 @@
+package ai.blamely.completion
+
+import ai.blamely.cli.CliPaths
+import ai.blamely.utils.BlamelyLogger
+import java.net.HttpURLConnection
+import java.net.URL
+
+// EditPayload mirrors daemon.EditPayload (Go side). Field names match the
+// JSON tags expected by /edit on the blamely daemon.
+data class EditRange(val start: Int, val end: Int, val contentSha: String? = null)
+
+data class EditPayload(
+    val tool: String,
+    val confidence: String? = null,
+    val genType: String? = null,
+    val repoPath: String,
+    val filePath: String,
+    val model: String? = null,
+    val suggestedLines: Long = 0,
+    val lines: List<EditRange>,
+    val rawMeta: String? = null,
+)
+
+// DaemonClient posts attribution events to the blamely daemon's /edit
+// endpoint. The port is read from ~/.blamely/daemon.port; on any failure
+// the cache is invalidated so a daemon restart (with a new port) heals
+// on the next call.
+class DaemonClient {
+    @Volatile
+    private var cachedPort: Int? = null
+
+    @Volatile
+    private var lastWarnAtMillis: Long = 0
+
+    fun send(payload: EditPayload): Boolean {
+        val port = resolvePort()
+        if (port == null) {
+            maybeWarn("daemon port file missing (blamely daemon not running?)")
+            return false
+        }
+        return try {
+            post(port, payload)
+            true
+        } catch (e: Exception) {
+            cachedPort = null
+            maybeWarn("POST /edit failed: ${e.message}")
+            false
+        }
+    }
+
+    private fun resolvePort(): Int? {
+        cachedPort?.let { return it }
+        val p = CliPaths.readDaemonPort()
+        if (p != null) cachedPort = p
+        return p
+    }
+
+    private fun post(port: Int, p: EditPayload) {
+        val body = encodeJson(p).toByteArray(Charsets.UTF_8)
+        val conn = URL("http://127.0.0.1:$port/edit").openConnection() as HttpURLConnection
+        conn.connectTimeout = 1500
+        conn.readTimeout = 1500
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Content-Length", body.size.toString())
+        try {
+            conn.outputStream.use { it.write(body) }
+            val code = conn.responseCode
+            if (code != 204) {
+                throw RuntimeException("daemon returned $code")
+            }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun maybeWarn(msg: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastWarnAtMillis < 30_000) return
+        lastWarnAtMillis = now
+        BlamelyLogger.warn("DaemonClient: $msg")
+    }
+}
+
+// encodeJson hand-rolls the JSON envelope so the plugin doesn't grow a
+// dependency on a JSON library for this one POST. The shape is small and
+// fully under our control; only string-escaping needs care.
+private fun encodeJson(p: EditPayload): String {
+    val sb = StringBuilder()
+    sb.append('{')
+    sb.append("\"tool\":").append(quote(p.tool))
+    p.confidence?.let { sb.append(",\"confidence\":").append(quote(it)) }
+    p.genType?.let { sb.append(",\"gen_type\":").append(quote(it)) }
+    sb.append(",\"repo_path\":").append(quote(p.repoPath))
+    sb.append(",\"file_path\":").append(quote(p.filePath))
+    p.model?.let { sb.append(",\"model\":").append(quote(it)) }
+    if (p.suggestedLines > 0) {
+        sb.append(",\"suggested_lines\":").append(p.suggestedLines)
+    }
+    sb.append(",\"lines\":[")
+    p.lines.forEachIndexed { i, r ->
+        if (i > 0) sb.append(',')
+        sb.append('{')
+        sb.append("\"start\":").append(r.start)
+        sb.append(",\"end\":").append(r.end)
+        r.contentSha?.let { sb.append(",\"content_sha\":").append(quote(it)) }
+        sb.append('}')
+    }
+    sb.append(']')
+    p.rawMeta?.let { sb.append(",\"raw_meta\":").append(quote(it)) }
+    sb.append('}')
+    return sb.toString()
+}
+
+private fun quote(s: String): String {
+    val sb = StringBuilder(s.length + 2)
+    sb.append('"')
+    for (c in s) {
+        when (c) {
+            '"' -> sb.append("\\\"")
+            '\\' -> sb.append("\\\\")
+            '\n' -> sb.append("\\n")
+            '\r' -> sb.append("\\r")
+            '\t' -> sb.append("\\t")
+            '\b' -> sb.append("\\b")
+            '\u000C' -> sb.append("\\f")
+            else -> if (c < ' ') {
+                sb.append(String.format("\\u%04x", c.code))
+            } else {
+                sb.append(c)
+            }
+        }
+    }
+    sb.append('"')
+    return sb.toString()
+}
