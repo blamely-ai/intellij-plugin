@@ -21,16 +21,28 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
             state.detectInlineCompletion = value
         }
 
+    // Which AI tool to credit for detected edits: "auto" | "copilot" | "cursor".
+    // "auto" infers from the installed inline-completion plugin. Set explicitly
+    // when the IDE hosts more than one assistant so chat applies and inline
+    // completions are attributed to the right (independent) tool.
+    var aiTool: String
+        get() = state.aiTool
+        set(value) {
+            state.aiTool = value
+        }
+
     override fun getState(): State = state
 
     override fun loadState(loaded: State) {
         state.showGutterLineIcons = loaded.showGutterLineIcons
         state.detectInlineCompletion = loaded.detectInlineCompletion
+        state.aiTool = loaded.aiTool
     }
 
     data class State(
         var showGutterLineIcons: Boolean = true,
         var detectInlineCompletion: Boolean = true,
+        var aiTool: String = "auto",
     )
 
     private var state = State()

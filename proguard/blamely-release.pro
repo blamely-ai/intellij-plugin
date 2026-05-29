@@ -35,6 +35,8 @@
 -keep class ai.blamely.BlamelyStartupActivity { *; }
 -keep class ai.blamely.ui.BlamelyToolWindowFactory { *; }
 -keep class ai.blamely.ui.BlamelyStatusBarWidgetFactory { *; }
+-keep class ai.blamely.actions.ShowBlameAction { *; }
+-keep class ai.blamely.completion.CompletionDetector { *; }
 -keep class ai.blamely.cli.** { *; }
 
 -keep interface ai.blamely.core.BlameUpdateListener { *; }

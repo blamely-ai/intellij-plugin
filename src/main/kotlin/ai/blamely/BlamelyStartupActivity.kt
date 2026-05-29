@@ -35,6 +35,7 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
 
         cliData.start()
         CliHealthNotifier(project).start()
+        project.getService(ai.blamely.ui.BlameDecorations::class.java)
 
         if (BlamelySettings.getInstance().detectInlineCompletion) {
             project.getService(CompletionDetector::class.java)?.register()

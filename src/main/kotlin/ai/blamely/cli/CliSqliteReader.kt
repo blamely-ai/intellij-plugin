@@ -1,5 +1,6 @@
 package ai.blamely.cli
 
+import java.io.File
 import java.sql.DriverManager
 
 object CliSqliteReader {
@@ -7,7 +8,22 @@ object CliSqliteReader {
 
     fun isAiTool(tool: String): Boolean = tool.lowercase() in AI_TOOLS
 
-    fun loadEditsForRepo(repoId: String): List<CliEditRow> {
+    fun loadEditsForRepo(repoRoot: String, sinceTs: Long = 0): List<CliEditRow> {
+        val repoIds = linkedSetOf<String>()
+        CliRepoId.get(repoRoot)?.let { repoIds.add(it) }
+        try {
+            repoIds.add(File(repoRoot).canonicalPath)
+        } catch (_: Exception) {
+        }
+        repoIds.add(repoRoot.trimEnd('/', '\\'))
+        for (repoId in repoIds) {
+            val rows = loadEditsForRepoId(repoId, sinceTs)
+            if (rows.isNotEmpty()) return rows
+        }
+        return emptyList()
+    }
+
+    private fun loadEditsForRepoId(repoId: String, sinceTs: Long = 0): List<CliEditRow> {
         val db = CliPaths.dbFile()
         if (!db.isFile) return emptyList()
         val url = "jdbc:sqlite:${db.absolutePath}"
@@ -19,11 +35,12 @@ object CliSqliteReader {
                            el.start_line, el.end_line
                     FROM edits e
                     JOIN edit_lines el ON el.edit_id = e.id
-                    WHERE e.repo_path = ?
+                    WHERE e.repo_path = ? AND e.ts >= ?
                     ORDER BY e.ts DESC, e.id DESC
                     """.trimIndent()
                 ).use { ps ->
                     ps.setString(1, repoId)
+                    ps.setLong(2, sinceTs)
                     ps.executeQuery().use { rs ->
                         val out = mutableListOf<CliEditRow>()
                         while (rs.next()) {

@@ -6,17 +6,9 @@
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
-    <p>Display AI vs human code attribution from <b>oobeya-cli</b> (blamely) runtime data and git note reports.</p>
-    <p>Requires <code>blamely install</code> and <code>blamely daemon</code>. Reports are written by oobeya-cli on commit to <code>refs/notes/blamely</code>.</p>
+    <p>Display AI vs human code attribution from <b>blamely</b> CLI runtime data in the editor gutter and tool window.</p>
+    <p>Requires <code>blamely install</code> and <code>blamely daemon</code>.</p>
   ]]></description>
-
-  <change-notes><![CDATA[
-    <h3>1.1.0</h3>
-    <ul>
-      <li>Read-only consumer of oobeya-cli SQLite runtime data and JSON git notes.</li>
-      <li>Removed IDE-side edit detection, hooks, and report generation.</li>
-    </ul>
-  ]]></change-notes>
 
   <depends>com.intellij.modules.platform</depends>
   <depends>Git4Idea</depends>

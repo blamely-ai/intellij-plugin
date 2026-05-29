@@ -3,6 +3,7 @@ package ai.blamely.ui
 import ai.blamely.core.BlameMapService
 import ai.blamely.core.BlameUpdateListener
 import ai.blamely.core.LineBlame
+import ai.blamely.git.GitUtils
 import ai.blamely.settings.BlamelySettings
 import ai.blamely.utils.Platform
 import com.intellij.openapi.Disposable
@@ -141,8 +142,10 @@ class BlameDecorations(private val project: Project) : Disposable {
 
         val doc = editor.document
         val file = FileDocumentManager.getInstance().getFile(doc) ?: return
-        val basePath = project.basePath ?: return
-        val path = toProjectRelativePath(file, basePath) ?: return
+        val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath ?: return
+        val path = GitUtils.toRepoRelativePath(repoRoot, file.path)
+            ?: toProjectRelativePath(file, repoRoot)
+            ?: return
 
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val raw = blameService.blameMap.getBlame(path).filter { it.changeType != LineBlame.ChangeType.DELETE }

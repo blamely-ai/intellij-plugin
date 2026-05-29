@@ -207,7 +207,7 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         val daemon = project.getService(CliDataService::class.java)?.daemonStatus
 
         val trackedFiles = if (base.isNotEmpty()) {
-            blameMap.getTrackedFiles().filter { isPathUnderProject(base, it) }
+            blameMap.getTrackedFiles().filter { isPathUnderProject(base, repoRoot, it) }
         } else {
             emptyList()
         }
@@ -221,53 +221,47 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         }
         modelValueLabel.text = if (models.isEmpty()) "\u2014" else models.sorted().joinToString(", ")
 
-        // Aggregate totals for summary
-        var totalAiChars = 0; var totalHumanChars = 0; var totalAiLines = 0; var totalHumanLines = 0
+        // Aggregate totals — AI and human both come from BlameMap directly
+        var totalAiLines = 0; var totalHumanLines = 0
 
         data class FileStats(
             val path: String,
             val displayName: String,
-            val aiChars: Int,
-            val humanChars: Int,
             val aiLines: Int,
             val humanLines: Int,
             val aiPct: Double,
-            val gitInsertions: Int,
-            val gitDeletions: Int
         )
         val fileStatsList = mutableListOf<FileStats>()
-
-        val numstatByPath = if (repoRoot != null) GitUtils.getWorkingTreeNumstatVsHead(repoRoot) else emptyMap()
-        val wtShortStat = if (repoRoot != null) GitUtils.getWorkingTreeDiffShortStat(repoRoot) else GitUtils.DiffShortStat(0, 0, 0)
 
         for (fp in trackedFiles) {
             val entries = blameMap.getBlame(fp).filter { it.commitSha == null }
             if (entries.isEmpty()) continue
-            val aiC = entries.sumOf { it.aiChars }
-            val hC = entries.sumOf { it.humanChars }
-            val aiL = entries.count { it.authorType == LineBlame.AuthorType.AI }
-            val hL = entries.count { it.authorType == LineBlame.AuthorType.HUMAN }
-            totalAiChars += aiC; totalHumanChars += hC; totalAiLines += aiL; totalHumanLines += hL
-            val total = aiC + hC
-            val pct = if (total > 0) 100.0 * aiC / total else 0.0
+            val byLine = linkedMapOf<Int, LineBlame>()
+            for (e in entries) {
+                val existing = byLine[e.lineNumber]
+                val eTotal = e.aiChars + e.humanChars
+                val curTotal = existing?.let { it.aiChars + it.humanChars } ?: 0
+                if (existing == null || eTotal >= curTotal) byLine[e.lineNumber] = e
+            }
+            val aiL = byLine.values.count { it.authorType == LineBlame.AuthorType.AI }
+            val hL = byLine.values.count { it.authorType == LineBlame.AuthorType.HUMAN }
+            if (aiL == 0 && hL == 0) continue
+
+            totalAiLines += aiL; totalHumanLines += hL
+            val total = aiL + hL
+            val pct = if (total > 0) 100.0 * aiL / total else 0.0
             val name = fp.substringAfterLast('/').ifEmpty { fp }
-            val norm = ai.blamely.utils.Platform.normalizePath(fp)
-            val diffPair = numstatByPath[norm]
-            val ins = diffPair?.first ?: 0
-            val del = diffPair?.second ?: 0
-            fileStatsList.add(FileStats(fp, name, aiC, hC, aiL, hL, pct, ins, del))
+            fileStatsList.add(FileStats(fp, name, aiL, hL, pct))
         }
 
         // Summary strip
         summaryPanel.removeAll()
-        val totalChars = totalAiChars + totalHumanChars
-        val aiPctTotal = if (totalChars > 0) 100.0 * totalAiChars / totalChars else 0.0
+        val totalLinesSum = totalAiLines + totalHumanLines
+        val aiPctTotal = if (totalLinesSum > 0) 100.0 * totalAiLines / totalLinesSum else 0.0
         val humanPctTotal = 100.0 - aiPctTotal
 
         summaryPanel.add(summaryStatDot(colAi))
         summaryPanel.add(Box.createHorizontalStrut(4))
-        summaryPanel.add(summaryNum("$totalAiChars", colAi))
-        summaryPanel.add(summaryMuted(" chars "))
         summaryPanel.add(summaryNum("$totalAiLines", colAi))
         summaryPanel.add(summaryMuted(" lines "))
         summaryPanel.add(Box.createHorizontalStrut(4))
@@ -277,27 +271,10 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         summaryPanel.add(Box.createHorizontalStrut(8))
         summaryPanel.add(summaryStatDot(colHuman))
         summaryPanel.add(Box.createHorizontalStrut(4))
-        summaryPanel.add(summaryNum("$totalHumanChars", colHuman))
-        summaryPanel.add(summaryMuted(" chars "))
         summaryPanel.add(summaryNum("$totalHumanLines", colHuman))
         summaryPanel.add(summaryMuted(" lines "))
         summaryPanel.add(Box.createHorizontalStrut(4))
         summaryPanel.add(summaryPct("${"%.0f".format(humanPctTotal)}%", colHuman, colHumanBg))
-        if (repoRoot != null && (wtShortStat.insertions > 0 || wtShortStat.deletions > 0)) {
-            summaryPanel.add(Box.createHorizontalStrut(12))
-            summaryPanel.add(JLabel("|").apply {
-                foreground = colBorder
-                alignmentY = java.awt.Component.CENTER_ALIGNMENT
-            })
-            summaryPanel.add(Box.createHorizontalStrut(8))
-            summaryPanel.add(summaryMuted("Δ vs HEAD "))
-            summaryPanel.add(summaryNum("+${wtShortStat.insertions}", colHuman))
-            summaryPanel.add(summaryMuted(" ins "))
-            summaryPanel.add(summaryNum("\u2212${wtShortStat.deletions}", colDelete))
-            summaryPanel.add(summaryMuted(" del "))
-            summaryPanel.add(Box.createHorizontalStrut(6))
-            summaryPanel.add(summaryInsertDeleteBar(wtShortStat.insertions, wtShortStat.deletions))
-        }
         summaryPanel.add(Box.createHorizontalGlue())
         summaryPanel.add(JLabel("${fileStatsList.size} file${if (fileStatsList.size != 1) "s" else ""}").apply {
             foreground = colTextMuted
@@ -342,7 +319,7 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
             changesInner.add(mutedRow("No runtime edits in oobeya-cli DB yet — use AI tools with blamely hooks installed."))
         } else {
             for (fs in fileStatsList) {
-                changesInner.add(fileRow(fs.displayName, fs.path, fs.aiChars, fs.humanChars, fs.aiLines, fs.humanLines, fs.aiPct, fs.gitInsertions, fs.gitDeletions))
+                changesInner.add(fileRow(fs.displayName, fs.path, fs.aiLines, fs.humanLines, fs.aiPct))
             }
         }
         fileListPanel.add(changesRoundedCard(changesInner))
@@ -551,16 +528,11 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
     private fun fileRow(
         name: String,
         path: String,
-        aiChars: Int,
-        humanChars: Int,
         aiLines: Int,
         humanLines: Int,
         aiPct: Double,
-        gitInsertions: Int,
-        gitDeletions: Int
     ): JPanel {
-        val total = aiChars + humanChars
-        val humanPct = if (total > 0) 100.0 - aiPct else 0.0
+        val humanPct = if ((aiLines + humanLines) > 0) 100.0 - aiPct else 0.0
         val dotIdx = name.lastIndexOf('.')
         val baseName = if (dotIdx > 0) name.substring(0, dotIdx) else name
         val ext = if (dotIdx > 0) name.substring(dotIdx) else ""
@@ -591,13 +563,11 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         // Stats
         val statsPanel = JPanel(FlowLayout(FlowLayout.LEFT, 6, 0)).apply { isOpaque = false }
         statsPanel.add(JLabel("AI:").apply { foreground = colTextMuted; font = font.deriveFont(10f) })
-        statsPanel.add(JLabel("$aiChars").apply { foreground = colAi; font = font.deriveFont(java.awt.Font.BOLD, 10f) })
-        statsPanel.add(JLabel("\u00a9 $aiLines").apply { foreground = colTextMuted; font = font.deriveFont(10f) })
+        statsPanel.add(JLabel("$aiLines \u2261").apply { foreground = colAi; font = font.deriveFont(java.awt.Font.BOLD, 10f) })
         statsPanel.add(summaryPct("${"%.0f".format(aiPct)}%", colAi, colAiBg))
         statsPanel.add(JLabel("|").apply { foreground = colBorder })
         statsPanel.add(JLabel("Human:").apply { foreground = colTextMuted; font = font.deriveFont(10f) })
-        statsPanel.add(JLabel("$humanChars").apply { foreground = colHuman; font = font.deriveFont(java.awt.Font.BOLD, 10f) })
-        statsPanel.add(JLabel("\u00a9 $humanLines").apply { foreground = colTextMuted; font = font.deriveFont(10f) })
+        statsPanel.add(JLabel("$humanLines \u2261").apply { foreground = colHuman; font = font.deriveFont(java.awt.Font.BOLD, 10f) })
         statsPanel.add(summaryPct("${"%.0f".format(humanPct)}%", colHuman, colHumanBg))
 
         // Mini bar (AI share of attribution)
@@ -616,64 +586,26 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         }
         statsPanel.add(miniBar)
 
-        if (gitInsertions > 0 || gitDeletions > 0) {
-            statsPanel.add(JLabel("|").apply { foreground = colBorder })
-            statsPanel.add(JLabel("Δ").apply { foreground = colTextMuted; font = font.deriveFont(10f) })
-            statsPanel.add(JLabel("+${gitInsertions}").apply { foreground = colHuman; font = font.deriveFont(java.awt.Font.BOLD, 10f) })
-            statsPanel.add(JLabel("\u2212${gitDeletions}").apply { foreground = colDelete; font = font.deriveFont(java.awt.Font.BOLD, 10f) })
-            val fileDiffBar = object : JPanel() {
-                init { preferredSize = java.awt.Dimension(48, 3); isOpaque = false }
-                override fun paintComponent(g: java.awt.Graphics) {
-                    val g2 = g as java.awt.Graphics2D
-                    g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
-                    val w = width
-                    val h = height
-                    g2.color = colBgElevated
-                    g2.fillRoundRect(0, 0, w, h, h, h)
-                    val t = gitInsertions + gitDeletions
-                    if (t <= 0) return
-                    var gw = ((w.toLong() * gitInsertions) / t).toInt().coerceIn(0, w)
-                    var rw = ((w.toLong() * gitDeletions) / t).toInt().coerceIn(0, w - gw)
-                    val pad = w - gw - rw
-                    if (pad > 0) {
-                        if (gitInsertions >= gitDeletions) gw += pad else rw += pad
-                    }
-                    if (gw > 0) {
-                        g2.color = colHuman
-                        g2.fillRoundRect(0, 0, gw, h, h / 2, h / 2)
-                    }
-                    if (rw > 0) {
-                        g2.color = colDelete
-                        g2.fillRoundRect(gw, 0, rw, h, h / 2, h / 2)
-                    }
-                }
-            }
-            statsPanel.add(fileDiffBar)
-        }
 
         row.add(statsPanel, BorderLayout.CENTER)
 
-        row.toolTipText = buildString {
-            append("Open $path")
-            if (gitInsertions > 0 || gitDeletions > 0) {
-                append(" — Git vs HEAD: +").append(gitInsertions).append(" / −").append(gitDeletions)
-            }
-        }
+        row.toolTipText = "Open $path"
         return row
     }
 
     private fun openFile(filePath: String) {
-        val base = basePath
-        val vf = LocalFileSystem.getInstance().findFileByPath("$base/$filePath".replace("//", "/"))
+        val root = GitUtils.getRepoRoot(project) ?: basePath
+        val vf = LocalFileSystem.getInstance().findFileByIoFile(File(root, filePath.replace('\\', '/')))
         if (vf != null) {
             FileEditorManager.getInstance(project).openFile(vf, true)
         }
     }
 
-    private fun isPathUnderProject(basePath: String, filePath: String): Boolean {
+    private fun isPathUnderProject(basePath: String, repoRoot: String?, filePath: String): Boolean {
         val normalized = filePath.replace('\\', '/')
         if (normalized.contains("..") || normalized.startsWith("/")) return false
-        val file = File(basePath, normalized)
+        val root = repoRoot ?: basePath
+        val file = File(root, normalized)
         return try {
             file.exists() && file.canonicalPath.startsWith(File(basePath).canonicalPath)
         } catch (_: Exception) {
@@ -813,8 +745,8 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
         val totalAdded = aiLines + humanLines
         return CommitReport(
             commitHash = cli.commit,
-            commitMessage = "",
-            branch = "",
+            commitMessage = cli.message,
+            branch = cli.branch,
             generatedAt = authorDate,
             author = author,
             authorDate = authorDate,
@@ -828,7 +760,7 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
             interactionTypes = interactionTypes,
             timeWaitingForAiMs = 0,
             firstStartCodingTime = "",
-            codingTimeMs = 0,
+            codingTimeMs = ai.blamely.cli.CliNoteParser.codingTimeMs(cli),
         )
     }
 

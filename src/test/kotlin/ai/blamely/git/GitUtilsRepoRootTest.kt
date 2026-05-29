@@ -54,6 +54,14 @@ class GitUtilsRepoRootTest {
         assertNull(GitUtils.getRepoRoot(""))
     }
 
+    @Test
+    fun `toRepoRelativePath resolves file under repo root`() {
+        val sub = File(tempDir, "src/app").also { it.mkdirs() }
+        val file = File(sub, "main.kt").also { it.writeText("fun main(){}") }
+        val rel = GitUtils.toRepoRelativePath(tempDir.absolutePath, file.absolutePath)
+        assertEquals("src/app/main.kt", rel)
+    }
+
     private fun runGit(cwd: String, vararg args: String) {
         val pb = ProcessBuilder("git", *args).directory(File(cwd)).redirectErrorStream(true)
         val p = pb.start()

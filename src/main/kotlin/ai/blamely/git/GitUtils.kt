@@ -86,6 +86,18 @@ object GitUtils {
         return parseNumstat(out)
     }
 
+    /**
+     * Numstat for the current "session": working-tree diff if dirty,
+     * otherwise falls back to the last commit diff (HEAD~1..HEAD) so data
+     * remains visible after a commit on a clean working tree.
+     */
+    fun getSessionNumstat(cwd: String): Map<String, Pair<Int, Int>> {
+        val wt = getWorkingTreeNumstatVsHead(cwd)
+        if (wt.isNotEmpty()) return wt
+        val out = run(cwd, "diff", "--numstat", "HEAD~1..HEAD") ?: return emptyMap()
+        return parseNumstat(out)
+    }
+
     private val repoRootCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     fun getRepoRoot(project: Project): String? {
@@ -129,6 +141,20 @@ object GitUtils {
 
     fun clearRepoRootCache() {
         repoRootCache.clear()
+    }
+
+    /** Path relative to git repo root (matches oobeya-cli / daemon `file_path` keys). */
+    fun toRepoRelativePath(repoRoot: String, absolutePath: String): String? {
+        if (repoRoot.isBlank() || absolutePath.isBlank()) return null
+        return try {
+            val root = File(repoRoot).canonicalFile
+            val file = File(absolutePath).canonicalFile
+            val rel = file.relativeToOrNull(root)?.path ?: return null
+            if (rel.isEmpty() || rel.startsWith("..")) null
+            else Platform.normalizePath(rel)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun getBranch(project: Project): String? {

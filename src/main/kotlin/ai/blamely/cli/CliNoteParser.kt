@@ -6,6 +6,9 @@ import com.google.gson.annotations.SerializedName
 data class CliNote(
     val schema: Int = 0,
     val commit: String = "",
+    val branch: String = "",
+    val message: String = "",
+    @SerializedName("coding_time_nanos") val codingTimeNanos: Long = 0,
     @SerializedName("generated_by") val generatedBy: String? = null,
     val totals: CliNoteTotals = CliNoteTotals(),
     @SerializedName("by_tool") val byTool: Map<String, CliNoteTool>? = null,
@@ -71,6 +74,12 @@ object CliNoteParser {
     }
 
     fun models(note: CliNote): List<String> {
-        return note.totals.models?.keys?.filter { it.isNotBlank() && it != "unknown" }?.toList() ?: emptyList()
+        val fromTotals = note.totals.models?.keys
+            ?.filter { it.isNotBlank() && it != "unknown" }
+            ?.toList()
+        if (!fromTotals.isNullOrEmpty()) return fromTotals
+        return note.byTool?.keys?.filter { it.isNotBlank() && it != "unknown" }?.sorted() ?: emptyList()
     }
+
+    fun codingTimeMs(note: CliNote): Long = note.codingTimeNanos / 1_000_000
 }

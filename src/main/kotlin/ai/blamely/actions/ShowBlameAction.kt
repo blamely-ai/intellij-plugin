@@ -3,6 +3,7 @@ package ai.blamely.actions
 import ai.blamely.cli.CliDataService
 import ai.blamely.core.BlameMapService
 import ai.blamely.core.LineBlame
+import ai.blamely.git.GitUtils
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
@@ -17,9 +18,11 @@ class ShowBlameAction : AnAction() {
             notify(project, "No file selected")
             return
         }
-        val basePath = project.basePath ?: return
-        var path = file.path
-        if (path.startsWith(basePath)) path = path.substring(basePath.length).trimStart('/', '\\')
+        val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath ?: return
+        val path = GitUtils.toRepoRelativePath(repoRoot, file.path) ?: run {
+            notify(project, "File is outside the git repository")
+            return
+        }
         project.getService(CliDataService::class.java)?.refresh()
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val entries = blameService.blameMap.getBlame(path)
