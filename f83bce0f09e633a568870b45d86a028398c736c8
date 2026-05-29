@@ -1,0 +1,3583 @@
+{
+  "schema": 1,
+  "commit": "f83bce0f09e633a568870b45d86a028398c736c8",
+  "branch": "main",
+  "message": "update timestamps in JSON files and enhance AI tool attribution settings",
+  "coding_time_nanos": 833886453000,
+  "totals": {
+    "ai_lines": 146,
+    "human_lines": 284,
+    "deleted_lines": 99,
+    "files": 16,
+    "tokens": {
+      "input": 139,
+      "output": 10401,
+      "cache_read": 2054279,
+      "cache_write": 19742
+    },
+    "models": {
+      "claude-opus-4-8": 52,
+      "claude-sonnet-4-6": 94
+    }
+  },
+  "by_tool": {
+    "claude": {
+      "lines": 146,
+      "suggested_lines": 165,
+      "accepted_lines": 146,
+      "model": "claude-sonnet-4-6",
+      "tokens": {
+        "input": 139,
+        "output": 10401,
+        "cache_read": 2054279,
+        "cache_write": 19742
+      }
+    }
+  },
+  "by_gen_type": {
+    "chat": 146,
+    "cli": 0,
+    "completion": 0,
+    "human": 383
+  },
+  "files": [
+    {
+      "path": "proguard/blamely-release.pro",
+      "type": "MODIFIED",
+      "added": 2,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 39,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/BlamelyStartupActivity.kt",
+      "type": "MODIFIED",
+      "added": 1,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/actions/ShowBlameAction.kt",
+      "type": "MODIFIED",
+      "added": 6,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 6,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 21,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 22,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 23,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 24,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 25,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliDataService.kt",
+      "type": "MODIFIED",
+      "added": 97,
+      "deleted": 1,
+      "lines": [
+        {
+          "line": 10,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 12,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 50,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 54,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 55,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 56,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 57,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 59,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 60,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 62,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 63,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 64,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 65,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 66,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 67,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 68,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 69,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 70,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 71,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 72,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 73,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 74,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 75,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 76,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 77,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 78,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 79,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 80,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 82,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 83,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 84,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 85,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 86,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 87,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 88,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 89,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 90,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 91,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 92,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 93,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 94,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 95,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 96,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 97,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 98,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 99,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 100,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 101,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 102,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 103,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 104,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 105,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 106,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 107,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 108,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 109,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 110,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 111,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 125,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 126,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 127,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 128,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 129,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 130,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 131,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 132,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 133,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 134,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 135,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 136,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 137,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 138,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 139,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 140,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 141,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 142,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 143,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 144,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 145,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 146,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 154,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 157,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 158,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 159,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 160,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 161,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 162,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 197,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 198,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 199,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 200,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 201,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 202,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 203,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 204,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 205,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 206,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 208,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliNoteParser.kt",
+      "type": "MODIFIED",
+      "added": 9,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 9,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 10,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 11,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 77,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 78,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 79,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 80,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 81,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 84,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliSqliteReader.kt",
+      "type": "MODIFIED",
+      "added": 18,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 3,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 11,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 12,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 13,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 14,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 15,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 16,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 17,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 18,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 19,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 20,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 21,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 22,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 23,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 24,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 26,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 43,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/completion/CompletionDetector.kt",
+      "type": "MODIFIED",
+      "added": 158,
+      "deleted": 11,
+      "lines": [
+        {
+          "line": 3,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 4,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 8,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 9,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 10,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 11,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 12,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 14,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 22,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 23,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 23,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 24,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 24,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 25,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 26,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 27,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 32,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 33,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 34,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 35,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 36,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 37,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 40,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 41,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 42,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 43,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 44,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 45,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 46,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 47,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 48,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 49,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 50,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 51,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 52,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 58,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 59,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 61,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 62,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 62,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 63,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 64,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 65,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 66,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 67,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 72,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 73,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 74,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 75,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 76,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 77,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 78,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 79,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 80,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 81,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 82,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 83,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 84,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 85,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 86,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 87,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 88,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 89,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 90,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 91,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 92,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 93,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 94,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 95,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 96,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 97,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 98,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 99,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 100,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 114,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 120,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 121,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 122,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 123,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 124,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 125,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 126,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 128,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 129,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 130,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 131,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 132,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 138,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 139,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 143,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 150,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 151,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 152,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 154,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 155,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 156,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 157,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 158,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 158,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 159,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 159,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 160,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 160,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 161,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 161,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 162,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 163,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 166,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 167,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 168,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 174,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 175,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 176,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 182,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 183,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 184,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 185,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 186,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 190,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 191,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 192,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 193,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 208,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 209,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 210,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 211,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 212,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 213,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 214,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 215,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 216,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 217,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 222,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 223,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 224,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 225,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 226,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 227,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 228,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 229,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 230,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 231,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 232,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 233,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 234,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 235,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 236,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 237,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 238,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 239,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 240,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 242,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 245,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 246,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 247,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 248,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 249,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 250,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 251,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 252,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 254,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 255,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 256,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 257,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 258,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 259,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 267,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/git/GitUtils.kt",
+      "type": "MODIFIED",
+      "added": 24,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 89,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 90,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 91,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 92,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 93,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 94,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 95,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 96,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 97,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 98,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 99,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 146,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 147,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 148,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 149,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 150,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 151,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 152,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 153,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 154,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 155,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 156,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 157,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 158,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/settings/BlamelyConfigurable.kt",
+      "type": "MODIFIED",
+      "added": 22,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 5,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 7,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 17,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 29,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 31,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 35,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 36,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 37,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 39,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 40,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 41,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 42,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 43,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 52,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 53,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 54,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 55,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 56,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 62,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 72,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/settings/BlamelySettings.kt",
+      "type": "MODIFIED",
+      "added": 11,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 24,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 25,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 26,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 27,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 28,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 29,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 31,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 32,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 39,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 45,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/ui/BlameDecorations.kt",
+      "type": "MODIFIED",
+      "added": 5,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 6,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 145,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 146,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 147,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 148,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/ui/BlamelyStatusBarWidget.kt",
+      "type": "MODIFIED",
+      "added": 9,
+      "deleted": 3,
+      "lines": [
+        {
+          "line": 11,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 12,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 16,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 24,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 26,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 27,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 28,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 31,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 32,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 35,
+          "type": "delete",
+          "author_type": "Human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/ui/BlamelyToolWindowFactory.kt",
+      "type": "MODIFIED",
+      "added": 32,
+      "deleted": 76,
+      "lines": [
+        {
+          "line": 210,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 224,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 225,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 230,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 231,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 235,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 236,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 239,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 240,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 240,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 241,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 241,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 242,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 242,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 243,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 244,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 245,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 246,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 247,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 248,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 250,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 251,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 252,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 254,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 255,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 256,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 257,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 258,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 259,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 260,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 269,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 270,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 280,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 281,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 286,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 287,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 288,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 289,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 290,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 291,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 292,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 293,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 294,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 295,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 296,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 297,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 298,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 299,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 300,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 322,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 535,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 554,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 555,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 559,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 560,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 563,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 566,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 570,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 592,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 595,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 597,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 598,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 600,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 604,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 607,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 608,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 619,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 620,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 621,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 622,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 623,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 624,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 625,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 626,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 627,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 628,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 629,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 630,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 631,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 632,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 633,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 634,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 635,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 636,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 637,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 638,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 639,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 640,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 641,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 642,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 643,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 644,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 645,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 646,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 647,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 648,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 649,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 650,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 651,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 652,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 657,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 658,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 659,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 660,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 661,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 748,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 749,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 763,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/resources/META-INF/plugin.xml",
+      "type": "MODIFIED",
+      "added": 2,
+      "deleted": 8,
+      "lines": [
+        {
+          "line": 9,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 10,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 13,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 14,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 15,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 16,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 17,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 18,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 19,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 20,
+          "type": "delete",
+          "author_type": "Human"
+        }
+      ]
+    },
+    {
+      "path": "src/test/kotlin/ai/blamely/cli/CliNoteParserTest.kt",
+      "type": "ADDED",
+      "added": 27,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 1,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 3,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 4,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 5,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 7,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 8,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 9,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 10,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 11,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 12,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 13,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 14,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 15,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 16,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 17,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 18,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 19,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 20,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 21,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 23,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 24,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 25,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 26,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 27,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 28,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 29,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/test/kotlin/ai/blamely/git/GitUtilsRepoRootTest.kt",
+      "type": "MODIFIED",
+      "added": 7,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 57,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 58,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 59,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 60,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 61,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 62,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 63,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    }
+  ],
+  "generated_by": "blamely 0.1.0",
+  "conversation": [
+    {
+      "role": "assistant",
+      "text": "Let me explore how Copilot attribution is currently handled in the codebase."
+    },
+    {
+      "role": "assistant",
+      "text": "Let me read the key files before making changes."
+    },
+    {
+      "role": "assistant",
+      "text": "Now I have everything needed. Two changes:\n\n1. **`store/queries.go`** — `LatestCopilotModelNear()`: also match session markers that have `repo_path = ''` (CopilotChatWatcher emits no repo path)\n2. **`daemon/server.go`** — `validateAndStore()`: for Copilot payloads, back-fill `gen_type` from rece…"
+    },
+    {
+      "role": "assistant",
+      "text": "Now add the enrichment block in `validateAndStore()`:"
+    },
+    {
+      "role": "assistant",
+      "text": "Clean. Here's what was fixed and why:\n\n**Root cause — gen_type = \"completion\" for chat:**  \nCopilot's PostToolUse hook sends `tool_name = \"Edit\"` or `\"Write\"` for both chat-panel applies and tab completions — it's the file operation name, not the UI panel name. So `copilotGenType(\"Edit\")` → `\"…"
+    },
+    {
+      "role": "user",
+      "text": "it generate chat and add 2 line human it is show completion with copilot and it is not cursor but show cursor actullay it is copilot generation\n\n\n\nAI 91%  [████████████████████████████████████░░░░]  Human 9%\n  cursor 10\n…"
+    },
+    {
+      "role": "assistant",
+      "text": "The output reveals two problems: tool=`cursor` instead of `copilot`, and gen_type=`completion` instead of `chat`. Let me read Copilot's actual tool names to understand why the hook is silently dropping the edit."
+    },
+    {
+      "role": "assistant",
+      "text": "Found the root cause. `extractCopilotRanges()` only knows Claude's tool names (`Edit`, `Write`, `MultiEdit`). GitHub Copilot's actual tool names are `str_replace_editor`, `create_file`, `insert_edit_into_file` — all fall through to the generic fallback which looks for `file_path` but Copilot sends…"
+    },
+    {
+      "role": "assistant",
+      "text": "Now fix `copilotGenType()` to recognise Copilot's native tool names as \"chat\":"
+    },
+    {
+      "role": "assistant",
+      "text": "Clean. Here's the exact chain of failures that caused the bug:\n\n**Why tool = `cursor` instead of `copilot`:**  \n`extractCopilotRanges()` only knew `\"Edit\"`, `\"Write\"`, `\"MultiEdit\"` (Claude's tool names). Copilot's chat panel uses `\"str_replace_editor\"`, `\"create_file\"`, `\"insert_edit_into_file\"`. A…"
+    }
+  ]
+}
