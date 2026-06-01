@@ -1,0 +1,5418 @@
+{
+  "schema": 1,
+  "commit": "ed0c5ea851722c3eaa64c6ad29fbe5edd0042407",
+  "branch": "main",
+  "message": "update timestamps in JSON files, enhance attribution settings, and improve UI components",
+  "coding_time_nanos": 15787471799000,
+  "totals": {
+    "ai_lines": 537,
+    "human_lines": 110,
+    "deleted_lines": 47,
+    "files": 17,
+    "tokens": {
+      "input": 815,
+      "output": 56821,
+      "cache_read": 9525935,
+      "cache_write": 75498
+    },
+    "models": {
+      "claude-opus-4-8": 111,
+      "claude-sonnet-4-6": 256,
+      "gpt-5.5": 161
+    }
+  },
+  "by_tool": {
+    "claude": {
+      "lines": 367,
+      "suggested_lines": 542,
+      "accepted_lines": 367,
+      "model": "claude-opus-4-8",
+      "tokens": {
+        "input": 815,
+        "output": 56821,
+        "cache_read": 9525935,
+        "cache_write": 75498
+      }
+    },
+    "copilot": {
+      "lines": 9,
+      "suggested_lines": 105,
+      "accepted_lines": 9
+    },
+    "cursor": {
+      "lines": 161,
+      "suggested_lines": 2264,
+      "accepted_lines": 161,
+      "model": "gpt-5.5"
+    }
+  },
+  "by_gen_type": {
+    "chat": 537,
+    "cli": 0,
+    "completion": 0,
+    "human": 157
+  },
+  "files": [
+    {
+      "path": "build.gradle.kts",
+      "type": "MODIFIED",
+      "added": 1,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 20,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/BlamelyStartupActivity.kt",
+      "type": "MODIFIED",
+      "added": 2,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 18,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 44,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/actions/ShowBlameAction.kt",
+      "type": "MODIFIED",
+      "added": 2,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 29,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliDataService.kt",
+      "type": "MODIFIED",
+      "added": 119,
+      "deleted": 1,
+      "lines": [
+        {
+          "line": 28,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 29,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 31,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 32,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 63,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 67,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 68,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 69,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 70,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 71,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 72,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 73,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 74,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 75,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 76,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 77,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 78,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 79,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 83,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 85,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 87,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 88,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 89,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 90,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 91,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 92,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 94,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 95,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 96,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 97,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 98,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 99,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 100,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 101,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 102,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 103,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 104,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 105,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 106,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 107,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 108,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 109,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 110,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 111,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 113,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 116,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 117,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 118,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 125,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 143,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 144,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 145,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 193,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 201,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 202,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 203,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 204,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 205,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 206,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 207,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 208,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 209,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 210,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 211,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 212,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 213,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 214,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 215,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 216,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 217,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 218,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 219,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 220,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 226,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 227,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 228,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 229,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 231,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 232,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 233,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 234,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 237,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 240,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 241,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 242,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 243,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 244,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 246,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 248,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 249,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 250,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 251,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 252,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 253,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 254,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 255,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 256,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 257,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 258,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 259,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 260,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 262,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 266,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 267,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 268,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 269,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 270,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 271,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 272,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 273,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 274,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 275,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 276,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 277,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 278,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 281,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 285,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 286,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 287,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliHealth.kt",
+      "type": "MODIFIED",
+      "added": 1,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 78,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliSqliteReader.kt",
+      "type": "MODIFIED",
+      "added": 2,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 35,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 61,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliTypes.kt",
+      "type": "MODIFIED",
+      "added": 4,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 12,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 13,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 14,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 15,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/completion/CompletionDetector.kt",
+      "type": "MODIFIED",
+      "added": 275,
+      "deleted": 14,
+      "lines": [
+        {
+          "line": 5,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 6,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 7,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 33,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 34,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 36,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 37,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 39,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 40,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 41,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 42,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 44,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 44,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 45,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 45,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 46,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 46,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 47,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 47,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 48,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 49,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 59,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 60,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 61,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 62,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 63,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 64,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 66,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 67,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 69,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 70,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 71,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 72,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 78,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 79,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 80,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 81,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 86,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 87,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 88,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 89,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 90,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 91,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 92,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 93,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 94,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 95,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 96,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 96,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 97,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 98,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 99,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 100,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 101,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 102,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 103,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 104,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 105,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 106,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 107,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 108,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 109,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 110,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 111,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 112,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 113,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 114,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 115,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 116,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 117,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 118,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 119,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 120,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 121,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 122,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 124,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 125,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 126,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 132,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 138,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 139,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 140,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 141,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 142,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 143,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 144,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 145,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 154,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 158,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 159,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 160,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 161,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 162,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 162,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 163,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 163,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 164,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 165,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 166,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 167,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 168,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 169,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 170,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 171,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 172,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 173,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 174,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 175,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 176,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 177,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 178,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 179,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 180,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 181,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 182,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 183,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 184,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 185,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 186,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 187,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 188,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 189,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 190,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 191,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 192,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 193,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 194,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 195,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "copilot",
+          "gen_type": "chat"
+        },
+        {
+          "line": 196,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 198,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 199,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 200,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 201,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 202,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 203,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 204,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 205,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 206,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 207,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 208,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 209,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 210,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 211,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 212,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 213,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 214,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 215,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 223,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 225,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 226,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 227,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 228,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 229,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 230,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 231,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 232,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 233,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 234,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 235,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 238,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 239,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 240,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 241,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 242,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 243,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 244,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 252,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 253,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 254,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 255,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 257,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 261,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 262,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 263,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 264,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 265,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 277,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 278,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 281,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 285,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 286,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 289,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 290,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 291,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 292,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 293,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 294,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 295,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 296,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 297,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 300,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 301,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 302,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 303,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 304,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 305,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 306,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 307,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 312,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 313,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 314,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 315,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 316,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 317,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 318,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 319,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 320,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 321,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 322,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 323,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 324,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 325,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 327,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 328,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 329,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 330,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 331,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 332,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 333,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 334,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 335,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 336,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 337,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 338,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 339,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 340,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 341,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 342,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 344,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 345,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 346,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 347,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 348,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 349,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 385,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 386,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 387,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 388,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 389,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 390,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 391,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 392,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 393,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 394,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 395,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 396,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 397,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 398,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 399,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 400,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 401,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 402,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 403,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 404,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 405,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 407,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 408,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 409,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 410,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 411,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 412,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 413,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 414,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 416,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 417,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 418,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 419,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 420,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 421,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 422,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 423,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 424,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 425,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 426,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 427,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 428,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 429,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 430,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 431,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 432,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 437,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 438,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 439,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 440,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 442,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 443,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 444,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "line": 452,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/core/BlameMap.kt",
+      "type": "MODIFIED",
+      "added": 2,
+      "deleted": 5,
+      "lines": [
+        {
+          "line": 27,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 28,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 29,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 30,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 31,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 32,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 32,
+          "type": "delete",
+          "author_type": "Human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/core/LineBlame.kt",
+      "type": "MODIFIED",
+      "added": 22,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 29,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 31,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 32,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 33,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 34,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 36,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 37,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 39,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 40,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 41,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 43,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 44,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 45,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 46,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 47,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 49,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 50,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 51,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 52,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 53,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/settings/BlamelyConfigurable.kt",
+      "type": "MODIFIED",
+      "added": 10,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 18,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 34,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 35,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 36,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 37,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 51,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 64,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 72,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 83,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/settings/BlamelySettings.kt",
+      "type": "MODIFIED",
+      "added": 10,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 34,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 35,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 36,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 37,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 39,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 40,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 41,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 49,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 56,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/ui/BlameDecorations.kt",
+      "type": "MODIFIED",
+      "added": 10,
+      "deleted": 24,
+      "lines": [
+        {
+          "line": 156,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 157,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 158,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 159,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 218,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 220,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 224,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 225,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 250,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 253,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 253,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 254,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 255,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 258,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 258,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 259,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 259,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 260,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 260,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 261,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 262,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 263,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 266,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 267,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 268,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 269,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 270,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 278,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 279,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 280,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 281,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 282,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 283,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 284,
+          "type": "delete",
+          "author_type": "Human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/ui/BlamelyToolWindowFactory.kt",
+      "type": "MODIFIED",
+      "added": 6,
+      "deleted": 3,
+      "lines": [
+        {
+          "line": 218,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 219,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 220,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 242,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 243,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 243,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 244,
+          "type": "delete",
+          "author_type": "Human"
+        },
+        {
+          "line": 245,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        },
+        {
+          "line": 246,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "cursor",
+          "model": "gpt-5.5",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/ui/DaemonStatusBar.kt",
+      "type": "ADDED",
+      "added": 96,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 1,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 3,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 4,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 5,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 6,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 7,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 8,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 9,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 10,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 11,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 12,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 13,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 14,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 15,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 16,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 17,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 18,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 19,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 20,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 22,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 24,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 25,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 26,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 27,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 29,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 31,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 32,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 33,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 34,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 35,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 37,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 39,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 40,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 41,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 42,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 43,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 44,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 45,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 46,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 47,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 49,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 51,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 52,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 53,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 54,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 56,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 58,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 60,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 61,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 62,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 63,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 64,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 65,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 66,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 67,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 68,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 70,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 71,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 72,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 73,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 74,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 75,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 76,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 77,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 78,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 79,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 80,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 81,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 82,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 83,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 84,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 85,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 87,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 88,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 89,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 90,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 91,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 92,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 93,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 94,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 95,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 96,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 97,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 98,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 99,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 100,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 102,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 103,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 104,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 105,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 107,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 108,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 109,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 110,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/ui/DaemonStatusBarWidgetFactory.kt",
+      "type": "ADDED",
+      "added": 10,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 1,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 3,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 4,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 5,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 7,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 8,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 9,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 10,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 11,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 12,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        }
+      ]
+    },
+    {
+      "path": "src/main/resources/META-INF/plugin.xml",
+      "type": "MODIFIED",
+      "added": 75,
+      "deleted": 0,
+      "lines": [
+        {
+          "line": 5,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-opus-4-8",
+          "gen_type": "chat"
+        },
+        {
+          "line": 9,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 11,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 13,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 14,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 15,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 16,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 17,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 18,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 19,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 21,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 22,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 23,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 24,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 25,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 26,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 27,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 29,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 30,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 31,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 32,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 34,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 35,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 37,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 38,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 39,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 40,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 41,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 43,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 44,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 45,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 47,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 48,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 49,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 50,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 51,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 52,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 53,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 55,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 56,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 57,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 59,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 60,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 61,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 62,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 63,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 64,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 65,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 66,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 68,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 70,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 71,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 73,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 74,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 76,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 77,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 79,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 80,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 81,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 82,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 83,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 84,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 86,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 87,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 88,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 89,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 90,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 91,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 92,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 93,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 94,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 95,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 96,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 97,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        },
+        {
+          "line": 117,
+          "type": "add",
+          "author_type": "AI",
+          "tool": "claude",
+          "model": "claude-sonnet-4-6",
+          "gen_type": "chat"
+        }
+      ]
+    }
+  ],
+  "generated_by": "blamely 0.1.0",
+  "conversation": [
+    {
+      "role": "assistant",
+      "text": "The agent's conclusion needs verification — it claims VS Code applies the same git-diff constraint to chat, which would mean chat should fail there too. Let me read the actual VS Code files directly to find the real divergence."
+    },
+    {
+      "role": "assistant",
+      "text": "Let me check the SQLite to see whether IntelliJ is recording chat applies at all — this determines whether the bug is detection or display."
+    },
+    {
+      "role": "assistant",
+      "text": "The SQLite reveals the key fact: IntelliJ **does** record chat applies (`source=intellij_plugin, gen_type=chat`), but with **wide ranges** (`chars=53018`). So the bug is in display, not detection. Two facts now matter:\n\n1. VS Code's `CliDataService` is byte-for-byte the same logic — it applies the…"
+    },
+    {
+      "role": "assistant",
+      "text": "The SQLite confirms the picture: IntelliJ records chat as wide ranges (`chars=53018`), and the git-diff constraint is what should narrow them — but only works when the file reflects the edit on disk. You chose auto-save, which is exactly VS Code's precondition. Let me finalize the plan."
+    },
+    {
+      "role": "assistant",
+      "text": "Plan approved. Let me read the current state of the chat-detection section and the handle() tail to make precise edits."
+    },
+    {
+      "role": "assistant",
+      "text": "Now let me make change 2 — add chat detection to `beforeActionPerformed`:"
+    },
+    {
+      "role": "assistant",
+      "text": "Now change 1 — save the document at the source before refresh. Let me edit the `handle()` tail:"
+    },
+    {
+      "role": "assistant",
+      "text": "Now add the `saveDocumentThenRefresh` helper next to `pushImmediateBlame`:"
+    },
+    {
+      "role": "assistant",
+      "text": "Now bump version to 1.3.4 and build:"
+    },
+    {
+      "role": "assistant",
+      "text": "[`intellij-plugin/build/distributions/Blamely-intellij-1.3.4.zip`](intellij-plugin/build/distributions/Blamely-intellij-1.3.4.zip) — built. Install and restart IntelliJ.\n\n**What changed in 1.3.4:**\n\n1. **Auto-save before diff** (`saveDocumentThenRefresh`) — when an AI edit (completion or chat) i…"
+    }
+  ]
+}
