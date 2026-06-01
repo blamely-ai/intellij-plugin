@@ -75,7 +75,7 @@ object CliHealth {
             return CliHealthReport(
                 status = CliHealthStatus.NOT_INSTALLED,
                 title = "Blamely CLI not installed",
-                message = "This plugin reads attribution from the Blamely CLI (oobeya-cli). " +
+                message = "This plugin reads attribution from the Blamely CLI. " +
                     "Install it from blamely.ai, then run `blamely install` in a terminal.",
                 detail = "Without the CLI, runtime edits and commit reports will not be captured.",
                 daemon = DaemonStatus(running = false),

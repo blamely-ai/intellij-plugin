@@ -25,4 +25,30 @@ data class LineBlame(
     enum class AuthorType { HUMAN, AI }
     enum class ChangeType { ADD, DELETE }
     enum class CodingType { TYPING, BULK_INSERT }
+
+    fun effectiveAuthorType(): AuthorType {
+        if (isAiInteractionType(interactionType)) return AuthorType.AI
+        val total = aiChars + humanChars
+        if (total <= 0) return authorType
+        return if (aiChars >= humanChars) AuthorType.AI else AuthorType.HUMAN
+    }
+
+    companion object {
+        fun isAiInteractionType(interactionType: String?): Boolean =
+            when (interactionType?.trim()?.lowercase()) {
+                "completion", "chat", "cli" -> true
+                else -> false
+            }
+
+        fun betterLineEntry(current: LineBlame?, candidate: LineBlame): LineBlame {
+            if (current == null) return candidate
+            val currentIsAi = current.effectiveAuthorType() == AuthorType.AI
+            val candidateIsAi = candidate.effectiveAuthorType() == AuthorType.AI
+            if (candidateIsAi != currentIsAi) return if (candidateIsAi) candidate else current
+
+            val currentTotal = current.aiChars + current.humanChars
+            val candidateTotal = candidate.aiChars + candidate.humanChars
+            return if (candidateTotal >= currentTotal) candidate else current
+        }
+    }
 }

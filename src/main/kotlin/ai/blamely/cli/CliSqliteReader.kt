@@ -32,7 +32,7 @@ object CliSqliteReader {
                 conn.prepareStatement(
                     """
                     SELECT e.id, e.ts, e.file_path, e.tool, e.model, e.gen_type,
-                           el.start_line, el.end_line
+                           el.start_line, el.end_line, el.content_sha
                     FROM edits e
                     JOIN edit_lines el ON el.edit_id = e.id
                     WHERE e.repo_path = ? AND e.ts >= ?
@@ -58,6 +58,7 @@ object CliSqliteReader {
                                     genType = rs.getString("gen_type") ?: "unknown",
                                     startLine = start,
                                     endLine = end,
+                                    contentSha = rs.getString("content_sha")?.takeIf { it.isNotBlank() },
                                 )
                             )
                         }

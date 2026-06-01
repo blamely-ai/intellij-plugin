@@ -15,7 +15,7 @@ import com.intellij.openapi.wm.WindowManager
 import com.intellij.util.Alarm
 
 /**
- * Starts read-only oobeya-cli data polling and wires UI refresh on blame updates.
+ * Starts read-only blamely CLI data polling and wires UI refresh on blame updates.
  */
 class BlamelyStartupActivity : StartupActivity, DumbAware {
 
@@ -41,7 +41,7 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
             project.getService(CompletionDetector::class.java)?.register()
         }
 
-        // Refresh history when HEAD changes (oobeya-cli writes git notes on commit).
+        // Refresh history when HEAD changes (blamely writes git notes on commit).
         var lastHead: String? = null
         val headAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
         fun pollHead() {

@@ -24,17 +24,12 @@ class BlameMap {
             val byLine = linkedMapOf<Int, LineBlame>()
             for (e in entries) {
                 if (e.changeType == LineBlame.ChangeType.DELETE) continue
-                val existing = byLine[e.lineNumber]
-                val eTotal = e.aiChars + e.humanChars
-                val curTotal = existing?.let { it.aiChars + it.humanChars } ?: 0
-                if (existing == null || eTotal >= curTotal) {
-                    byLine[e.lineNumber] = e
-                }
+                byLine[e.lineNumber] = LineBlame.betterLineEntry(byLine[e.lineNumber], e)
             }
             for (e in byLine.values) {
                 aiChars += e.aiChars
                 humanChars += e.humanChars
-                if (e.authorType == LineBlame.AuthorType.AI) aiLines++ else humanLines++
+                if (e.effectiveAuthorType() == LineBlame.AuthorType.AI) aiLines++ else humanLines++
             }
         }
         return Summary(aiChars, humanChars, aiLines, humanLines, aiLines + humanLines)

@@ -2,6 +2,9 @@ package ai.blamely.completion
 
 import ai.blamely.cli.CliDataService
 import ai.blamely.cli.CliRepoId
+import ai.blamely.core.BlameMapService
+import ai.blamely.core.BlameUpdateListener
+import ai.blamely.core.LineBlame
 import ai.blamely.git.GitUtils
 import ai.blamely.utils.BlamelyLogger
 import com.intellij.openapi.Disposable
@@ -27,26 +30,21 @@ import java.util.concurrent.TimeUnit
 // keystrokes on the heuristic (medium-confidence) path only.
 private const val MIN_COMPLETION_CHARS = 8
 
-// CompletionDetector observes two complementary signals:
+// CompletionDetector attributes AI edits using DETERMINISTIC action signals,
+// mirroring VS Code's CompletionDetector approach.
 //
-// HIGH-CONFIDENCE path (primary):
-//   Subscribe to AnActionListener on the project message bus. When
-//   afterActionPerformed fires for an action whose ID indicates an inline
-//   completion acceptance (JetBrains AI: InsertInlineCompletionAction;
-//   GitHub Copilot: com.github.copilot plugin actions), set
-//   `pendingHighConfidence = true`. The very next DocumentEvent is
-//   attributed as confidence="high" — no heuristics involved.
+// INLINE COMPLETIONS — beforeActionPerformed (critical timing):
+//   afterActionPerformed fires AFTER the action runs, meaning the document
+//   change has already been processed by the DocumentListener before the flag
+//   is set. We use beforeActionPerformed instead: it fires BEFORE the action
+//   inserts text into the document, so the flag is ready when DocumentEvent
+//   arrives. This is the IntelliJ equivalent of VS Code's Tab keybinding that
+//   calls signalInlineAccept() before editor.action.inlineSuggest.commit.
 //
-//   Recognised action ID patterns:
-//     - contains "InlineCompletion" + ("Insert" | "Accept" | "Apply")
-//       → JetBrains AI / Grazie Pro / any JetBrains-native inline provider
-//     - contains "copilot" (case-insensitive) + ("accept" | "insert" | "apply")
-//       → GitHub Copilot IntelliJ plugin
-//
-// MEDIUM-CONFIDENCE fallback (preserved):
-//   For providers that do not fire an identifiable action (rare), fall back
-//   to the existing heuristic: insert length ≥ MIN_COMPLETION_CHARS or
-//   contains '\n', not a clipboard paste.
+// CHAT APPLIES — afterActionPerformed:
+//   Chat "Apply in Editor" triggers a document change that may be delayed by
+//   tens of milliseconds after the action. afterActionPerformed is fine here
+//   because we hold the flag open for 1500 ms.
 //
 // Background-thread offload: the document listener fires on the EDT inside a
 // write action. Work is pushed onto a pooled thread to keep the IDE responsive.
@@ -58,42 +56,93 @@ class CompletionDetector(private val project: Project) : Disposable {
     @Volatile private var lastClipboardText: String = ""
     @Volatile private var lastClipboardReadMillis: Long = 0
 
-    // High-confidence state: set by the action listener when an inline
-    // completion accept action fires; consumed on the next documentChanged.
-    @Volatile private var pendingHighConfidence = false
-    private var pendingHighConfTimer: ScheduledFuture<*>? = null
+    // Pending-signal state: set by the action listener when the relevant action
+    // fires; consumed on the next documentChanged. Exactly one drives gen_type.
+    @Volatile private var pendingInlineAccept = false
+    private var pendingInlineTimer: ScheduledFuture<*>? = null
+    @Volatile private var pendingChatApply = false
+    private var pendingChatTimer: ScheduledFuture<*>? = null
     private val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
-        Thread(r, "blamely-highconf-reset").also { it.isDaemon = true }
+        Thread(r, "blamely-signal-reset").also { it.isDaemon = true }
+    }
+
+    private fun debugEnabled(): Boolean = try {
+        ai.blamely.settings.BlamelySettings.getInstance().debugDetection
+    } catch (_: Throwable) {
+        false
     }
 
     fun register() {
         if (project.isDisposed) return
 
-        // High-confidence path: intercept the exact IDE actions that fire when
-        // an inline completion is accepted. These are zero-heuristic signals.
-        val busConn = project.messageBus.connect(this)
+        // AnActionListener.TOPIC is an application-level topic published to the
+        // APPLICATION message bus. Subscribing via project.messageBus never
+        // receives these events because the topic has BroadcastDirection.NONE.
+        val busConn = ApplicationManager.getApplication().messageBus.connect(this)
         busConn.subscribe(
             AnActionListener.TOPIC,
             object : AnActionListener {
-                override fun afterActionPerformed(
-                    action: AnAction,
-                    event: AnActionEvent,
-                    result: AnActionResult,
-                ) {
+
+                // beforeActionPerformed fires BEFORE the action mutates the
+                // document, so the pending flag is already set when DocumentEvent
+                // arrives — same ordering as VS Code's Tab keybinding signal.
+                //
+                // BOTH inline completions and chat applies are pre-signalled here:
+                // some Copilot chat "Apply in Editor" actions mutate the document
+                // synchronously DURING the action, so afterActionPerformed would be
+                // too late (the documentChanged listener already ran with no flag).
+                //
+                // Guard event.project so multiple open projects don't each set
+                // their own flag and produce duplicate daemon records.
+                override fun beforeActionPerformed(action: AnAction, event: AnActionEvent) {
+                    if (event.project != project) return
                     val id = try {
                         ActionManager.getInstance().getId(action)
                     } catch (_: Throwable) {
                         null
                     } ?: return
-                    if (isInlineCompletionAcceptAction(id)) {
-                        pendingHighConfidence = true
-                        pendingHighConfTimer?.cancel(false)
-                        // Safety reset: if no document change follows within
-                        // 300 ms, clear the flag so it doesn't accidentally
-                        // upgrade a later unrelated edit.
-                        pendingHighConfTimer = scheduler.schedule({
-                            pendingHighConfidence = false
-                        }, 300, TimeUnit.MILLISECONDS)
+                    // Chat-apply checked FIRST: a Copilot chat "Insert at Caret" id
+                    // contains both "copilot" and "insert", which the inline matcher
+                    // would otherwise claim.
+                    if (isChatApplyAction(id)) {
+                        pendingChatApply = true
+                        pendingChatTimer?.cancel(false)
+                        pendingChatTimer = scheduler.schedule({
+                            pendingChatApply = false
+                        }, 1500, TimeUnit.MILLISECONDS)
+                        if (debugEnabled()) BlamelyLogger.info("chat-apply pre-signal: $id")
+                    } else if (isInlineCompletionAcceptAction(id)) {
+                        pendingInlineAccept = true
+                        pendingInlineTimer?.cancel(false)
+                        pendingInlineTimer = scheduler.schedule({
+                            pendingInlineAccept = false
+                        }, 500, TimeUnit.MILLISECONDS)
+                        if (debugEnabled()) BlamelyLogger.info("inline-accept pre-signal: $id")
+                    }
+                }
+
+                // afterActionPerformed is a BACKSTOP for chat applies whose document
+                // change streams in after the action completes (within the 1500 ms
+                // window). The id may also only resolve cleanly here for some actions.
+                override fun afterActionPerformed(
+                    action: AnAction,
+                    event: AnActionEvent,
+                    result: AnActionResult,
+                ) {
+                    if (event.project != project) return
+                    val id = try {
+                        ActionManager.getInstance().getId(action)
+                    } catch (_: Throwable) {
+                        null
+                    } ?: return
+                    if (debugEnabled()) BlamelyLogger.info("action: $id")
+                    if (isChatApplyAction(id)) {
+                        pendingChatApply = true
+                        pendingChatTimer?.cancel(false)
+                        pendingChatTimer = scheduler.schedule({
+                            pendingChatApply = false
+                        }, 1500, TimeUnit.MILLISECONDS)
+                        if (debugEnabled()) BlamelyLogger.info("chat-apply matched: $id")
                     }
                 }
             }
@@ -110,37 +159,110 @@ class CompletionDetector(private val project: Project) : Disposable {
         BlamelyLogger.info("CompletionDetector: registered for project ${project.name}")
     }
 
+    // Immediately inserts an AI LineBlame entry for the accepted completion lines
+    // into the in-memory BlameMap and fires blameUpdated(). This makes the AI
+    // gutter icon appear on the frame after the Tab-accept, bypassing the
+    // CliDataService 2-second background refresh cycle entirely.
+    private fun pushImmediateBlame(
+        relPath: String,
+        startLine: Int,
+        endLine: Int,
+        tool: String,
+        genType: String,
+    ) {
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) return@invokeLater
+            val blameService = project.getService(BlameMapService::class.java) ?: return@invokeLater
+            val blameMap = blameService.blameMap
+            val existing = blameMap.getBlame(relPath).toMutableList()
+            val now = java.time.Instant.now().toString()
+            for (ln in startLine..endLine) {
+                existing.removeAll { it.lineNumber == ln }
+                existing.add(
+                    LineBlame(
+                        lineNumber = ln,
+                        authorType = LineBlame.AuthorType.AI,
+                        provider = tool,
+                        timestamp = now,
+                        interactionType = genType,
+                        aiChars = 1,
+                        humanChars = 0,
+                    )
+                )
+            }
+            blameMap.setFileBlame(relPath, existing)
+            project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
+        }
+    }
+
+    // Saves the given document (if unsaved) on the EDT, then triggers the
+    // authoritative CliDataService refresh. Ordering matters: refresh runs
+    // `git diff HEAD` against disk to narrow wide chat applies to the lines
+    // that actually changed, so the file must be flushed FIRST. invokeLater
+    // runs after the current document-change write action completes, which is
+    // when saveDocument is permitted.
+    private fun saveDocumentThenRefresh(doc: com.intellij.openapi.editor.Document) {
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) return@invokeLater
+            try {
+                val fdm = FileDocumentManager.getInstance()
+                if (fdm.isDocumentUnsaved(doc)) fdm.saveDocument(doc)
+            } catch (_: Throwable) {
+                // save can fail during shutdown / read-only VFS — refresh anyway
+            }
+            project.getService(CliDataService::class.java)?.refresh()
+        }
+    }
+
     override fun dispose() {
         scheduler.shutdownNow()
     }
 
     private fun handle(event: DocumentEvent) {
         val newFragment = event.newFragment.toString()
+        if (newFragment.isEmpty()) return
 
-        // Consume the high-confidence flag before any early return so a
-        // filtered-out event doesn't leave the flag set for the next change.
-        val highConf = pendingHighConfidence
-        if (highConf) {
-            pendingHighConfidence = false
-            pendingHighConfTimer?.cancel(false)
+        // Consume the pending flags before any early return. Chat-apply wins
+        // over inline if both somehow fired.
+        val chatApply = pendingChatApply
+        if (chatApply) {
+            pendingChatApply = false
+            pendingChatTimer?.cancel(false)
+        }
+        val inlineAccept = pendingInlineAccept
+        if (inlineAccept) {
+            pendingInlineAccept = false
+            pendingInlineTimer?.cancel(false)
         }
 
-        // High-conf: any non-empty insert following an accept action is a
-        // completion — the action already proved it.
-        // Medium-conf: apply the existing size heuristic.
-        if (!highConf && !looksLikeCompletion(newFragment)) return
-        if (newFragment.isEmpty()) return
+        // STRICT RULE: only a command/action signal makes an edit AI. No signal
+        // → the human author is typing/pasting/refactoring → record nothing.
+        val genType = when {
+            chatApply -> "chat"
+            inlineAccept -> "completion"
+            else -> return
+        }
 
         val doc = event.document
         val vFile = FileDocumentManager.getInstance().getFile(doc) ?: return
         if (!vFile.isInLocalFileSystem) return
         val absPath = vFile.path
         val repoRoot = GitUtils.getRepoRoot(absPath) ?: return
+
+        // Only handle files whose git root matches this project. Without this
+        // check every open project's CompletionDetector handles the same event,
+        // producing duplicate daemon records.
+        val projectRoot = GitUtils.getRepoRoot(project)
+        
+        if (projectRoot != null && repoRoot != projectRoot) return
+
         if (GitUtils.toRepoRelativePath(repoRoot, absPath) == null) return
 
-        val startLine = doc.getLineNumber(event.offset) + 1 // 0-based → 1-based
-        val newlineCount = newFragment.count { it == '\n' }
-        val highConfSnapshot = highConf
+        // Narrow to the lines that ACTUALLY changed (strip common leading and
+        // trailing lines between oldFragment and newFragment), so an "apply"
+        // that rewrites a big region but alters only a few lines is attributed
+        // to those lines, not the whole span.
+        val band = narrowedBand(doc, event.offset, event.oldFragment.toString(), newFragment)
 
         ApplicationManager.getApplication().executeOnPooledThread {
             if (project.isDisposed) return@executeOnPooledThread
@@ -151,39 +273,80 @@ class CompletionDetector(private val project: Project) : Disposable {
                 ?: return@executeOnPooledThread
             val repoId = CliRepoId.get(repoRoot) ?: repoRoot
 
-            val confidence = if (highConfSnapshot) "high" else "medium"
             val tool = resolveTool()
-            // Distinguish a chat / agent-panel apply from an inline completion
-            // accept: the high-confidence path means an inline-completion accept
-            // action fired (it's a completion); otherwise a multi-line bulk
-            // insert (not a paste, not undo) is overwhelmingly a chat / agent
-            // "apply in editor" action → gen_type=chat. A single-line non-inline
-            // insert is ambiguous, so we leave it as completion.
-            val genType = if (!highConfSnapshot && newlineCount >= 1) "chat" else "completion"
-            val rawMeta = """{"source":"intellij_plugin","chars":${newFragment.length},"high_conf":$highConfSnapshot}"""
+            val signal = if (chatApply) "chat_apply_action" else "inline_accept_action"
+            val rawMeta = """{"source":"intellij_plugin","chars":${newFragment.length},"gen_type_signal":"$signal"}"""
             val payload = EditPayload(
                 tool = tool,
-                confidence = confidence,
+                confidence = "high", // an action proved it
                 genType = genType,
                 repoPath = repoId,
                 filePath = relPath,
-                suggestedLines = (newlineCount + 1).toLong(),
-                lines = listOf(EditRange(start = startLine, end = startLine + newlineCount)),
+                suggestedLines = (band.second - band.first + 1).toLong(),
+                lines = listOf(EditRange(start = band.first, end = band.second)),
                 rawMeta = rawMeta,
             )
+            if (debugEnabled()) {
+                BlamelyLogger.info("record: tool=$tool gen_type=$genType $relPath L${band.first}-${band.second}")
+            }
+            // Optimistic gutter update: push an AI entry into the BlameMap
+            // immediately on the EDT, before the background CliDataService
+            // refresh cycle runs. This makes the AI icon appear instantly on
+            // Tab-accept instead of waiting up to 2 seconds for the next
+            // CliDataService.refresh() poll.
+            pushImmediateBlame(relPath, band.first, band.second, tool, genType)
+
             if (daemon.send(payload)) {
-                project.getService(CliDataService::class.java)?.refresh()
+                // Save THIS document, then refresh — in that order. The authoritative
+                // CliDataService.refresh() runs `git diff HEAD` (disk) to constrain a
+                // wide chat apply to the lines that truly changed. If the buffer is
+                // unsaved, git diff sees nothing and the AI lines get stripped to
+                // Human. Saving the captured `doc` (no fragile path lookup) reproduces
+                // VS Code's precondition exactly. Saving doesn't alter content, so it
+                // won't re-trigger documentChanged.
+                saveDocumentThenRefresh(doc)
             }
         }
     }
 
-    private fun looksLikeCompletion(text: String): Boolean {
-        if (text.isEmpty()) return false
-        // Require substantial non-whitespace content. A bare newline or
-        // auto-indent (newline + spaces) is just the user pressing Enter —
-        // the old `text.contains('\n')` check attributed every Enter keystroke
-        // as an AI completion on the medium-confidence path.
-        return text.trim().length >= MIN_COMPLETION_CHARS
+    // narrowedBand returns the inclusive 1-based [startLine, endLine] of the
+    // lines that actually changed, by stripping whole common leading/trailing
+    // lines shared between oldFrag and newFrag. Char-level common prefix/suffix
+    // is snapped to line boundaries so a mid-line start maps cleanly through the
+    // document's offset→line function. Falls back to the full fragment span.
+    private fun narrowedBand(
+        doc: com.intellij.openapi.editor.Document,
+        offset: Int,
+        oldFrag: String,
+        newFrag: String,
+    ): Pair<Int, Int> {
+        val fullStart = doc.getLineNumber(offset.coerceIn(0, doc.textLength)) + 1
+        val fullEnd = doc.getLineNumber((offset + newFrag.length).coerceIn(0, doc.textLength)) + 1
+        if (newFrag.isEmpty()) return fullStart to fullStart
+
+        // Common char prefix, snapped back to the last newline (whole lines only).
+        val maxP = minOf(oldFrag.length, newFrag.length)
+        var p = 0
+        while (p < maxP && oldFrag[p] == newFrag[p]) p++
+        val skipPre = newFrag.lastIndexOf('\n', (p - 1).coerceAtLeast(0)).let {
+            if (it in 0 until p) it + 1 else 0
+        }
+        // Common char suffix (not overlapping the skipped prefix), snapped to a newline.
+        val maxQ = minOf(oldFrag.length, newFrag.length) - skipPre
+        var q = 0
+        while (q < maxQ && oldFrag[oldFrag.length - 1 - q] == newFrag[newFrag.length - 1 - q]) q++
+        val suffixStartInNew = newFrag.length - q
+        val skipSuf = if (q > 0) {
+            val nl = newFrag.indexOf('\n', suffixStartInNew)
+            if (nl >= 0) newFrag.length - nl else 0
+        } else 0
+
+        val changedStart = offset + skipPre
+        val changedEndExclusive = (offset + newFrag.length - skipSuf).coerceAtLeast(changedStart + 1)
+        if (changedStart >= changedEndExclusive || changedStart > doc.textLength) return fullStart to fullEnd
+        val startLine = doc.getLineNumber(changedStart.coerceIn(0, doc.textLength)) + 1
+        val endLine = doc.getLineNumber((changedEndExclusive - 1).coerceIn(0, doc.textLength)) + 1
+        return startLine to maxOf(endLine, startLine)
     }
 
     private fun refreshClipboardCache() {
@@ -219,12 +382,66 @@ class CompletionDetector(private val project: Project) : Disposable {
     }
 }
 
+// Explicit Copilot for JetBrains action IDs — checked before pattern matching
+// so the right gen_type is assigned even when the action name is ambiguous.
+// Enable `blamely.debugDetection` to log every fired action ID and discover
+// IDs for your specific Copilot / IDE version.
+private val COPILOT_CHAT_APPLY_IDS = setOf(
+    // GitHub Copilot for JetBrains — "Apply in Editor" / "Insert at Caret"
+    "copilot.chat.applyInEditor",
+    "copilot.applyInEditor",
+    "copilot.insertAtCaret",
+    "copilot.applyCodeBlock",
+    "copilot.insertCodeBlock",
+    "copilot.applyCodeInEditor",
+    "copilot.insertCodeAtCaret",
+    "com.github.copilot.chat.applyInEditor",
+    "com.github.copilot.applyInEditor",
+    "GHCopilotApplyInEditorAction",
+    "GHCopilot.applyInEditor",
+    // JetBrains AI Chat
+    "AIAssistant.Editor.ApplySuggestion",
+    "AIAssistant.Chat.ApplyCode",
+)
+
+private val COPILOT_INLINE_ACCEPT_IDS = setOf(
+    // GitHub Copilot for JetBrains — older plugin versions (pre-InlineCompletionProvider)
+    "copilot.applyInlays",
+    "copilot.acceptLine",
+    "copilot.acceptWord",
+    "com.github.copilot.applyInlays",
+    "com.github.copilot.acceptLine",
+)
+
+// isChatApplyAction returns true for action IDs that apply/insert code FROM a
+// chat panel (GitHub Copilot Chat "Insert at Caret"/"Apply", JetBrains AI chat
+// apply). Checked BEFORE the inline matcher because a chat insert id also
+// contains "copilot"/"insert".
+private fun isChatApplyAction(id: String): Boolean {
+    if (COPILOT_CHAT_APPLY_IDS.contains(id)) return true
+    val l = id.lowercase()
+    if (!l.contains("chat")) {
+        // Copilot apply without "chat" in the ID (e.g. copilot.applyInEditor)
+        if (l.contains("copilot") && (l.contains("apply") || l.contains("insert"))) return true
+        // JetBrains AI apply without "chat" in the ID
+        if (l.contains("aiassistant") && (l.contains("apply") || l.contains("insert"))) return true
+        // Explicit verbs that inline completions never use
+        return l.contains("applyedit") || l.contains("applypatch") || l.contains("applycodeblock")
+    }
+    return l.contains("apply") || l.contains("insert") || l.contains("accept")
+}
+
 // isInlineCompletionAcceptAction returns true for action IDs that correspond
 // to accepting an inline AI completion. The patterns cover:
 //   - JetBrains AI / Grazie Pro (InsertInlineCompletionAction, etc.)
-//   - GitHub Copilot IntelliJ plugin (com.github.copilot.* accept/insert/apply)
+//   - GitHub Copilot — newer versions use IntelliJ's InlineCompletionProvider
+//     API and fire InsertInlineCompletionAction; older versions use their own
+//     action IDs listed in COPILOT_INLINE_ACCEPT_IDS.
+// Chat actions are excluded (handled by isChatApplyAction).
 private fun isInlineCompletionAcceptAction(id: String): Boolean {
-    // JetBrains AI: action IDs contain "InlineCompletion" + accept verb
+    if (COPILOT_INLINE_ACCEPT_IDS.contains(id)) return true
+    if (id.contains("chat", ignoreCase = true)) return false
+    // JetBrains native inline completion API (used by Copilot 2024.1+ and JB AI)
     if (id.contains("InlineCompletion", ignoreCase = true) &&
         (id.contains("Insert", ignoreCase = true) ||
             id.contains("Accept", ignoreCase = true) ||
@@ -232,7 +449,7 @@ private fun isInlineCompletionAcceptAction(id: String): Boolean {
     ) {
         return true
     }
-    // GitHub Copilot IntelliJ plugin: IDs contain "copilot" + accept verb
+    // Older Copilot or third-party inline providers: IDs with "copilot" + accept verb
     val lower = id.lowercase()
     if (lower.contains("copilot") &&
         (lower.contains("accept") || lower.contains("insert") || lower.contains("apply"))

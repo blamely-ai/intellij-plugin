@@ -31,18 +31,29 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
             state.aiTool = value
         }
 
+    // Log AI-edit detection (executed action ids, chat-apply/inline matches, and
+    // recorded edits) to the blamely log. Used to verify attribution and to
+    // discover the chat-apply action id the installed assistant uses.
+    var debugDetection: Boolean
+        get() = state.debugDetection
+        set(value) {
+            state.debugDetection = value
+        }
+
     override fun getState(): State = state
 
     override fun loadState(loaded: State) {
         state.showGutterLineIcons = loaded.showGutterLineIcons
         state.detectInlineCompletion = loaded.detectInlineCompletion
         state.aiTool = loaded.aiTool
+        state.debugDetection = loaded.debugDetection
     }
 
     data class State(
         var showGutterLineIcons: Boolean = true,
         var detectInlineCompletion: Boolean = true,
         var aiTool: String = "auto",
+        var debugDetection: Boolean = false,
     )
 
     private var state = State()

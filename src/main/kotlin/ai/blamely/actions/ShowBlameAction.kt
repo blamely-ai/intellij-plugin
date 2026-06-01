@@ -26,8 +26,8 @@ class ShowBlameAction : AnAction() {
         project.getService(CliDataService::class.java)?.refresh()
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val entries = blameService.blameMap.getBlame(path)
-        val ai = entries.count { it.authorType == LineBlame.AuthorType.AI }
-        val human = entries.count { it.authorType == LineBlame.AuthorType.HUMAN }
+        val ai = entries.count { it.effectiveAuthorType() == LineBlame.AuthorType.AI }
+        val human = entries.count { it.effectiveAuthorType() == LineBlame.AuthorType.HUMAN }
         notify(project, "Blame for $path: $ai AI lines, $human human lines")
     }
 

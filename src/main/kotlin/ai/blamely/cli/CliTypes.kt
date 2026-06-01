@@ -9,6 +9,10 @@ data class CliEditRow(
     val genType: String,
     val startLine: Int,
     val endLine: Int,
+    // Per-line content hash when the edit recorded line content (chat applies);
+    // null for range-only edits. Used to attribute a line to AI only when its
+    // current content still matches what the AI applied.
+    val contentSha: String? = null,
 )
 
 data class DaemonStatus(

@@ -15,6 +15,7 @@ class BlamelyConfigurable : Configurable {
     private var panel: JPanel? = null
     private var showLineIconsCheckBox: JBCheckBox? = null
     private var aiToolCombo: ComboBox<String>? = null
+    private var debugDetectionCheckBox: JBCheckBox? = null
 
     override fun getDisplayName(): String = "Blamely"
 
@@ -30,6 +31,12 @@ class BlamelyConfigurable : Configurable {
         combo.selectedItem = settings.aiTool.ifEmpty { "auto" }
         aiToolCombo = combo
 
+        val debugCb = JBCheckBox(
+            "Debug detection (log actions + recorded edits to the Blamely log)",
+            settings.debugDetection
+        )
+        debugDetectionCheckBox = debugCb
+
         panel = FormBuilder.createFormBuilder()
             .addComponent(lineIconsCb)
             .addLabeledComponent("AI tool for detected edits:", combo)
@@ -41,6 +48,7 @@ class BlamelyConfigurable : Configurable {
                         "aren't mislabelled. Copilot and Cursor are tracked independently.</html>"
                 )
             )
+            .addComponent(debugCb)
             .addComponentFillVertically(JPanel(), 0)
             .panel
             .apply { border = JBUI.Borders.empty(10, 20) }
@@ -53,6 +61,7 @@ class BlamelyConfigurable : Configurable {
         val combo = aiToolCombo
         if (lineIcons != null && lineIcons.isSelected != s.showGutterLineIcons) return true
         if (combo != null && (combo.selectedItem as? String ?: "auto") != s.aiTool) return true
+        if (debugDetectionCheckBox?.isSelected != null && debugDetectionCheckBox!!.isSelected != s.debugDetection) return true
         return false
     }
 
@@ -60,6 +69,7 @@ class BlamelyConfigurable : Configurable {
         val s = BlamelySettings.getInstance()
         showLineIconsCheckBox?.let { s.showGutterLineIcons = it.isSelected }
         aiToolCombo?.let { s.aiTool = (it.selectedItem as? String) ?: "auto" }
+        debugDetectionCheckBox?.let { s.debugDetection = it.isSelected }
         for (project in ProjectManager.getInstance().openProjects) {
             if (project.isDisposed) continue
             project.getService(ai.blamely.ui.BlameDecorations::class.java)?.refresh()
@@ -70,5 +80,6 @@ class BlamelyConfigurable : Configurable {
         val s = BlamelySettings.getInstance()
         showLineIconsCheckBox?.isSelected = s.showGutterLineIcons
         aiToolCombo?.selectedItem = s.aiTool.ifEmpty { "auto" }
+        debugDetectionCheckBox?.isSelected = s.debugDetection
     }
 }

@@ -153,10 +153,7 @@ class BlameDecorations(private val project: Project) : Disposable {
 
         val byLine = LinkedHashMap<Int, LineBlame>()
         for (e in raw) {
-            val existing = byLine[e.lineNumber]
-            if (existing == null || e.aiChars + e.humanChars > existing.aiChars + existing.humanChars) {
-                byLine[e.lineNumber] = e
-            }
+            byLine[e.lineNumber] = LineBlame.betterLineEntry(byLine[e.lineNumber], e)
         }
 
         val markup = editor.markupModel
@@ -218,11 +215,9 @@ class BlameDecorations(private val project: Project) : Disposable {
 
     companion object {
 
-        /** Matches BlameMap line dominance: AI gutter iff `aiChars > humanChars` when there is typed content. */
+        /** Matches BlameMap line dominance: AI gutter iff `aiChars >= humanChars` when there is typed content. */
         fun effectiveAuthorType(entry: LineBlame): LineBlame.AuthorType {
-            val total = entry.aiChars + entry.humanChars
-            if (total <= 0) return entry.authorType
-            return if (entry.aiChars > entry.humanChars) LineBlame.AuthorType.AI else LineBlame.AuthorType.HUMAN
+            return entry.effectiveAuthorType()
         }
 
         fun toProjectRelativePath(file: VirtualFile, basePath: String): String? {
@@ -250,40 +245,21 @@ class BlameDecorations(private val project: Project) : Disposable {
             relativePath: String?
         ): String {
             val changed = formatBlameChangedDate(entry.timestamp)
-            val stats = "AI chars: ${entry.aiChars} · Human chars: ${entry.humanChars}"
-            val commitLine = entry.commitSha?.let { "Commit: ${it.take(8)}" }
             return when (displayAs) {
                 LineBlame.AuthorType.AI -> buildString {
-                    if (!relativePath.isNullOrBlank()) {
-                        appendLine(relativePath.trim())
-                        appendLine("Line ${entry.lineNumber}")
-                        appendLine()
-                    }
+                    relativePath?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
                     appendLine("Author: AI")
-                    appendLine("Changed: $changed")
                     entry.model?.takeIf { it.isNotBlank() }?.let {
-                        appendLine("Assistant: $it")
+                        appendLine("Model: $it")
                     }
-                    appendLine()
-                    val prompt = entry.prompt
-                    if (!prompt.isNullOrBlank()) {
-                        appendLine("Prompt: ${prompt.take(120)}${if (prompt.length > 120) "…" else ""}")
-                    }
-                    appendLine(stats)
+                    append("Change Date: $changed")
                 }
                 LineBlame.AuthorType.HUMAN -> buildString {
-                    if (!relativePath.isNullOrBlank()) {
-                        appendLine(relativePath.trim())
-                        appendLine("Line ${entry.lineNumber}")
-                        appendLine()
-                    }
-                    appendLine("Author: Human (you)")
-                    appendLine("Changed: $changed")
-                    appendLine()
-                    appendLine(stats)
-                    commitLine?.let { appendLine(it) }
+                    relativePath?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
+                    appendLine("Author: Human")
+                    append("Change Date: $changed")
                 }
-            }.trimEnd()
+            }
         }
 
         /** ISO-8601 instant → localized date/time for gutter hover (falls back to raw string). */

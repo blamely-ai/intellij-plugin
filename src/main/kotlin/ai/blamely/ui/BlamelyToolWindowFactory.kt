@@ -215,7 +215,9 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         // Collect models
         val models = mutableSetOf<String>()
         for (fp in trackedFiles) {
-            blameMap.getBlame(fp).filter { it.authorType == LineBlame.AuthorType.AI && !it.model.isNullOrBlank() }
+            blameMap.getBlame(fp).filter {
+                it.effectiveAuthorType() == LineBlame.AuthorType.AI && !it.model.isNullOrBlank()
+            }
                 .mapNotNull { it.model?.trim()?.takeIf { m -> m.isNotEmpty() && m != "unknown" } }
                 .forEach { models.add(it) }
         }
@@ -238,13 +240,10 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
             if (entries.isEmpty()) continue
             val byLine = linkedMapOf<Int, LineBlame>()
             for (e in entries) {
-                val existing = byLine[e.lineNumber]
-                val eTotal = e.aiChars + e.humanChars
-                val curTotal = existing?.let { it.aiChars + it.humanChars } ?: 0
-                if (existing == null || eTotal >= curTotal) byLine[e.lineNumber] = e
+                byLine[e.lineNumber] = LineBlame.betterLineEntry(byLine[e.lineNumber], e)
             }
-            val aiL = byLine.values.count { it.authorType == LineBlame.AuthorType.AI }
-            val hL = byLine.values.count { it.authorType == LineBlame.AuthorType.HUMAN }
+            val aiL = byLine.values.count { it.effectiveAuthorType() == LineBlame.AuthorType.AI }
+            val hL = byLine.values.count { it.effectiveAuthorType() == LineBlame.AuthorType.HUMAN }
             if (aiL == 0 && hL == 0) continue
 
             totalAiLines += aiL; totalHumanLines += hL
