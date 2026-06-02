@@ -20,7 +20,17 @@ data class LineBlame(
     var oldLineNumber: Int? = null,
     var codingType: CodingType = CodingType.TYPING,
     /** IDE / CLI label (e.g. full product name, `ai_cli`). Written to *.blame.json. */
-    var ide: String? = null
+    var ide: String? = null,
+    /**
+     * True when this entry came from an explicit AI gen_type (completion/chat/cli)
+     * whose recorded line range was TIGHT — i.e. a real editor/hook edit, not a
+     * wide whole-file snapshot. Such entries are trusted as-is and exempted from
+     * the git-diff constrain. Driven by gen_type + range width, NOT by raw_meta
+     * source, so it works identically across IDEs (VS Code, IntelliJ, …).
+     */
+    var boundedAiRange: Boolean = false,
+    /** AI matched by content_sha at current line (survives middle inserts shifting line numbers). */
+    var contentShaAttributed: Boolean = false,
 ) {
     enum class AuthorType { HUMAN, AI }
     enum class ChangeType { ADD, DELETE }

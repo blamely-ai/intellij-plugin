@@ -35,9 +35,8 @@ class BlameDecorationsTooltipTest {
             humanChars = 5
         )
         val text = BlameDecorations.blameGutterTooltipText(entry, LineBlame.AuthorType.HUMAN)
-        assertTrue(text.contains("Author: Human (you)"), text)
-        assertTrue(text.contains("Changed:"), text)
-        assertTrue(text.contains("Human chars: 5"), text)
+        assertTrue(text.contains("Author: Human"), text)
+        assertTrue(text.contains("Change Date:"), text)
     }
 
     @Test
@@ -54,8 +53,8 @@ class BlameDecorationsTooltipTest {
         )
         val text = BlameDecorations.blameGutterTooltipText(entry, LineBlame.AuthorType.AI)
         assertTrue(text.contains("Author: AI"), text)
-        assertTrue(text.contains("Changed:"), text)
-        assertTrue(text.contains("Assistant: gpt-4"), text)
+        assertTrue(text.contains("Change Date:"), text)
+        assertTrue(text.contains("Model: gpt-4"), text)
         assertTrue(!text.contains("Interaction:"), "AI gutter tooltip should not show interaction/source")
     }
 }

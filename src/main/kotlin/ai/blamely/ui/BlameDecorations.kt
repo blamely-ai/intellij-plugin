@@ -4,12 +4,14 @@ import ai.blamely.core.BlameMapService
 import ai.blamely.core.BlameUpdateListener
 import ai.blamely.core.LineBlame
 import ai.blamely.git.GitUtils
+import ai.blamely.utils.BlankLines
 import ai.blamely.settings.BlamelySettings
 import ai.blamely.utils.Platform
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.editor.event.EditorFactoryEvent
@@ -149,11 +151,23 @@ class BlameDecorations(private val project: Project) : Disposable {
 
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val raw = blameService.blameMap.getBlame(path).filter { it.changeType != LineBlame.ChangeType.DELETE }
-        if (raw.isEmpty()) return
+        if (raw.isEmpty()) {
+            if (ai.blamely.utils.BlamelyLogger.isDebugEnabled()) {
+                ai.blamely.utils.BlamelyLogger.debug("gutter: file=$path repoRoot=$repoRoot -> NO blame entries (no icons)")
+            }
+            return
+        }
 
         val byLine = LinkedHashMap<Int, LineBlame>()
         for (e in raw) {
             byLine[e.lineNumber] = LineBlame.betterLineEntry(byLine[e.lineNumber], e)
+        }
+
+        val debug = ai.blamely.utils.BlamelyLogger.isDebugEnabled()
+        if (debug) {
+            ai.blamely.utils.BlamelyLogger.debug(
+                "gutter: file=$path repoRoot=$repoRoot rawEntries=${raw.size} lines=${byLine.size}"
+            )
         }
 
         val markup = editor.markupModel
@@ -165,12 +179,30 @@ class BlameDecorations(private val project: Project) : Disposable {
             if (lineIdx < 0 || lineIdx >= doc.lineCount) continue
             val start = doc.getLineStartOffset(lineIdx)
             var end = doc.getLineEndOffset(lineIdx)
+            if (BlankLines.isBlankLine(doc.getText(TextRange(start, end)))) {
+                continue
+            }
             if (end <= start) end = (start + 1).coerceAtMost(doc.textLength)
 
             val displayAs = effectiveAuthorType(entry)
             val icon = when (displayAs) {
                 LineBlame.AuthorType.AI -> BlamelyIcons.GutterBrain
                 LineBlame.AuthorType.HUMAN -> BlamelyIcons.GutterHuman
+            }
+            if (debug) {
+                val reason = if (LineBlame.isAiInteractionType(entry.interactionType)) {
+                    "interactionType='${entry.interactionType}' is an AI gen_type"
+                } else {
+                    "no AI gen_type; aiChars=${entry.aiChars} vs humanChars=${entry.humanChars}"
+                }
+                ai.blamely.utils.BlamelyLogger.debug(
+                    "gutter: line=${entry.lineNumber} icon=$displayAs" +
+                        " (reason: $reason)" +
+                        " provider=${entry.provider} model=${entry.model}" +
+                        " interactionType=${entry.interactionType}" +
+                        " aiChars=${entry.aiChars} humanChars=${entry.humanChars}" +
+                        " boundedAiRange=${entry.boundedAiRange} ts=${entry.timestamp}"
+                )
             }
             val tooltip = blameGutterTooltipText(entry, displayAs, path)
 
@@ -247,7 +279,6 @@ class BlameDecorations(private val project: Project) : Disposable {
             val changed = formatBlameChangedDate(entry.timestamp)
             return when (displayAs) {
                 LineBlame.AuthorType.AI -> buildString {
-                    relativePath?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
                     appendLine("Author: AI")
                     entry.model?.takeIf { it.isNotBlank() }?.let {
                         appendLine("Model: $it")
@@ -255,7 +286,6 @@ class BlameDecorations(private val project: Project) : Disposable {
                     append("Change Date: $changed")
                 }
                 LineBlame.AuthorType.HUMAN -> buildString {
-                    relativePath?.takeIf { it.isNotBlank() }?.let { appendLine(it) }
                     appendLine("Author: Human")
                     append("Change Date: $changed")
                 }

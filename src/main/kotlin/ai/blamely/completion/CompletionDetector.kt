@@ -191,6 +191,15 @@ class CompletionDetector(private val project: Project) : Disposable {
                 )
             }
             blameMap.setFileBlame(relPath, existing)
+            // Mark this paint so an in-flight CliDataService.refresh() (whose data
+            // predates this completion) skips its clear+rebuild and doesn't flip
+            // the gutter AI→Human→AI.
+            blameService.lastOptimisticPaintMs = System.currentTimeMillis()
+            // Bridge the daemon-write race: the post-send refresh runs immediately
+            // after daemon.send() returns 204, but the daemon may not have committed
+            // this row to SQLite yet. Register the accepted lines so refresh() re-asserts
+            // them as AI until the row is persisted (then it clears them).
+            blameService.markPendingAiLines(relPath, startLine..endLine, tool, null, genType)
             project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
         }
     }
@@ -249,6 +258,10 @@ class CompletionDetector(private val project: Project) : Disposable {
         val absPath = vFile.path
         val repoRoot = GitUtils.getRepoRoot(absPath) ?: return
 
+        // Pause during cherry-pick/merge/revert/rebase: edits applied by replaying
+        // history aren't fresh authorship. content_sha re-attributes them after.
+        if (GitUtils.inProgressGitOp(repoRoot)) return
+
         // Only handle files whose git root matches this project. Without this
         // check every open project's CompletionDetector handles the same event,
         // producing duplicate daemon records.
@@ -263,6 +276,16 @@ class CompletionDetector(private val project: Project) : Disposable {
         // that rewrites a big region but alters only a few lines is attributed
         // to those lines, not the whole span.
         val band = narrowedBand(doc, event.offset, event.oldFragment.toString(), newFragment)
+
+        // Compute a per-line content_sha for the changed band while still on the
+        // EDT (document access is valid here, and the post-change document already
+        // holds the inserted AI lines). Sending these makes the recorded AI lines
+        // drift-resistant in CliDataService.refresh(): a current line is matched to
+        // this edit by content hash even after its line number shifts, so the gutter
+        // no longer flips AI→Human when the file is edited or reopened. Mirrors the
+        // reader's hash (CliDataService.lineSha: sha256 of the line with a trailing
+        // \r stripped) and the Go log-parsers (copilot_chat.go).
+        val lineRanges = buildLineRangesWithSha(doc, band.first, band.second)
 
         ApplicationManager.getApplication().executeOnPooledThread {
             if (project.isDisposed) return@executeOnPooledThread
@@ -283,8 +306,9 @@ class CompletionDetector(private val project: Project) : Disposable {
                 repoPath = repoId,
                 filePath = relPath,
                 suggestedLines = (band.second - band.first + 1).toLong(),
-                lines = listOf(EditRange(start = band.first, end = band.second)),
+                lines = lineRanges,
                 rawMeta = rawMeta,
+                branch = GitUtils.getBranchName(repoRoot),
             )
             if (debugEnabled()) {
                 BlamelyLogger.info("record: tool=$tool gen_type=$genType $relPath L${band.first}-${band.second}")
@@ -307,6 +331,29 @@ class CompletionDetector(private val project: Project) : Disposable {
                 saveDocumentThenRefresh(doc)
             }
         }
+    }
+
+    // buildLineRangesWithSha returns one EditRange per line of the inclusive
+    // 1-based [startLine, endLine] band, each carrying the SHA-256 of that line's
+    // current text (trailing \r stripped). Tight per-line ranges keep
+    // boundedAiRange=true (correct immediately) while the content_sha keeps the
+    // attribution correct after the line drifts. Falls back to a single
+    // sha-less range if no lines are readable. Must be called on the EDT.
+    private fun buildLineRangesWithSha(
+        doc: com.intellij.openapi.editor.Document,
+        startLine: Int,
+        endLine: Int,
+    ): List<EditRange> {
+        val out = ArrayList<EditRange>((endLine - startLine + 1).coerceAtLeast(1))
+        for (ln in startLine..endLine) {
+            val idx = ln - 1
+            if (idx < 0 || idx >= doc.lineCount) continue
+            val s = doc.getLineStartOffset(idx)
+            val e = doc.getLineEndOffset(idx)
+            val text = doc.getText(com.intellij.openapi.util.TextRange(s, e))
+            out.add(EditRange(ln, ln, sha256Hex(text.removeSuffix("\r"))))
+        }
+        return out.ifEmpty { listOf(EditRange(startLine, endLine)) }
     }
 
     // narrowedBand returns the inclusive 1-based [startLine, endLine] of the
@@ -387,25 +434,26 @@ class CompletionDetector(private val project: Project) : Disposable {
 // Enable `blamely.debugDetection` to log every fired action ID and discover
 // IDs for your specific Copilot / IDE version.
 private val COPILOT_CHAT_APPLY_IDS = setOf(
-    // GitHub Copilot for JetBrains — "Apply in Editor" / "Insert at Caret"
+    // GitHub Copilot for JetBrains 1.7.x — VERIFIED from the installed plugin's
+    // copilot-core.xml. Applying a code block from Copilot Chat / Edit mode shows
+    // a diff block in the editor; clicking "Accept" fires copilot.diffBlock.accept.
+    "copilot.diffBlock.accept",
+    "copilot.chat.inline",
+    // Older / alternate Copilot ids and JetBrains AI Chat (kept as fallbacks).
     "copilot.chat.applyInEditor",
     "copilot.applyInEditor",
     "copilot.insertAtCaret",
     "copilot.applyCodeBlock",
-    "copilot.insertCodeBlock",
-    "copilot.applyCodeInEditor",
-    "copilot.insertCodeAtCaret",
     "com.github.copilot.chat.applyInEditor",
-    "com.github.copilot.applyInEditor",
-    "GHCopilotApplyInEditorAction",
-    "GHCopilot.applyInEditor",
-    // JetBrains AI Chat
     "AIAssistant.Editor.ApplySuggestion",
     "AIAssistant.Chat.ApplyCode",
 )
 
 private val COPILOT_INLINE_ACCEPT_IDS = setOf(
-    // GitHub Copilot for JetBrains — older plugin versions (pre-InlineCompletionProvider)
+    // GitHub Copilot for JetBrains 1.7.x — VERIFIED. NES = "Next Edit Suggestion";
+    // copilot.nes.tab is the Tab-accept of a suggested edit (completion-like).
+    "copilot.nes.tab",
+    // Older plugin versions (pre-InlineCompletionProvider).
     "copilot.applyInlays",
     "copilot.acceptLine",
     "copilot.acceptWord",
@@ -420,6 +468,9 @@ private val COPILOT_INLINE_ACCEPT_IDS = setOf(
 private fun isChatApplyAction(id: String): Boolean {
     if (COPILOT_CHAT_APPLY_IDS.contains(id)) return true
     val l = id.lowercase()
+    // Copilot chat/edit "Accept" on an applied diff block (copilot.diffBlock.accept).
+    if (l.contains("diffblock") && (l.contains("accept") || l.contains("apply"))) return true
+    if (l.contains("copilot") && l.contains("inline") && l.contains("chat")) return true
     if (!l.contains("chat")) {
         // Copilot apply without "chat" in the ID (e.g. copilot.applyInEditor)
         if (l.contains("copilot") && (l.contains("apply") || l.contains("insert"))) return true
@@ -441,6 +492,12 @@ private fun isChatApplyAction(id: String): Boolean {
 private fun isInlineCompletionAcceptAction(id: String): Boolean {
     if (COPILOT_INLINE_ACCEPT_IDS.contains(id)) return true
     if (id.contains("chat", ignoreCase = true)) return false
+    // Copilot Next Edit Suggestion (NES) Tab-accept: copilot.nes.tab
+    if (id.contains("nes", ignoreCase = true) &&
+        (id.contains("tab", ignoreCase = true) || id.contains("accept", ignoreCase = true))
+    ) {
+        return true
+    }
     // JetBrains native inline completion API (used by Copilot 2024.1+ and JB AI)
     if (id.contains("InlineCompletion", ignoreCase = true) &&
         (id.contains("Insert", ignoreCase = true) ||
@@ -467,7 +524,15 @@ private fun isInlineCompletionAcceptAction(id: String): Boolean {
 // assistant (or auto-detection guesses wrong), the user pins copilot/cursor in
 // Settings → Blamely. "auto" infers from the installed plugins: a GitHub
 // Copilot plugin → copilot; otherwise cursor.
-private fun resolveTool(): String {
+// sha256Hex hashes a single line's text exactly as the reader expects
+// (CliDataService.lineSha): SHA-256 of the UTF-8 bytes, hex-encoded. Callers
+// strip a trailing \r first so the hash matches across line endings.
+internal fun sha256Hex(s: String): String =
+    java.security.MessageDigest.getInstance("SHA-256")
+        .digest(s.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+
+internal fun resolveTool(): String {
     val configured = try {
         ai.blamely.settings.BlamelySettings.getInstance().aiTool
     } catch (_: Throwable) {

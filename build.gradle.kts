@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import proguard.gradle.ProGuardTask
 
 group = "ai.blamely"
-version = "1.3.4"
+version = "1.4.4"
 
 java {
     toolchain { languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(17)) }
@@ -33,6 +33,8 @@ repositories {
 val sandboxFull = project.findProperty("blamely.sandbox.full") == "true"
 /** When true (e.g. ./run-sandbox.sh --copilot), resolves GitHub Copilot into the sandbox via Marketplace API. */
 val sandboxCopilot = project.findProperty("blamely.sandbox.copilot") == "true"
+/** When true (e.g. ./run-sandbox.sh --ultimate), runs IntelliJ IDEA Ultimate for sandbox dev. */
+val sandboxUltimate = project.findProperty("blamely.sandbox.ultimate") == "true"
 
 /** Every bundled plugin ID for the resolved IC version (see `printBundledPlugins`), excluding platform core `com.intellij`. */
 val sandboxFullPluginIds: List<String> =
@@ -43,10 +45,14 @@ val sandboxFullPluginIds: List<String> =
 
 dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
-    implementation("org.xerial:sqlite-jdbc:3.45.1.0")
+    // SQLite via system `sqlite3` CLI only — sqlite-jdbc conflicts with IntelliJ SLF4J (LinkageError).
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     intellijPlatform {
-        intellijIdeaCommunity("2023.2")
+        if (sandboxUltimate) {
+            intellijIdeaUltimate("2023.2")
+        } else {
+            intellijIdeaCommunity("2023.2")
+        }
         if (sandboxFull) {
             check(sandboxFullPluginIds.isNotEmpty()) {
                 "sandbox-full-plugins.txt is missing or empty; run ./gradlew printBundledPlugins to refresh IDs"
@@ -111,15 +117,21 @@ tasks.named<Sync>("prepareSandbox").configure {
     }
 }
 
+/** When true (default for ./run-sandbox.sh), enables Blamely DEBUG logging in the sandbox IDE. */
+val sandboxDebug = project.findProperty("blamely.debug") == "true"
+
 tasks.named("runIde") {
     val logDir = file("${layout.buildDirectory.get().asFile}/runIde-logs")
     (this as? org.gradle.api.tasks.JavaExec)?.jvmArgumentProviders?.add(
         org.gradle.process.CommandLineArgumentProvider {
-            listOf(
-                "-Didea.log.path=${logDir.absolutePath}",
+            buildList {
+                add("-Didea.log.path=${logDir.absolutePath}")
                 // Prefer New UI in the sandbox (Appearance → New UI when supported)
-                "-Didea.experimental.ui=true"
-            )
+                add("-Didea.experimental.ui=true")
+                // Forward Blamely debug flag so BlamelyLogger.isDebugEnabled() turns on
+                // gutter/refresh decision logging without toggling the UI setting.
+                if (sandboxDebug) add("-Dblamely.debug=true")
+            }
         }
     )
 }
@@ -150,8 +162,10 @@ val obfuscateComposedJar = tasks.register<ProGuardTask>("obfuscateComposedJar") 
     outjars(layout.buildDirectory.file("tmp/blamely-obf/composed.jar").get().asFile)
 
     val cp = compileClasspath.get()
-    val appJar = cp.files.firstOrNull { it.name == "app.jar" && it.path.contains("ideaIC") }
-        ?: error("Could not locate extracted ideaIC app.jar on compile classpath (needed for ProGuard).")
+    val appJar = cp.files.firstOrNull {
+        it.name == "app.jar" && (it.path.contains("ideaIC") || it.path.contains("ideaIU"))
+    } ?: cp.files.firstOrNull { it.name == "app.jar" }
+        ?: error("Could not locate extracted IntelliJ app.jar on compile classpath (needed for ProGuard).")
     val ideRoot = appJar.parentFile.parentFile
     libraryjars(fileTree(ideRoot.resolve("lib")) { include("*.jar") })
     libraryjars(fileTree(ideRoot.resolve("plugins/vcs-git/lib")) { include("*.jar") })

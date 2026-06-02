@@ -17,6 +17,25 @@ object BlamelyLogger {
         return "[$level $ts] $message$suffix"
     }
 
+    /**
+     * Debug logging is on when the `blamely.debug` system property is "true"
+     * (set by ./run-sandbox.sh) OR the "Debug detection" setting is enabled.
+     * Cached read of the system property; settings are read live.
+     */
+    fun isDebugEnabled(): Boolean {
+        if (System.getProperty("blamely.debug") == "true") return true
+        return try {
+            ai.blamely.settings.BlamelySettings.getInstance().debugDetection
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    /** Logs at INFO level only when [isDebugEnabled]; safe to call on hot paths. */
+    fun debug(message: String) {
+        if (isDebugEnabled()) log.info(format("DEBUG", message))
+    }
+
     fun info(message: String) {
         log.info(format("INFO", message))
     }

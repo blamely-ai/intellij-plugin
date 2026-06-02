@@ -19,6 +19,9 @@ data class EditPayload(
     val suggestedLines: Long = 0,
     val lines: List<EditRange>,
     val rawMeta: String? = null,
+    // Branch the editor was on when the edit was made. The daemon scopes
+    // attribution by branch-based work session; if empty it resolves from repo.
+    val branch: String? = null,
 )
 
 // DaemonClient posts attribution events to the blamely daemon's /edit
@@ -109,6 +112,7 @@ private fun encodeJson(p: EditPayload): String {
     }
     sb.append(']')
     p.rawMeta?.let { sb.append(",\"raw_meta\":").append(quote(it)) }
+    p.branch?.takeIf { it.isNotEmpty() }?.let { sb.append(",\"branch\":").append(quote(it)) }
     sb.append('}')
     return sb.toString()
 }

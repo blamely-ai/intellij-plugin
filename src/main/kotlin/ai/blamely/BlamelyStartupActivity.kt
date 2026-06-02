@@ -22,6 +22,13 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
     override fun runActivity(project: Project) {
         if (project.isDefault || project.basePath == null) return
 
+        // Log the running plugin version so it's unambiguous in idea.log which build
+        // is actually loaded (installing a .zip without a full IDE restart keeps the
+        // OLD classes loaded — a common cause of "my fix didn't take effect").
+        val version = com.intellij.ide.plugins.PluginManagerCore
+            .getPlugin(com.intellij.openapi.extensions.PluginId.getId("ai.blamely"))?.version ?: "?"
+        ai.blamely.utils.BlamelyLogger.info("Blamely plugin version $version active for ${project.name}")
+
         val cliData = project.getService(CliDataService::class.java) ?: return
 
         project.messageBus.connect(project).subscribe(
@@ -35,10 +42,13 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
 
         cliData.start()
         CliHealthNotifier(project).start()
-        project.getService(ai.blamely.ui.BlameDecorations::class.java)
+        project.getService(ai.blamely.ui.BlameDecorations::class.java)?.refresh()
 
         if (BlamelySettings.getInstance().detectInlineCompletion) {
             project.getService(CompletionDetector::class.java)?.register()
+            // Detects Copilot agent-mode / chat file writes (new files + rewrites)
+            // that bypass the action system — see AgentEditDetector.
+            project.getService(ai.blamely.completion.AgentEditDetector::class.java)?.register()
         }
 
         // Refresh history when HEAD changes (blamely writes git notes on commit).
@@ -53,6 +63,7 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
                     val head = repoRoot?.let { GitUtils.run(it, "rev-parse", "HEAD") }
                     if (head != null && head != lastHead) {
                         lastHead = head
+                        project.getService(CliDataService::class.java)?.refresh()
                         refreshUi(project)
                     }
                     pollHead()

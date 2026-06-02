@@ -162,6 +162,29 @@ object GitUtils {
         return run(cwd, "rev-parse", "--abbrev-ref", "HEAD")
     }
 
+    /**
+     * Short name of the checked-out branch for the repo at [cwd], or null when
+     * HEAD is detached. Used to tag edits with their branch-based work session;
+     * symbolic-ref (unlike --abbrev-ref) fails on detached HEAD rather than
+     * returning the literal "HEAD".
+     */
+    fun getBranchName(cwd: String): String? =
+        run(cwd, "symbolic-ref", "--quiet", "--short", "HEAD")?.trim()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * Reports whether the repo at [cwd] is mid-way through a history-rewriting
+     * operation (cherry-pick, merge, revert, rebase). Edits the editor observes
+     * during these are replays of existing content, not fresh authorship, so the
+     * detectors pause recording while one is in progress.
+     */
+    fun inProgressGitOp(cwd: String): Boolean {
+        val gitDir = run(cwd, "rev-parse", "--absolute-git-dir")?.trim()?.takeIf { it.isNotEmpty() }
+            ?: return false
+        val dir = java.io.File(gitDir)
+        return listOf("CHERRY_PICK_HEAD", "MERGE_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply")
+            .any { java.io.File(dir, it).exists() }
+    }
+
     fun getNoteContent(cwd: String, sha: String): String? =
         run(cwd, "notes", "--ref=blamely", "show", sha)
 }

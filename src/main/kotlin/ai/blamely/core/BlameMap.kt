@@ -15,6 +15,18 @@ class BlameMap {
         map[normPath(filePath)] = entries.toMutableList()
     }
 
+    /**
+     * Atomically replace the whole map in ONE operation. Unlike clear()+setFileBlame
+     * in a loop, there is no intermediate empty state, so the gutter never momentarily
+     * shows nothing (no AI→blank→repopulate flicker) during a refresh.
+     */
+    fun replaceAll(newMap: Map<String, List<LineBlame>>) {
+        map.clear()
+        for ((path, entries) in newMap) {
+            map[normPath(path)] = entries.toMutableList()
+        }
+    }
+
     fun getSummary(): Summary {
         var aiChars = 0
         var humanChars = 0
@@ -27,6 +39,7 @@ class BlameMap {
                 byLine[e.lineNumber] = LineBlame.betterLineEntry(byLine[e.lineNumber], e)
             }
             for (e in byLine.values) {
+                if (e.aiChars + e.humanChars == 0) continue
                 aiChars += e.aiChars
                 humanChars += e.humanChars
                 if (e.effectiveAuthorType() == LineBlame.AuthorType.AI) aiLines++ else humanLines++
