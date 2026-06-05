@@ -1,0 +1,51 @@
+{
+  "schema": 2,
+  "commit": "342a0df47847cb71979a3445bd7055b8fff9b196",
+  "branch": "main",
+  "base_sha": "21b8f54013deb8a7c4114cf4dbd571a27716ccdb",
+  "message": "feat: add settings icons for light and dark themes",
+  "totals": {
+    "ai_lines": 0,
+    "human_lines": 2,
+    "deleted_lines": 1,
+    "files": 1
+  },
+  "by_tool": {},
+  "by_gen_type": {
+    "chat": 0,
+    "cli": 0,
+    "completion": 0,
+    "human": 3
+  },
+  "files": [
+    {
+      "path": "src/main/resources/META-INF/plugin.xml",
+      "type": "MODIFIED",
+      "added": 2,
+      "deleted": 1,
+      "lines": [
+        {
+          "start": 64,
+          "end": 64,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 73,
+          "end": 73,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 74,
+          "end": 74,
+          "type": "delete",
+          "author_type": "Human"
+        }
+      ]
+    }
+  ],
+  "generated_by": "blamely 0.1.0"
+}
