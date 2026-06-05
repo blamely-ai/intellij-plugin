@@ -32,6 +32,14 @@ class BlameMapService(val project: Project) {
         val model: String?,
         val genType: String?,
         val expiresAtMs: Long,
+        /**
+         * sha256 of the AI line text captured at accept time. The pending overlay
+         * is keyed by line NUMBER, which does not survive a human inserting a line
+         * in the middle of the band; this sha lets the reader confirm the current
+         * line still holds the AI text before painting it AI. Null only for blank
+         * lines (no sha captured).
+         */
+        val contentSha: String? = null,
     )
 
     private fun normPath(path: String): String = path.replace('\\', '/')
@@ -43,13 +51,14 @@ class BlameMapService(val project: Project) {
         model: String?,
         genType: String?,
         ttlMs: Long = PENDING_AI_TTL_MS,
+        lineShas: Map<Int, String>? = null,
     ) {
         if (lines.isEmpty()) return
         val key = normPath(path)
         val expiresAt = System.currentTimeMillis() + ttlMs
         synchronized(pendingLock) {
             val byLine = pendingAi.getOrPut(key) { HashMap() }
-            for (ln in lines) byLine[ln] = PendingAiLine(tool, model, genType, expiresAt)
+            for (ln in lines) byLine[ln] = PendingAiLine(tool, model, genType, expiresAt, lineShas?.get(ln))
         }
     }
 

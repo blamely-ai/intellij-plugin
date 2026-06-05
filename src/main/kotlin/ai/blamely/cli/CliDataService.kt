@@ -5,7 +5,6 @@ import ai.blamely.core.BlameMapService
 import ai.blamely.core.BlameUpdateListener
 import ai.blamely.core.LineBlame
 import ai.blamely.git.GitUtils
-import ai.blamely.utils.BlankLines
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
@@ -220,9 +219,17 @@ class CliDataService(private val project: Project) : Disposable {
                 if (hasUncommittedWork) for (path in blameServiceForPending.pendingAiPaths()) {
                     val pending = blameServiceForPending.pendingAiLinesFor(path)
                     if (pending.isEmpty()) continue
+                    // Read current text so each pending line can be confirmed against
+                    // its captured content_sha before being painted AI (skips human
+                    // lines inserted inside the band).
+                    val fileLines = try { File(repoRoot, path).readLines() } catch (_: Exception) { null }
                     val entries = byFile[path]?.toMutableList() ?: mutableListOf()
                     var mutated = false
                     for ((ln, p) in pending) {
+                        if (p.contentSha != null && fileLines != null) {
+                            val text = fileLines.getOrNull(ln - 1)
+                            if (text == null || !pendingMatchesLine(p, text)) continue
+                        }
                         val idx = entries.indexOfFirst { it.lineNumber == ln }
                         val existing = if (idx >= 0) entries[idx] else null
                         if (existing != null && existing.effectiveAuthorType() == LineBlame.AuthorType.AI) {
@@ -295,8 +302,15 @@ class CliDataService(private val project: Project) : Disposable {
                 byFile.remove(filePath)
                 continue
             }
+            // Gutter shows ONLY uncommitted working-tree changes (`git diff HEAD`).
+            // Do NOT keep content_sha-attributed lines outside that diff: those are
+            // ALREADY-COMMITTED AI lines whose text still matches a session
+            // content_sha, and keeping them made committed code from an earlier
+            // commit linger in the gutter next to a new uncommitted edit in the
+            // same file. A genuinely uncommitted AI line always differs from HEAD,
+            // so it is already in `changed` — no exception needed.
             byFile[filePath] = entries.filter {
-                it.lineNumber in changed || it.contentShaAttributed
+                it.lineNumber in changed
             }
         }
     }
@@ -381,6 +395,18 @@ class CliDataService(private val project: Project) : Disposable {
             .digest(s.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
 
+    /**
+     * A pending (optimistic) AI line may only be asserted when the current line
+     * text still hashes to the content_sha captured at accept time. This stops a
+     * human line inserted in the MIDDLE of a fresh AI band — which slides into the
+     * frozen pending line-range — from inheriting AI. Pending entries without a
+     * sha (blank lines) keep the legacy line-number bridge.
+     */
+    private fun pendingMatchesLine(p: BlameMapService.PendingAiLine, text: String): Boolean {
+        val sha = p.contentSha ?: return true
+        return sha == lineSha(text.removeSuffix("\r"))
+    }
+
     private fun isAiEditRow(row: CliEditRow): Boolean =
         CliSqliteReader.isAiTool(row.tool) || isAiInteractionType(row.genType)
 
@@ -457,7 +483,6 @@ class CliDataService(private val project: Project) : Disposable {
             var mutated = false
             for (ln in lines.indices) {
                 val text = lines[ln]
-                if (BlankLines.isBlankLine(text)) continue
                 val row = bySha[lineSha(text.removeSuffix("\r"))] ?: continue
                 val entry = buildLineBlame(repoRoot, norm, ln + 1, row, contentShaAttributed = true)
                 val idx = entries.indexOfFirst { it.lineNumber == ln + 1 }
@@ -492,7 +517,11 @@ class CliDataService(private val project: Project) : Disposable {
                 val text = lines.getOrNull(ln - 1) ?: continue
                 val idx = entries.indexOfFirst { it.lineNumber == ln }
                 val existing = if (idx >= 0) entries[idx] else null
+                // Confirm the line still holds the captured AI text — a human line
+                // inserted inside the band slides into the frozen pending range and
+                // must not be painted AI.
                 val pending = blameService.pendingAiLinesFor(filePath)[ln]
+                    ?.takeIf { pendingMatchesLine(it, text) }
 
                 val aiRow = resolveAiEditForChangedLine(filePath, ln, text, edits)
 

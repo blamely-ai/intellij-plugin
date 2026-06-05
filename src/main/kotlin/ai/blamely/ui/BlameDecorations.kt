@@ -4,14 +4,12 @@ import ai.blamely.core.BlameMapService
 import ai.blamely.core.BlameUpdateListener
 import ai.blamely.core.LineBlame
 import ai.blamely.git.GitUtils
-import ai.blamely.utils.BlankLines
 import ai.blamely.settings.BlamelySettings
 import ai.blamely.utils.Platform
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
-import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
 import com.intellij.openapi.editor.event.EditorFactoryEvent
@@ -179,9 +177,6 @@ class BlameDecorations(private val project: Project) : Disposable {
             if (lineIdx < 0 || lineIdx >= doc.lineCount) continue
             val start = doc.getLineStartOffset(lineIdx)
             var end = doc.getLineEndOffset(lineIdx)
-            if (BlankLines.isBlankLine(doc.getText(TextRange(start, end)))) {
-                continue
-            }
             if (end <= start) end = (start + 1).coerceAtMost(doc.textLength)
 
             val displayAs = effectiveAuthorType(entry)
