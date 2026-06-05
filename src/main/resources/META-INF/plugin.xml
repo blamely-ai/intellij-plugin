@@ -61,7 +61,7 @@ AI 72% (18)  [██████████████████████
   <extensions defaultExtensionNs="com.intellij">
     <applicationService serviceImplementation="ai.blamely.settings.BlamelySettings"/>
     <applicationConfigurable parentId="tools" instance="ai.blamely.settings.BlamelyConfigurable"
-      id="ai.blamely.settings.BlamelyConfigurable" displayName="Blamely" icon="/META-INF/pluginIcon.svg"
+      id="ai.blamely.settings.BlamelyConfigurable" displayName="Blamely" icon="/icons/settings.svg"
       groupWeight="-100"/>
     <notificationGroup id="Blamely" displayType="BALLOON"/>
     <projectService serviceImplementation="ai.blamely.core.BlameMapService"/>
@@ -70,8 +70,7 @@ AI 72% (18)  [██████████████████████
     <projectService serviceImplementation="ai.blamely.completion.CompletionDetector"/>
     <postStartupActivity implementation="ai.blamely.BlamelyStartupActivity"/>
     <postStartupActivity implementation="ai.blamely.BlamelyDeferredStartupActivity"/>
-    <toolWindow id="Blamely" factoryClass="ai.blamely.ui.BlamelyToolWindowFactory"
-          secondary="false" anchor="bottom" icon="/icons/toolwindow-ai.svg"/>
+    <toolWindow id="Blamely" factoryClass="ai.blamely.ui.BlamelyToolWindowFactory" secondary="false" anchor="bottom" icon="/icons/toolwindow-ai.svg"/>
     <statusBarWidgetFactory implementation="ai.blamely.ui.BlamelyStatusBarWidgetFactory" id="Blamely.BlameStatus"/>
     <statusBarWidgetFactory implementation="ai.blamely.ui.DaemonStatusBarWidgetFactory" id="Blamely.DaemonStatus" order="after Blamely.BlameStatus"/>
   </extensions>
