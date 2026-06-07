@@ -1,0 +1,158 @@
+{
+  "schema": 2,
+  "commit": "1d0cc730900901ca2002be9405069c4029b487c2",
+  "branch": "main",
+  "base_sha": "342a0df47847cb71979a3445bd7055b8fff9b196",
+  "message": "feat: add settings icons for light and dark themes",
+  "totals": {
+    "ai_lines": 0,
+    "human_lines": 144,
+    "deleted_lines": 0,
+    "files": 3
+  },
+  "by_tool": {},
+  "by_gen_type": {
+    "chat": 0,
+    "cli": 0,
+    "completion": 0,
+    "human": 144
+  },
+  "files": [
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliDataService.kt",
+      "type": "MODIFIED",
+      "added": 100,
+      "deleted": 0,
+      "lines": [
+        {
+          "start": 18,
+          "end": 19,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 21,
+          "end": 21,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 24,
+          "end": 24,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 26,
+          "end": 27,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 44,
+          "end": 44,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 67,
+          "end": 67,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 74,
+          "end": 122,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 124,
+          "end": 124,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 147,
+          "end": 188,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/cli/CliSqliteReader.kt",
+      "type": "MODIFIED",
+      "added": 1,
+      "deleted": 0,
+      "lines": [
+        {
+          "start": 131,
+          "end": 131,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    },
+    {
+      "path": "src/main/kotlin/ai/blamely/completion/DaemonClient.kt",
+      "type": "MODIFIED",
+      "added": 43,
+      "deleted": 0,
+      "lines": [
+        {
+          "start": 27,
+          "end": 39,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 56,
+          "end": 56,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 65,
+          "end": 76,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 84,
+          "end": 86,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        },
+        {
+          "start": 143,
+          "end": 156,
+          "type": "add",
+          "author_type": "Human",
+          "gen_type": "human"
+        }
+      ]
+    }
+  ],
+  "generated_by": "blamely 0.1.0",
+  "conversation": [
+    {
+      "role": "user",
+      "text": "could you please ofcuscated code when create release"
+    }
+  ]
+}
