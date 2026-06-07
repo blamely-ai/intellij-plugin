@@ -6,14 +6,66 @@
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
-    <p><b>Blamely</b> attributes every line of code to <b>AI</b> or <b>human</b> — across inline completions, chat apply, and agent runs. The breakdown appears in the status bar as you work, survives branch switches, and attaches permanently to each commit via <b>git notes</b>.</p>
+    <p><b>Blamely</b> attributes every line of code to <b>AI</b> or <b>human</b> — across inline completions, chat apply, and agent runs. The breakdown appears in the status bar as you work, survives branch switches, and attaches permanently to each commit via git notes.</p>
 
-    <p><b>Local-first:</b> all data stays on your machine. No account, no telemetry, no network access.</p>
+    <p>All data stays on your machine. No account, no telemetry, no network access.</p>
 
-    <h2>Supported tools</h2>
-    <p>GitHub Copilot, Cursor, JetBrains AI, Claude Code, Codex, Gemini, and other inline / chat / agent assistants.</p>
+    <h2>How it works</h2>
+    <ol>
+      <li><b>Record.</b> When an AI tool edits a file, its hook calls <code>blamely record &lt;tool&gt;</code>.</li>
+      <li><b>Watch.</b> The daemon also tails Cursor logs, Copilot transcripts, and filesystem activity.</li>
+      <li><b>Attribute.</b> On every commit, the global <code>post-commit</code> hook diffs the commit against stored edits and writes per-line attribution.</li>
+      <li><b>Report.</b> The IDE plugin reads those notes back into the status bar, tool window, and gutter.</li>
+    </ol>
 
-    <h2>Requirements — install the CLI first</h2>
+    <h2>After each commit</h2>
+    <p>A clear AI vs Human bar prints in your terminal immediately after <code>git commit</code>:</p>
+    <pre>
+AI 72% (18)  [████████████████████████████░░░░░░░░░░░░]  Human 28% (7)
+  claude  12 lines  (claude-opus-4-6) — 4200 in / 890 out tok
+  cursor   6 lines  (composer-1)      — 1100 in / 340 out tok
+    </pre>
+
+    <h2>Status bar</h2>
+    <p>The status bar widget shows live AI / Human metrics for the active file:</p>
+    <pre>AI: 751 © 24 = 98%  |  Human: 12 © 3 = 2%  |  claude-opus-4-6</pre>
+    <p><b>©</b> = characters, <b>=</b> = lines. Click to open the full panel.</p>
+
+    <h2>Changes tool window</h2>
+    <p>The <b>Blamely → Changes</b> tab shows per-file AI / Human breakdown for all uncommitted work on the current branch, with a visual progress bar per file and a session summary at the bottom.</p>
+
+    <h2>History tool window</h2>
+    <p>The <b>Blamely → History</b> tab shows AI vs Human share across past commits — total lines, per-model breakdown, commit table with timing, and a segmented bar. Example:</p>
+    <pre>
+482 AI lines · 40.2%  |  716 Human · 59.8%
+18 commits · 44 files · Coding: 32m 17s · AI wait: 50s
+
+#1  claude-opus-4-6  135 lines · 28.0% · 1 commit
+#2  cursor-composer   82 lines · 17.0% · 3 commits
+    </pre>
+
+    <h2>Example report.yml (attached to each commit)</h2>
+    <pre>
+scope: "this_commit"
+generated_at: "2026-03-05T00:43:50Z"
+branch: "main"
+commit_hash: "3317ed295e"
+commit_message: "[AI-assisted] feat: update analysis"
+
+ai_sources:
+  - claude
+  - cursor
+
+files:
+  - path: "src/utils/parser.ts"
+    source: "claude"
+    model: "claude-opus-4-6"
+    ai_lines_added: 22
+    human_lines_added: 65
+    percentage: "40.0%"
+    </pre>
+
+    <h2>Requirements — Install the CLI first</h2>
 
     <p><b>macOS</b></p>
     <pre>curl -sSL https://blamely.ai/blamely-mac-install.sh | bash</pre>
@@ -24,35 +76,25 @@
     <p><b>Windows</b> (PowerShell)</p>
     <pre>powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://blamely.ai/blamely-windows-install.bat | iex"</pre>
 
-    <h2>How it works</h2>
-    <ol>
-      <li><b>Record.</b> When an AI tool edits a file, its hook calls <code>blamely record &lt;tool&gt;</code>.</li>
-      <li><b>Watch.</b> The daemon tails Cursor logs, Copilot transcripts, and filesystem activity.</li>
-      <li><b>Attribute.</b> On every commit, the global <code>post-commit</code> hook diffs the commit against recorded edits and writes per-line attribution.</li>
-      <li><b>Report.</b> The IDE reads it back into the status bar, the Changes / History views, and the editor gutter.</li>
-    </ol>
-
-    <h2>What you get</h2>
-    <ul>
-      <li><b>Line-level blame</b> — gutter icons and tooltips, AI vs human per line.</li>
-      <li><b>Status bar</b> — live AI / Human lines, characters, percentage, and the active model for the current file.</li>
-      <li><b>Changes view</b> — per-file AI / Human breakdown for uncommitted work on the current branch.</li>
-      <li><b>History view</b> — per-model stats, a commit table, and timing across past commits.</li>
-      <li><b>Git notes</b> — per-line attribution attached to every commit via <code>refs/notes/blamely</code>.</li>
-      <li><b>Branch-scoped sessions</b> — attribution follows each branch and survives switches.</li>
-      <li><b>Local-first</b> — no account, no telemetry, no network access.</li>
-      <li><b>VS Code &#8644; JetBrains compatible</b> — shared <code>.git/blamely</code> data; open the same repo in either IDE.</li>
-    </ul>
-
-    <h2>After each commit</h2>
-    <p>A clear AI vs Human bar prints in your terminal right after <code>git commit</code>:</p>
+    <p>Installers are idempotent — safe to re-run after adding a new AI tool. Verify:</p>
     <pre>
-AI 72% (18)  [████████████████████████████░░░░░░░░░░░░]  Human 28% (7)
-  claude  12 lines  (claude-opus-4-6) — 4200 in / 890 out tok
-  cursor   6 lines  (composer-1)      — 1100 in / 340 out tok
+blamely status    # daemon health + detected tools
+blamely doctor    # full self-check
     </pre>
+    <p>Full guide: <a href="https://blamely.ai">blamely.ai</a></p>
 
-    <p>Installers are idempotent — safe to re-run after adding a new AI tool. Verify with <code>blamely status</code> and <code>blamely doctor</code>. Full guide: <a href="https://blamely.ai">blamely.ai</a></p>
+    <h2>Features</h2>
+    <ul>
+      <li><b>Line-level blame</b> — Gutter icons + tooltips (AI vs human per line)</li>
+      <li><b>Status bar widget</b> — Live AI / Human chars, lines, percentage, active model</li>
+      <li><b>Changes tool window</b> — Per-file breakdown for uncommitted work on current branch</li>
+      <li><b>History tool window</b> — Per-model stats, commit table, timing across past commits</li>
+      <li><b>Git notes</b> — <code>report.yml</code> on every commit via <code>refs/notes/blamely</code></li>
+      <li><b>Pre-commit / pre-push hooks</b> — Survive plugin upgrades via stable runner scripts</li>
+      <li><b>Branch-scoped sessions</b> — State under <code>.git/blamely/&lt;branch&gt;/</code></li>
+      <li><b>Actions</b> — Generate Report, Show Blame, Install/Restore Hook, Show Commit Report, Push AI Notes</li>
+      <li><b>VS Code compatible</b> — Same <code>.git/blamely</code> layout; both IDEs share attribution data</li>
+    </ul>
   ]]></description>
 
   <depends>com.intellij.modules.platform</depends>
@@ -61,7 +103,7 @@ AI 72% (18)  [██████████████████████
   <extensions defaultExtensionNs="com.intellij">
     <applicationService serviceImplementation="ai.blamely.settings.BlamelySettings"/>
     <applicationConfigurable parentId="tools" instance="ai.blamely.settings.BlamelyConfigurable"
-      id="ai.blamely.settings.BlamelyConfigurable" displayName="Blamely" icon="/icons/settings.svg"
+      id="ai.blamely.settings.BlamelyConfigurable" displayName="Blamely" icon="/META-INF/pluginIcon.svg"
       groupWeight="-100"/>
     <notificationGroup id="Blamely" displayType="BALLOON"/>
     <projectService serviceImplementation="ai.blamely.core.BlameMapService"/>
@@ -70,7 +112,8 @@ AI 72% (18)  [██████████████████████
     <projectService serviceImplementation="ai.blamely.completion.CompletionDetector"/>
     <postStartupActivity implementation="ai.blamely.BlamelyStartupActivity"/>
     <postStartupActivity implementation="ai.blamely.BlamelyDeferredStartupActivity"/>
-    <toolWindow id="Blamely" factoryClass="ai.blamely.ui.BlamelyToolWindowFactory" secondary="false" anchor="bottom" icon="/icons/toolwindow-ai.svg"/>
+    <toolWindow id="Blamely" factoryClass="ai.blamely.ui.BlamelyToolWindowFactory"
+          secondary="false" anchor="bottom" icon="/icons/toolwindow-ai.svg"/>
     <statusBarWidgetFactory implementation="ai.blamely.ui.BlamelyStatusBarWidgetFactory" id="Blamely.BlameStatus"/>
     <statusBarWidgetFactory implementation="ai.blamely.ui.DaemonStatusBarWidgetFactory" id="Blamely.DaemonStatus" order="after Blamely.BlameStatus"/>
   </extensions>

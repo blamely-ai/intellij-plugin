@@ -169,7 +169,6 @@ class CompletionDetector(private val project: Project) : Disposable {
         endLine: Int,
         tool: String,
         genType: String,
-        lineShas: Map<Int, String>? = null,
     ) {
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) return@invokeLater
@@ -200,7 +199,7 @@ class CompletionDetector(private val project: Project) : Disposable {
             // after daemon.send() returns 204, but the daemon may not have committed
             // this row to SQLite yet. Register the accepted lines so refresh() re-asserts
             // them as AI until the row is persisted (then it clears them).
-            blameService.markPendingAiLines(relPath, startLine..endLine, tool, null, genType, lineShas = lineShas)
+            blameService.markPendingAiLines(relPath, startLine..endLine, tool, null, genType)
             project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
         }
     }
@@ -319,13 +318,7 @@ class CompletionDetector(private val project: Project) : Disposable {
             // refresh cycle runs. This makes the AI icon appear instantly on
             // Tab-accept instead of waiting up to 2 seconds for the next
             // CliDataService.refresh() poll.
-            // Per-line content_sha so the optimistic/pending overlay can confirm a
-            // line still holds the AI text — a human line inserted inside the band
-            // (which slides into the frozen pending range) is then NOT painted AI.
-            val bandShas = lineRanges
-                .filter { it.contentSha != null && it.start == it.end }
-                .associate { it.start to it.contentSha!! }
-            pushImmediateBlame(relPath, band.first, band.second, tool, genType, bandShas)
+            pushImmediateBlame(relPath, band.first, band.second, tool, genType)
 
             if (daemon.send(payload)) {
                 // Save THIS document, then refresh — in that order. The authoritative

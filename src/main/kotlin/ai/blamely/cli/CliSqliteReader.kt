@@ -128,7 +128,7 @@ object CliSqliteReader {
                    el.start_line AS start_line, el.end_line AS end_line, el.content_sha AS content_sha
             FROM edits e
             JOIN edit_lines el ON el.edit_id = e.id
-            WHERE e.deleted_at IS NULL AND ($where)
+            WHERE $where
             ORDER BY e.ts DESC, e.id DESC
         """.trimIndent()
 

@@ -57,9 +57,7 @@ object CliNoteParser {
         if (!trimmed.startsWith("{")) return null
         return try {
             val note = gson.fromJson(trimmed, CliNote::class.java)
-            // schema 1: per-line lines[]; schema 2: collapsed {start,end} ranges.
-            // This parser only reads by_gen_type/totals, so both are accepted.
-            if ((note.schema != 1 && note.schema != 2) || note.commit.isBlank()) null else note
+            if (note.schema != 1 || note.commit.isBlank()) null else note
         } catch (_: Exception) {
             null
         }
