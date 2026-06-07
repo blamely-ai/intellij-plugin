@@ -15,10 +15,16 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
+import ai.blamely.completion.DaemonClient
+import ai.blamely.completion.FsEventPayload
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
+import com.intellij.openapi.vfs.newvfs.events.VFileCopyEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
+import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
 import com.intellij.util.Alarm
 import java.io.File
 import java.time.Instant
@@ -35,6 +41,7 @@ class CliDataService(private val project: Project) : Disposable {
     // Separate alarms: VFS save coalescing must NOT cancel startup retry timers.
     private val startupAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val saveAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+    private val daemonClient = DaemonClient()
 
     private fun normalizedGenType(genType: String?): String = genType?.trim()?.lowercase() ?: ""
     private fun isInlineCompletionType(genType: String?): Boolean = normalizedGenType(genType) == "completion"
@@ -57,18 +64,64 @@ class CliDataService(private val project: Project) : Disposable {
         for (delayMs in listOf(500L, 1500L, 4000L, 8000L, 15000L)) {
             startupAlarm.addRequest({ if (!project.isDisposed) refresh() }, delayMs.toInt())
         }
-        // Refresh on file saves (manual or autosave) via VFS content-change.
+        // VFS lifecycle: save → refresh; delete/rename/move/copy → update DB then refresh.
         ApplicationManager.getApplication().messageBus.connect(this).subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
                 override fun after(events: List<VFileEvent>) {
                     if (project.isDisposed) return
                     val base = project.basePath ?: return
-                    val relevant = events.any { ev ->
-                        (ev is VFileContentChangeEvent || ev is VFileCreateEvent) &&
-                            (ev.file?.path?.startsWith(base) == true)
+                    var needsRefresh = false
+                    for (ev in events) {
+                        val filePath = ev.file?.path ?: continue
+                        if (!filePath.startsWith(base)) continue
+                        when (ev) {
+                            is VFileContentChangeEvent, is VFileCreateEvent -> {
+                                // Standard save/create: just refresh the gutter.
+                                // For VFileCreateEvent also restore any soft-deleted attribution
+                                // (handles undo of a deletion).
+                                if (ev is VFileCreateEvent) {
+                                    sendFsCreate(base, filePath)
+                                }
+                                needsRefresh = true
+                            }
+                            is VFileDeleteEvent -> {
+                                sendFsDelete(base, filePath)
+                                needsRefresh = true
+                            }
+                            is VFileMoveEvent -> {
+                                val oldPath = ev.oldPath
+                                val newPath = ev.newPath
+                                if (oldPath.startsWith(base) && newPath.startsWith(base)) {
+                                    sendFsRename(base, oldPath, newPath)
+                                }
+                                needsRefresh = true
+                            }
+                            is VFilePropertyChangeEvent -> {
+                                // Rename in place: propertyName == "name" when the user
+                                // renames a file via the IDE without moving its directory.
+                                if (ev.propertyName == "name") {
+                                    val dir = ev.file.parent?.path ?: continue
+                                    val oldAbs = "$dir/${ev.oldValue}"
+                                    val newAbs = "$dir/${ev.newValue}"
+                                    if (oldAbs.startsWith(base) && newAbs.startsWith(base)) {
+                                        sendFsRename(base, oldAbs, newAbs)
+                                    }
+                                    needsRefresh = true
+                                }
+                            }
+                            is VFileCopyEvent -> {
+                                val srcAbs = ev.file.path
+                                // newChildName holds the copy's filename; newParent is the target dir.
+                                val dstAbs = "${ev.newParent.path}/${ev.newChildName}"
+                                if (srcAbs.startsWith(base) && dstAbs.startsWith(base)) {
+                                    sendFsCopy(base, srcAbs, dstAbs)
+                                }
+                                needsRefresh = true
+                            }
+                        }
                     }
-                    if (relevant) scheduleRefreshOnSave()
+                    if (needsRefresh) scheduleRefreshOnSave()
                 }
             }
         )
@@ -89,6 +142,48 @@ class CliDataService(private val project: Project) : Disposable {
         if (project.isDisposed) return
         saveAlarm.cancelAllRequests()
         saveAlarm.addRequest({ if (!project.isDisposed) refresh() }, 300)
+    }
+
+    // ── fs-event helpers ──────────────────────────────────────────────────────
+
+    private fun repoRelative(base: String, absPath: String): String =
+        absPath.removePrefix(base).trimStart('/', '\\').replace('\\', '/')
+
+    private fun repoId(base: String): String =
+        GitUtils.getRepoRoot(base)?.let { CliRepoId.get(it) } ?: base
+
+    private fun sendFsCreate(base: String, absPath: String) {
+        val rel = repoRelative(base, absPath)
+        if (rel.isBlank()) return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            daemonClient.sendFsEvent(FsEventPayload(kind = "create", repoPath = repoId(base), path = rel))
+        }
+    }
+
+    private fun sendFsDelete(base: String, absPath: String) {
+        val rel = repoRelative(base, absPath)
+        if (rel.isBlank()) return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            daemonClient.sendFsEvent(FsEventPayload(kind = "delete", repoPath = repoId(base), path = rel))
+        }
+    }
+
+    private fun sendFsRename(base: String, oldAbs: String, newAbs: String) {
+        val oldRel = repoRelative(base, oldAbs)
+        val newRel = repoRelative(base, newAbs)
+        if (oldRel.isBlank() || newRel.isBlank()) return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            daemonClient.sendFsEvent(FsEventPayload(kind = "rename", repoPath = repoId(base), oldPath = oldRel, newPath = newRel))
+        }
+    }
+
+    private fun sendFsCopy(base: String, srcAbs: String, dstAbs: String) {
+        val srcRel = repoRelative(base, srcAbs)
+        val dstRel = repoRelative(base, dstAbs)
+        if (srcRel.isBlank() || dstRel.isBlank()) return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            daemonClient.sendFsEvent(FsEventPayload(kind = "copy", repoPath = repoId(base), srcPath = srcRel, dstPath = dstRel))
+        }
     }
 
     override fun dispose() {
