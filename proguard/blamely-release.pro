@@ -24,7 +24,10 @@
 # Platform pulls in many optional paths; keep the build practical.
 -ignorewarnings
 
-# plugin.xml + persisted settings
+# plugin.xml / extension points load types by fully qualified name — never rename plugin classes.
+-keepnames class ai.blamely.** { *; }
+
+# Persisted settings + Gson models (field names must stay stable)
 -keep class ai.blamely.settings.BlamelySettings { *; }
 -keep class ai.blamely.settings.BlamelySettings$State { *; }
 -keep class ai.blamely.settings.BlamelyConfigurable { *; }
@@ -32,12 +35,8 @@
 -keep class ai.blamely.core.BranchSessionLifecycleService { *; }
 -keep class ai.blamely.core.TraceStoreService { *; }
 -keep class ai.blamely.ui.BlameDecorations { *; }
--keep class ai.blamely.BlamelyStartupActivity { *; }
--keep class ai.blamely.ui.BlamelyToolWindowFactory { *; }
--keep class ai.blamely.ui.BlamelyStatusBarWidgetFactory { *; }
--keep class ai.blamely.actions.ShowBlameAction { *; }
--keep class ai.blamely.completion.CompletionDetector { *; }
 -keep class ai.blamely.cli.** { *; }
+-keep class ai.blamely.completion.CompletionDetector { *; }
 
 -keep interface ai.blamely.core.BlameUpdateListener { *; }
 

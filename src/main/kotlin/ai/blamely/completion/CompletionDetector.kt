@@ -516,14 +516,6 @@ private fun isInlineCompletionAcceptAction(id: String): Boolean {
     return false
 }
 
-// resolveTool maps the host IDE / installed inline-completion plugin onto the
-// store's fixed Tool taxonomy. Copilot and Cursor are independent tools —
-// neither depends on the other.
-//
-// The "aiTool" setting is authoritative: when the IDE hosts more than one
-// assistant (or auto-detection guesses wrong), the user pins copilot/cursor in
-// Settings → Blamely. "auto" infers from the installed plugins: a GitHub
-// Copilot plugin → copilot; otherwise cursor.
 // sha256Hex hashes a single line's text exactly as the reader expects
 // (CliDataService.lineSha): SHA-256 of the UTF-8 bytes, hex-encoded. Callers
 // strip a trailing \r first so the hash matches across line endings.
@@ -532,6 +524,12 @@ internal fun sha256Hex(s: String): String =
         .digest(s.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
 
+// resolveTool maps the host IDE / installed inline-completion plugin onto the
+// store's fixed Tool taxonomy. Copilot and Cursor are independent tools —
+// neither depends on the other.
+//
+// "auto" infers from registered Copilot actions (GitHub Copilot plugin) when present;
+// otherwise cursor. Users can pin copilot/cursor in Settings → Blamely.
 internal fun resolveTool(): String {
     val configured = try {
         ai.blamely.settings.BlamelySettings.getInstance().aiTool
@@ -540,14 +538,15 @@ internal fun resolveTool(): String {
     }
     if (configured == "copilot" || configured == "cursor") return configured
 
-    val pluginManager = try {
-        com.intellij.ide.plugins.PluginManagerCore.getPlugins()
-    } catch (_: Throwable) {
-        emptyArray()
-    }
-    val hasCopilot = pluginManager.any {
-        it.isEnabled && it.pluginId.idString.contains("copilot", ignoreCase = true)
-    }
-    if (hasCopilot) return "copilot"
+    if (isCopilotIdePluginActive()) return "copilot"
     return "cursor"
 }
+
+/** Copilot registers this action when its JetBrains plugin is loaded — no PluginManager API. */
+private fun isCopilotIdePluginActive(): Boolean =
+    try {
+        com.intellij.openapi.actionSystem.ActionManager.getInstance()
+            .getAction("copilot.diffBlock.accept") != null
+    } catch (_: Throwable) {
+        false
+    }
