@@ -295,9 +295,16 @@ class CliDataService(private val project: Project) : Disposable {
                 byFile.remove(filePath)
                 continue
             }
-            byFile[filePath] = entries.filter {
-                it.lineNumber in changed || it.contentShaAttributed
-            }
+            // Keep lines present in the working-tree diff. contentShaAttributed lines
+            // whose position matches the changed set are already included; we do NOT
+            // add a separate || contentShaAttributed clause because that would let
+            // committed AI lines that are still verbatim in the file bleed through
+            // (they're identical to HEAD so they're absent from the diff, yet their
+            // content hash would still match via applyContentShaAttribution).
+            // Drifted uncommitted lines are safe without the clause: a line added
+            // since HEAD always appears in `git diff HEAD`, so its new position IS
+            // in the changed set regardless of whether it moved.
+            byFile[filePath] = entries.filter { it.lineNumber in changed }
         }
     }
 
@@ -437,17 +444,20 @@ class CliDataService(private val project: Project) : Disposable {
         filePaths: Collection<String>,
         byFile: MutableMap<String, List<LineBlame>>,
     ) {
-        val shaByFile = mutableMapOf<String, MutableMap<String, CliEditRow>>()
+        // Primary key: recorded line number. Content-SHA is the confirmation.
+        // A `}` at line 10 only matches the AI row recorded at line 10 — a human-added
+        // `}` at line 247 has the same SHA but a different position, so it never matches.
+        val lineByFile = mutableMapOf<String, MutableMap<Int, CliEditRow>>()
         for (row in edits) {
-            val sha = row.contentSha ?: continue
+            if (row.contentSha == null) continue
             if (!isAiEditRow(row)) continue
             val file = row.filePath.replace('\\', '/')
-            val bySha = shaByFile.getOrPut(file) { mutableMapOf() }
-            if (!bySha.containsKey(sha)) bySha[sha] = row
+            val byLine = lineByFile.getOrPut(file) { mutableMapOf() }
+            if (!byLine.containsKey(row.startLine)) byLine[row.startLine] = row
         }
         for (filePath in filePaths) {
             val norm = filePath.replace('\\', '/')
-            val bySha = shaByFile[norm] ?: continue
+            val byLine = lineByFile[norm] ?: continue
             val lines = try {
                 File(repoRoot, norm).readLines()
             } catch (_: Exception) {
@@ -456,11 +466,13 @@ class CliDataService(private val project: Project) : Disposable {
             val entries = byFile[norm]?.toMutableList() ?: mutableListOf()
             var mutated = false
             for (ln in lines.indices) {
+                val lineNumber = ln + 1
+                val row = byLine[lineNumber] ?: continue
                 val text = lines[ln]
                 if (BlankLines.isBlankLine(text)) continue
-                val row = bySha[lineSha(text.removeSuffix("\r"))] ?: continue
-                val entry = buildLineBlame(repoRoot, norm, ln + 1, row, contentShaAttributed = true)
-                val idx = entries.indexOfFirst { it.lineNumber == ln + 1 }
+                if (lineSha(text.removeSuffix("\r")) != row.contentSha) continue
+                val entry = buildLineBlame(repoRoot, norm, lineNumber, row, contentShaAttributed = true)
+                val idx = entries.indexOfFirst { it.lineNumber == lineNumber }
                 if (idx >= 0) {
                     if (entries[idx].effectiveAuthorType() != entry.effectiveAuthorType() ||
                         entries[idx].model != entry.model
