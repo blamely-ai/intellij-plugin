@@ -7,6 +7,8 @@ import ai.blamely.core.BlameUpdateListener
 import ai.blamely.git.GitUtils
 import ai.blamely.settings.BlamelySettings
 import ai.blamely.ui.BlamelyStatusBarWidget
+import ai.blamely.utils.BlamelyLogger
+import ai.blamely.utils.BlamelyPluginInfo
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
@@ -25,9 +27,8 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
         // Log the running plugin version so it's unambiguous in idea.log which build
         // is actually loaded (installing a .zip without a full IDE restart keeps the
         // OLD classes loaded — a common cause of "my fix didn't take effect").
-        val version = com.intellij.ide.plugins.PluginManagerCore
-            .getPlugin(com.intellij.openapi.extensions.PluginId.getId("ai.blamely"))?.version ?: "?"
-        ai.blamely.utils.BlamelyLogger.info("Blamely plugin version $version active for ${project.name}")
+        val version = BlamelyPluginInfo.readVersion(BlamelyStartupActivity::class.java)
+        BlamelyLogger.info("Blamely plugin version $version active for ${project.name}")
 
         val cliData = project.getService(CliDataService::class.java) ?: return
 
