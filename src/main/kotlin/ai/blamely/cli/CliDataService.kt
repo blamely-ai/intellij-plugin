@@ -36,6 +36,7 @@ class CliDataService(private val project: Project) : Disposable {
     // Separate alarms: VFS save coalescing must NOT cancel startup retry timers.
     private val startupAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val saveAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+    private val periodicAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
 
     private fun normalizedGenType(genType: String?): String = genType?.trim()?.lowercase() ?: ""
     private fun isInlineCompletionType(genType: String?): Boolean = normalizedGenType(genType) == "completion"
@@ -82,6 +83,24 @@ class CliDataService(private val project: Project) : Disposable {
                 }
             }
         )
+        schedulePeriodic()
+    }
+
+    // Safety-net poll: new files (and edits whose daemon write lands after the
+    // scheduleRefreshOnSave retry ladder) surface within 5s even when no VFS
+    // event fires — without this the UI waits for the next user action. Alarm is
+    // one-shot, so it re-schedules itself.
+    private fun schedulePeriodic() {
+        if (project.isDisposed) return
+        periodicAlarm.addRequest(
+            {
+                if (!project.isDisposed) {
+                    refresh()
+                    schedulePeriodic()
+                }
+            },
+            5000,
+        )
     }
 
     // Coalesce the burst of VFS events a single save produces into one refresh.
@@ -97,6 +116,7 @@ class CliDataService(private val project: Project) : Disposable {
     override fun dispose() {
         startupAlarm.cancelAllRequests()
         saveAlarm.cancelAllRequests()
+        periodicAlarm.cancelAllRequests()
     }
 
     fun refresh() {
