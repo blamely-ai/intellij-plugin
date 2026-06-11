@@ -3,6 +3,7 @@ package ai.blamely.cli
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.ByteBuffer
 
 enum class CliHealthStatus {
     HEALTHY,
@@ -31,10 +32,15 @@ object CliHealth {
             || File(home, "bin${File.separator}blamely").isFile
             || File(home, "bin${File.separator}blamely.exe").isFile
             || CliPaths.daemonPortFile().isFile
+            || CliPaths.daemonSocketFile().isFile
             || CliPaths.dbFile().isFile
     }
 
     private fun probeDaemon(): DaemonStatus {
+        val sock = CliPaths.readDaemonSocket()
+        if (sock != null) {
+            return probeDaemonViaSocket(sock)
+        }
         val port = CliPaths.readDaemonPort() ?: return DaemonStatus(running = false)
         return try {
             val conn = URL("http://127.0.0.1:$port/health").openConnection() as HttpURLConnection
@@ -46,6 +52,26 @@ object CliHealth {
             DaemonStatus(running = ok && body.contains("\"ok\""), port = port)
         } catch (_: Exception) {
             DaemonStatus(running = false, port = port)
+        }
+    }
+
+    private fun probeDaemonViaSocket(sockPath: String): DaemonStatus {
+        return try {
+            val req = "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+                .toByteArray(Charsets.UTF_8)
+            val addr = java.net.UnixDomainSocketAddress.of(sockPath)
+            java.nio.channels.SocketChannel.open(addr).use { ch ->
+                ch.configureBlocking(true)
+                ch.write(ByteBuffer.wrap(req))
+                val resp = ByteBuffer.allocate(256)
+                ch.read(resp)
+                resp.flip()
+                val text = Charsets.UTF_8.decode(resp).toString()
+                val ok = text.startsWith("HTTP/1.1 200") && text.contains("\"ok\"")
+                DaemonStatus(running = ok)
+            }
+        } catch (_: Exception) {
+            DaemonStatus(running = false)
         }
     }
 
@@ -92,7 +118,7 @@ object CliHealth {
                 detail = if (daemon.port != null) {
                     "Port file exists (${daemon.port}) but /health did not respond."
                 } else {
-                    "No daemon.port file — the daemon may never have started."
+                    "No daemon.sock or daemon.port file — the daemon may never have started."
                 },
                 daemon = daemon,
             )
@@ -117,7 +143,7 @@ object CliHealth {
         return CliHealthReport(
             status = CliHealthStatus.HEALTHY,
             title = "Blamely CLI healthy",
-            message = "Daemon running on port ${daemon.port}.",
+            message = if (daemon.port != null) "Daemon running on port ${daemon.port}." else "Daemon running via Unix socket.",
             daemon = daemon,
         )
     }

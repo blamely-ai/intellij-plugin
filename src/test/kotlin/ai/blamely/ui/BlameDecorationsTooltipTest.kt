@@ -54,7 +54,15 @@ class BlameDecorationsTooltipTest {
         val text = BlameDecorations.blameGutterTooltipText(entry, LineBlame.AuthorType.AI)
         assertTrue(text.contains("Author: AI"), text)
         assertTrue(text.contains("Change Date:"), text)
+        assertTrue(text.contains("Tool: Copilot"), text)
         assertTrue(text.contains("Model: gpt-4"), text)
         assertTrue(!text.contains("Interaction:"), "AI gutter tooltip should not show interaction/source")
+    }
+
+    @Test
+    fun `toolDisplayName capitalizes raw provider id`() {
+        assertEquals("Codex", BlameDecorations.toolDisplayName("codex"))
+        assertEquals("Copilot", BlameDecorations.toolDisplayName("copilot"))
+        assertEquals("Claude", BlameDecorations.toolDisplayName("CLAUDE"))
     }
 }

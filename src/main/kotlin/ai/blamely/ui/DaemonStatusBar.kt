@@ -12,6 +12,7 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -85,6 +86,10 @@ class DaemonStatusBar(private val project: Project) : CustomStatusBarWidget {
     }
 
     private fun checkHealth(): Boolean {
+        val sock = CliPaths.readDaemonSocket()
+        if (sock != null) {
+            return checkHealthViaSocket(sock)
+        }
         val port = CliPaths.readDaemonPort() ?: return false
         return try {
             val conn = URL("http://127.0.0.1:$port/health").openConnection() as HttpURLConnection
@@ -94,6 +99,24 @@ class DaemonStatusBar(private val project: Project) : CustomStatusBarWidget {
             val ok = conn.responseCode == 200
             conn.disconnect()
             ok
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun checkHealthViaSocket(sockPath: String): Boolean {
+        return try {
+            val req = "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+                .toByteArray(Charsets.UTF_8)
+            val addr = java.net.UnixDomainSocketAddress.of(sockPath)
+            java.nio.channels.SocketChannel.open(addr).use { ch ->
+                ch.configureBlocking(true)
+                ch.write(ByteBuffer.wrap(req))
+                val resp = ByteBuffer.allocate(256)
+                ch.read(resp)
+                resp.flip()
+                Charsets.UTF_8.decode(resp).toString().startsWith("HTTP/1.1 200")
+            }
         } catch (_: Exception) {
             false
         }

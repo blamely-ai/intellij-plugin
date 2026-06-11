@@ -22,13 +22,19 @@ object CliSqliteReader {
         "/opt/homebrew/bin/sqlite3",
     )
 
-    private enum class LoadMode { SESSION, BRANCH, LEGACY }
+    private enum class LoadMode { SESSION, LEGACY }
 
     fun isAiTool(tool: String): Boolean = tool.lowercase() in AI_TOOLS
 
     /**
-     * Loads edits for the current work session on [repoRoot], with fallbacks for
-     * IDE reopen: HEAD-scoped session → branch-scoped → legacy NULL rows.
+     * Loads edits for the current work session on [repoRoot], with a fallback for
+     * IDE reopen: HEAD-scoped session (current session_id, or legacy NULL rows on
+     * this branch) → legacy unscoped rows.
+     *
+     * Deliberately does NOT fall back to "any session on this branch": content_sha
+     * attribution must stay scoped to the current session, otherwise a human
+     * pasting AI code generated in a PREVIOUS session (e.g. before the last
+     * commit) would be matched against that stale content_sha and shown as AI.
      *
      * Returns null only when sqlite3 could not read the DB. An empty list means
      * the query succeeded but matched no rows.
@@ -75,19 +81,12 @@ object CliSqliteReader {
         head: String,
         mode: LoadMode,
     ) {
-        if (!BlamelyLogger.isDebugEnabled() || branch == null) return
+        if (!BlamelyLogger.isDebugEnabled() || branch == null || mode != LoadMode.SESSION) return
         val db = CliPaths.dbFile()
         if (!db.isFile) return
         val repoIn = repoPathInList(repoIds)
-        val sql = when (mode) {
-            LoadMode.SESSION ->
-                "SELECT id, base_sha FROM sessions WHERE branch = '${esc(branch)}' " +
-                    "AND repo_path IN ($repoIn) ORDER BY base_sha DESC LIMIT 8"
-            LoadMode.BRANCH ->
-                "SELECT id, base_sha FROM sessions WHERE branch = '${esc(branch)}' " +
-                    "AND repo_path IN ($repoIn) LIMIT 8"
-            LoadMode.LEGACY -> return
-        }
+        val sql = "SELECT id, base_sha FROM sessions WHERE branch = '${esc(branch)}' " +
+            "AND repo_path IN ($repoIn) ORDER BY base_sha DESC LIMIT 8"
         val rows = runSqliteJsonRaw(db, sql) ?: return
         val ids = rows.mapNotNull { r ->
             val id = r["id"]?.toString() ?: return@mapNotNull null
@@ -125,7 +124,8 @@ object CliSqliteReader {
         val sql = """
             SELECT e.id AS id, e.ts AS ts, e.file_path AS file_path, e.tool AS tool,
                    e.model AS model, e.gen_type AS gen_type,
-                   el.start_line AS start_line, el.end_line AS end_line, el.content_sha AS content_sha
+                   el.start_line AS start_line, el.end_line AS end_line, el.content_sha AS content_sha,
+                   el.content_sha_norm AS content_sha_norm
             FROM edits e
             JOIN edit_lines el ON el.edit_id = e.id
             WHERE $where
@@ -146,6 +146,7 @@ object CliSqliteReader {
                         start = (row["start_line"] as? Number)?.toInt() ?: return@mapNotNull null,
                         end = (row["end_line"] as? Number)?.toInt() ?: return@mapNotNull null,
                         contentSha = row["content_sha"]?.toString(),
+                        contentShaNorm = row["content_sha_norm"]?.toString(),
                     )
                 }
             }
@@ -189,6 +190,7 @@ object CliSqliteReader {
         start: Int,
         end: Int,
         contentSha: String?,
+        contentShaNorm: String?,
     ): CliEditRow? {
         val path = file?.replace('\\', '/')?.trim().orEmpty()
         if (path.isBlank() || start <= 0 || end < start) return null
@@ -202,6 +204,7 @@ object CliSqliteReader {
             startLine = start,
             endLine = end,
             contentSha = contentSha?.takeIf { it.isNotBlank() },
+            contentShaNorm = contentShaNorm?.takeIf { it.isNotBlank() },
         )
     }
 
@@ -226,20 +229,6 @@ object CliSqliteReader {
                     "e.repo_path IN ($repoIn) AND (e.session_id IS NULL AND (e.branch = '$branchKey' OR e.branch IS NULL))"
                 } else {
                     "e.repo_path IN ($repoIn) AND e.session_id IS NULL"
-                }
-            }
-            LoadMode.BRANCH -> {
-                if (branch != null) {
-                    """
-                    e.repo_path IN ($repoIn) AND (
-                      e.branch = '$branchKey'
-                      OR e.session_id IN (
-                        SELECT id FROM sessions WHERE branch = '$branchKey' AND repo_path IN ($repoIn)
-                      )
-                    )
-                    """.trimIndent()
-                } else {
-                    "e.repo_path IN ($repoIn) AND (e.branch IS NULL OR e.session_id IS NULL)"
                 }
             }
             LoadMode.SESSION -> {

@@ -752,6 +752,7 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
             totalFilesChanged = cli.totals.files,
             totalLinesAdded = totalAdded,
             totalLinesDeleted = cli.totals.deletedLines,
+            aiLinesDeleted = cli.totals.aiDeletedLines,
             aiLinesAdded = aiLines,
             humanLinesAdded = humanLines,
             aiPercentage = aiPct,
@@ -908,7 +909,7 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
     }
 
     /** Green / red bar for commit insert vs delete line counts (History overview). */
-    private fun historyInsertDeleteBar(insertions: Int, deletions: Int, barHeight: Int = 5): JPanel {
+    private fun historyInsertDeleteBar(insertions: Int, deletions: Int, barHeight: Int = 5, aiDeletions: Int = 0): JPanel {
         return object : JPanel() {
             init {
                 alignmentX = LEFT_ALIGNMENT
@@ -923,21 +924,34 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
                 val w = width
                 g2.color = colBgElevated
                 g2.fillRoundRect(0, 0, w, h, h, h)
+                val humanDeletions = deletions - aiDeletions
                 val total = insertions + deletions
                 if (total <= 0) return
                 var gw = ((w.toLong() * insertions) / total).toInt().coerceIn(0, w)
-                var rw = ((w.toLong() * deletions) / total).toInt().coerceIn(0, w - gw)
-                val pad = w - gw - rw
+                var aw = ((w.toLong() * aiDeletions) / total).toInt().coerceIn(0, w - gw)
+                var rw = ((w.toLong() * humanDeletions) / total).toInt().coerceIn(0, w - gw - aw)
+                val pad = w - gw - aw - rw
                 if (pad > 0) {
-                    if (insertions >= deletions) gw += pad else rw += pad
+                    when {
+                        insertions >= deletions -> gw += pad
+                        humanDeletions >= aiDeletions -> rw += pad
+                        else -> aw += pad
+                    }
                 }
+                var x = 0
                 if (gw > 0) {
                     g2.color = colHuman
-                    g2.fillRoundRect(0, 0, gw, h, h / 2, h / 2)
+                    g2.fillRoundRect(x, 0, gw, h, h / 2, h / 2)
+                    x += gw
+                }
+                if (aw > 0) {
+                    g2.color = colAi
+                    g2.fillRoundRect(x, 0, aw, h, h / 2, h / 2)
+                    x += aw
                 }
                 if (rw > 0) {
                     g2.color = colDelete
-                    g2.fillRoundRect(gw, 0, rw, h, h / 2, h / 2)
+                    g2.fillRoundRect(x, 0, rw, h, h / 2, h / 2)
                 }
             }
         }
@@ -1210,7 +1224,7 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
         diffLegend.add(JLabel("delete").apply { foreground = colTextMuted; font = font.deriveFont(10f) })
         overviewInner.add(diffLegend)
         overviewInner.add(spacer(6))
-        overviewInner.add(historyInsertDeleteBar(latest.totalLinesAdded, latest.totalLinesDeleted, 5))
+        overviewInner.add(historyInsertDeleteBar(latest.totalLinesAdded, latest.totalLinesDeleted, 5, latest.aiLinesDeleted))
 
         contentPanel.add(roundedCard(overviewInner))
         contentPanel.add(spacer(14))
@@ -1505,6 +1519,7 @@ private data class CommitReport(
     val totalFilesChanged: Int,
     val totalLinesAdded: Int,
     val totalLinesDeleted: Int,
+    val aiLinesDeleted: Int,
     val aiLinesAdded: Int,
     val humanLinesAdded: Int,
     val aiPercentage: String,

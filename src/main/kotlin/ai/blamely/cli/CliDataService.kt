@@ -84,12 +84,14 @@ class CliDataService(private val project: Project) : Disposable {
         )
     }
 
-    // Coalesce the burst of VFS events a single save produces into one refresh,
-    // and let the disk write settle before reading git state.
+    // Coalesce the burst of VFS events a single save produces into one refresh.
+    // The 1500ms retry catches the case where the Blamely daemon writes the edit
+    // row to SQLite after the first 300ms refresh fires (async DB write race).
     private fun scheduleRefreshOnSave() {
         if (project.isDisposed) return
         saveAlarm.cancelAllRequests()
         saveAlarm.addRequest({ if (!project.isDisposed) refresh() }, 300)
+        saveAlarm.addRequest({ if (!project.isDisposed) refresh() }, 1500)
     }
 
     override fun dispose() {
@@ -169,7 +171,7 @@ class CliDataService(private val project: Project) : Disposable {
                 }
 
                 val affectedFiles = changedSets.keys + untrackedSet
-                applyContentShaAttribution(repoRoot, edits, affectedFiles, byFile)
+                applyContentShaAttribution(repoRoot, edits, affectedFiles, byFile, untrackedSet)
 
                 scopeToUncommittedWorkingTree(byFile, changedSets, untrackedSet)
 
@@ -295,9 +297,16 @@ class CliDataService(private val project: Project) : Disposable {
                 byFile.remove(filePath)
                 continue
             }
-            byFile[filePath] = entries.filter {
-                it.lineNumber in changed || it.contentShaAttributed
-            }
+            // Keep lines present in the working-tree diff. contentShaAttributed lines
+            // whose position matches the changed set are already included; we do NOT
+            // add a separate || contentShaAttributed clause because that would let
+            // committed AI lines that are still verbatim in the file bleed through
+            // (they're identical to HEAD so they're absent from the diff, yet their
+            // content hash would still match via applyContentShaAttribution).
+            // Drifted uncommitted lines are safe without the clause: a line added
+            // since HEAD always appears in `git diff HEAD`, so its new position IS
+            // in the changed set regardless of whether it moved.
+            byFile[filePath] = entries.filter { it.lineNumber in changed }
         }
     }
 
@@ -381,6 +390,22 @@ class CliDataService(private val project: Project) : Disposable {
             .digest(s.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
 
+    /** Mirrors the CLI's tools.NormalizeLineText: trim + collapse internal whitespace. */
+    private fun normalizeLineText(s: String): String =
+        s.trim().split(Regex("\\s+")).joinToString(" ")
+
+    /**
+     * sha256 of the whitespace-normalized line text, or "" for blank/whitespace-only
+     * lines — mirrors content_sha_norm's record-time convention so blank lines never
+     * spuriously match each other. Fallback for content_sha when an autoformatter
+     * reflows an AI-written line (reindent, trailing whitespace) after the AI wrote it.
+     */
+    private fun lineShaNorm(s: String): String {
+        val norm = normalizeLineText(s)
+        if (norm.isEmpty()) return ""
+        return lineSha(norm)
+    }
+
     private fun isAiEditRow(row: CliEditRow): Boolean =
         CliSqliteReader.isAiTool(row.tool) || isAiInteractionType(row.genType)
 
@@ -413,13 +438,45 @@ class CliDataService(private val project: Project) : Disposable {
         edits: List<CliEditRow>,
     ): CliEditRow? {
         val normFile = filePath.replace('\\', '/')
-        val hash = lineSha(lineText.removeSuffix("\r"))
+        val text = lineText.removeSuffix("\r")
+        val hash = lineSha(text)
+        // Prefer exact line-number match so the copy-paste guard doesn't fire for a
+        // line that is genuinely at its recorded position. When multiple edits share
+        // the same content (e.g. `}`), exact-first prevents a newer edit at line 25
+        // from overshadowing the real edit at line 50.
+        var bestRow: CliEditRow? = null
+        var bestDrift = Int.MAX_VALUE
         for (row in edits) {
             if (row.filePath.replace('\\', '/') != normFile) continue
             if (!isLineAttributionCandidate(row)) continue
-            val sha = row.contentSha
-            if (sha != null && sha == hash) return row
+            val sha = row.contentSha ?: continue
+            if (sha != hash) continue
+            if (row.startLine == ln) return row  // exact match: no drift, no copy-paste ambiguity
+            val drift = kotlin.math.abs(row.startLine - ln)
+            if (drift < bestDrift) { bestDrift = drift; bestRow = row }
         }
+        if (bestRow != null) return bestRow
+
+        // content_sha_norm fallback: an autoformatter reflowed this line's
+        // whitespace (reindent, trailing whitespace) after the AI wrote it, so its
+        // exact content_sha no longer matches but its whitespace-collapsed
+        // content_sha_norm still does.
+        val normHash = lineShaNorm(text)
+        if (normHash.isNotEmpty()) {
+            var bestNormRow: CliEditRow? = null
+            var bestNormDrift = Int.MAX_VALUE
+            for (row in edits) {
+                if (row.filePath.replace('\\', '/') != normFile) continue
+                if (!isLineAttributionCandidate(row)) continue
+                val sha = row.contentShaNorm ?: continue
+                if (sha != normHash) continue
+                if (row.startLine == ln) return row
+                val drift = kotlin.math.abs(row.startLine - ln)
+                if (drift < bestNormDrift) { bestNormDrift = drift; bestNormRow = row }
+            }
+            if (bestNormRow != null) return bestNormRow
+        }
+
         for (row in edits) {
             if (row.filePath.replace('\\', '/') != normFile) continue
             if (!isLineAttributionCandidate(row)) continue
@@ -431,23 +488,44 @@ class CliDataService(private val project: Project) : Disposable {
         return null
     }
 
+    // Max line drift for untracked-file fallback.
+    private val MAX_CONTENT_SHA_DRIFT = 200
+
     private fun applyContentShaAttribution(
         repoRoot: String,
         edits: List<CliEditRow>,
         filePaths: Collection<String>,
         byFile: MutableMap<String, List<LineBlame>>,
+        untrackedFiles: Set<String> = emptySet(),
     ) {
-        val shaByFile = mutableMapOf<String, MutableMap<String, CliEditRow>>()
+        // Two-pass attribution:
+        //
+        // Pass 1 (all files): line-number-first. byLine[N] exists and SHA matches → AI.
+        // Prevents a human-added `}` at line 247 from matching the AI row at line 10.
+        //
+        // Pass 2 (untracked files only): drift fallback. A human Enter-press above AI
+        // content shifts every subsequent line by 1; those lines fail pass 1 because
+        // their recorded position is now off by one. Re-locate by content SHA, but only
+        // attribute when the original position no longer holds that content (i.e. the
+        // line genuinely drifted, not a human copy with the original still in place).
+        val lineByFile = mutableMapOf<String, MutableMap<Int, CliEditRow>>()
+        // Store ALL rows per SHA (not just the newest) so the drift lookup can pick
+        // the row whose startLine is closest to the current line being evaluated.
+        val shaByFile  = mutableMapOf<String, MutableMap<String, MutableList<CliEditRow>>>()
         for (row in edits) {
-            val sha = row.contentSha ?: continue
+            if (row.contentSha == null) continue
             if (!isAiEditRow(row)) continue
             val file = row.filePath.replace('\\', '/')
+            val byLine = lineByFile.getOrPut(file) { mutableMapOf() }
+            if (!byLine.containsKey(row.startLine)) byLine[row.startLine] = row
             val bySha = shaByFile.getOrPut(file) { mutableMapOf() }
-            if (!bySha.containsKey(sha)) bySha[sha] = row
+            bySha.getOrPut(row.contentSha) { mutableListOf() }.add(row)
         }
         for (filePath in filePaths) {
             val norm = filePath.replace('\\', '/')
-            val bySha = shaByFile[norm] ?: continue
+            val byLine = lineByFile[norm] ?: continue
+            val isUntracked = norm in untrackedFiles
+            val bySha = if (isUntracked) shaByFile[norm] else null
             val lines = try {
                 File(repoRoot, norm).readLines()
             } catch (_: Exception) {
@@ -456,11 +534,45 @@ class CliDataService(private val project: Project) : Disposable {
             val entries = byFile[norm]?.toMutableList() ?: mutableListOf()
             var mutated = false
             for (ln in lines.indices) {
+                val lineNumber = ln + 1
                 val text = lines[ln]
                 if (BlankLines.isBlankLine(text)) continue
-                val row = bySha[lineSha(text.removeSuffix("\r"))] ?: continue
-                val entry = buildLineBlame(repoRoot, norm, ln + 1, row, contentShaAttributed = true)
-                val idx = entries.indexOfFirst { it.lineNumber == ln + 1 }
+                val sha = lineSha(text.removeSuffix("\r"))
+
+                // Pass 1: exact position + content confirmation.
+                val exactRow = byLine[lineNumber]
+                val row: CliEditRow? = when {
+                    exactRow != null && sha == exactRow.contentSha -> exactRow
+                    exactRow?.contentShaNorm != null &&
+                        lineShaNorm(text.removeSuffix("\r")) == exactRow.contentShaNorm -> {
+                        // Autoformatter reflowed this line's whitespace (reindent,
+                        // trailing whitespace) after the AI wrote it: exact content_sha
+                        // no longer matches but content_sha_norm still does.
+                        exactRow
+                    }
+                    bySha != null -> {
+                        // Pass 2: drift fallback (untracked files only).
+                        // Pick the candidate whose startLine is closest to lineNumber:
+                        // when two AI edits share the same content (e.g. `}`), the
+                        // closest one is the most likely origin of the drifted line.
+                        val candidates = bySha[sha]
+                        val driftRow = candidates?.minByOrNull { kotlin.math.abs(it.startLine - lineNumber) }
+                        if (driftRow != null) {
+                            val drift = kotlin.math.abs(lineNumber - driftRow.startLine)
+                            if (drift <= MAX_CONTENT_SHA_DRIFT) {
+                                val origIdx = driftRow.startLine - 1
+                                val origStillAtHome = origIdx in lines.indices &&
+                                    lineSha(lines[origIdx].removeSuffix("\r")) == sha
+                                if (!origStillAtHome) driftRow else null
+                            } else null
+                        } else null
+                    }
+                    else -> null
+                }
+                if (row == null) continue
+
+                val entry = buildLineBlame(repoRoot, norm, lineNumber, row, contentShaAttributed = true)
+                val idx = entries.indexOfFirst { it.lineNumber == lineNumber }
                 if (idx >= 0) {
                     if (entries[idx].effectiveAuthorType() != entry.effectiveAuthorType() ||
                         entries[idx].model != entry.model
@@ -494,7 +606,30 @@ class CliDataService(private val project: Project) : Disposable {
                 val existing = if (idx >= 0) entries[idx] else null
                 val pending = blameService.pendingAiLinesFor(filePath)[ln]
 
-                val aiRow = resolveAiEditForChangedLine(filePath, ln, text, edits)
+                var aiRow = resolveAiEditForChangedLine(filePath, ln, text, edits)
+
+                // Copy-paste guard: content found at a different line than recorded.
+                // If the original position still holds that content, this is a human
+                // copy — not the AI line drifting. Clear aiRow so it shows Human.
+                // matchedByNorm distinguishes a content_sha_norm drift match (e.g. an
+                // autoformatter-reflowed AI line whose shape was duplicated elsewhere)
+                // from a content_sha exact drift match, so the guard re-checks the
+                // recorded position with the SAME hash that produced the match.
+                val row = aiRow
+                if (row != null && row.startLine != ln) {
+                    val lineHash = lineSha(text.removeSuffix("\r"))
+                    val lineNormHash = lineShaNorm(text.removeSuffix("\r"))
+                    val matchedByNorm = row.contentSha != lineHash && row.contentShaNorm == lineNormHash
+                    val origIdx = row.startLine - 1
+                    val origLine = if (origIdx in lines.indices) lines[origIdx].removeSuffix("\r") else null
+                    val origStillAtHome = when {
+                        origLine == null -> false
+                        matchedByNorm -> row.contentShaNorm != null && lineShaNorm(origLine) == row.contentShaNorm
+                        row.contentSha != null -> lineSha(origLine) == row.contentSha
+                        else -> false
+                    }
+                    if (origStillAtHome) aiRow = null
+                }
 
                 val entry = when {
                     aiRow != null -> buildLineBlame(repoRoot, filePath, ln, aiRow)

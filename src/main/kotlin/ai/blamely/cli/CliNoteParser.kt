@@ -20,6 +20,7 @@ data class CliNoteTotals(
     @SerializedName("ai_lines") val aiLines: Int = 0,
     @SerializedName("human_lines") val humanLines: Int = 0,
     @SerializedName("deleted_lines") val deletedLines: Int = 0,
+    @SerializedName("ai_deleted_lines") val aiDeletedLines: Int = 0,
     val files: Int = 0,
     val models: Map<String, Int>? = null,
 )
@@ -57,7 +58,7 @@ object CliNoteParser {
         if (!trimmed.startsWith("{")) return null
         return try {
             val note = gson.fromJson(trimmed, CliNote::class.java)
-            if (note.schema != 1 || note.commit.isBlank()) null else note
+            if ((note.schema != 1 && note.schema != 2) || note.commit.isBlank()) null else note
         } catch (_: Exception) {
             null
         }

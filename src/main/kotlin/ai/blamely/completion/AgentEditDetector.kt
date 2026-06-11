@@ -2,6 +2,7 @@ package ai.blamely.completion
 
 import ai.blamely.cli.CliDataService
 import ai.blamely.cli.CliRepoId
+import ai.blamely.core.BlameMapService
 import ai.blamely.git.GitUtils
 import ai.blamely.utils.BlamelyLogger
 import com.intellij.openapi.Disposable
@@ -190,10 +191,11 @@ class AgentEditDetector(private val project: Project) : Disposable {
         if (lines.isEmpty()) return
 
         // Which lines did the agent actually change?
-        //   • tracked file → the lines that differ from HEAD (git diff)
-        //   • new/untracked file → every (non-blank) line
+        //   • tracked file with HEAD history → the lines that differ from HEAD (git diff)
+        //   • new/untracked file, or no prior version at HEAD (e.g. brand-new repo
+        //     with no commits yet, or a freshly `git add`ed file) → every (non-blank) line
         val changed: List<Int> = changedLinesVsHead(projectRoot, relPath).ifEmpty {
-            if (isUntracked(projectRoot, relPath)) (1..lines.size).toList() else emptyList()
+            if (hasNoHeadVersion(projectRoot, relPath)) (1..lines.size).toList() else emptyList()
         }
         if (changed.isEmpty()) return
 
@@ -226,6 +228,14 @@ class AgentEditDetector(private val project: Project) : Disposable {
         if (debugEnabled()) {
             BlamelyLogger.info("agent record: tool=$tool gen_type=chat $relPath lines=${ranges.size} create=$isCreate")
         }
+        // Bridge the daemon-write race so the gutter/status bar (which paint from
+        // BlameMapService's "current changes" pending lines, same as CompletionDetector)
+        // show this agent edit as AI immediately, instead of only after the row lands
+        // in SQLite and a later refresh picks it up.
+        val blameService = project.getService(BlameMapService::class.java)
+        for (range in ranges) {
+            blameService?.markPendingAiLines(relPath, range.start..range.end, tool, null, "chat")
+        }
         if (daemon.send(payload)) {
             // Surface the new attribution promptly instead of waiting for the
             // next 2s CliDataService poll.
@@ -250,6 +260,15 @@ class AgentEditDetector(private val project: Project) : Disposable {
     private fun isUntracked(repoRoot: String, relPath: String): Boolean {
         val out = GitUtils.run(repoRoot, "ls-files", "--others", "--exclude-standard", "--", relPath)
         return out != null && out.trim().isNotEmpty()
+    }
+
+    // True when there is no committed version of this file to diff against —
+    // either it's untracked, or the repo has no commits yet (HEAD doesn't
+    // resolve), or it was just staged without ever existing at HEAD. In all
+    // these cases the file's whole content is new, so every line is "changed".
+    private fun hasNoHeadVersion(repoRoot: String, relPath: String): Boolean {
+        if (isUntracked(repoRoot, relPath)) return true
+        return GitUtils.run(repoRoot, "cat-file", "-e", "HEAD:$relPath") == null
     }
 
     private fun isExcludedPath(absPath: String): Boolean {

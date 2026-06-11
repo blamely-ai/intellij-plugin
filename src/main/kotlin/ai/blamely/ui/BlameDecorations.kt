@@ -280,6 +280,9 @@ class BlameDecorations(private val project: Project) : Disposable {
             return when (displayAs) {
                 LineBlame.AuthorType.AI -> buildString {
                     appendLine("Author: AI")
+                    entry.provider?.takeIf { it.isNotBlank() }?.let {
+                        appendLine("Tool: ${toolDisplayName(it)}")
+                    }
                     entry.model?.takeIf { it.isNotBlank() }?.let {
                         appendLine("Model: $it")
                     }
@@ -291,6 +294,10 @@ class BlameDecorations(private val project: Project) : Disposable {
                 }
             }
         }
+
+        /** Raw provider id (e.g. `codex`, `copilot`) → display label for gutter hover (e.g. `Codex`, `Copilot`). */
+        internal fun toolDisplayName(provider: String): String =
+            provider.trim().lowercase().replaceFirstChar { it.uppercase() }
 
         /** ISO-8601 instant → localized date/time for gutter hover (falls back to raw string). */
         internal fun formatBlameChangedDate(isoTimestamp: String): String {

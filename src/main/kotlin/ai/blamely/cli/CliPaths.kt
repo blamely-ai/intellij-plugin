@@ -17,6 +17,8 @@ object CliPaths {
 
     fun daemonPortFile(): File = File(blamelyHome(), "daemon.port")
 
+    fun daemonSocketFile(): File = File(blamelyHome(), "daemon.sock")
+
     fun stateFile(): File = File(blamelyHome(), "state.json")
 
     fun installedBinary(): File {
@@ -30,6 +32,17 @@ object CliPaths {
         return try {
             val n = daemonPortFile().readText().trim().toIntOrNull()
             if (n != null && n > 0) n else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** Returns the socket path if the socket file exists (daemon running), otherwise null.
+     *  The socket file must NOT be read — it is a Unix domain socket, not a plain file. */
+    fun readDaemonSocket(): String? {
+        return try {
+            val f = daemonSocketFile()
+            if (f.exists()) f.absolutePath else null
         } catch (_: Exception) {
             null
         }

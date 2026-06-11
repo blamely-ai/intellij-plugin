@@ -4,6 +4,7 @@ import ai.blamely.cli.CliPaths
 import ai.blamely.utils.BlamelyLogger
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.ByteBuffer
 
 // EditPayload mirrors daemon.EditPayload (Go side). Field names match the
 // JSON tags expected by /edit on the blamely daemon.
@@ -24,10 +25,10 @@ data class EditPayload(
     val branch: String? = null,
 )
 
-// DaemonClient posts attribution events to the blamely daemon's /edit
-// endpoint. The port is read from ~/.blamely/daemon.port; on any failure
-// the cache is invalidated so a daemon restart (with a new port) heals
-// on the next call.
+// DaemonClient posts attribution events to the blamely daemon's /edit endpoint.
+// The daemon now uses a Unix domain socket at ~/.blamely/daemon.sock, which
+// bypasses any network-level security tools that intercept localhost TCP.
+// Falls back to the TCP port file for backward compat with old daemons.
 class DaemonClient {
     @Volatile
     private var cachedPort: Int? = null
@@ -36,18 +37,29 @@ class DaemonClient {
     private var lastWarnAtMillis: Long = 0
 
     fun send(payload: EditPayload): Boolean {
-        val port = resolvePort()
-        if (port == null) {
-            maybeWarn("daemon port file missing (blamely daemon not running?)")
-            return false
-        }
-        return try {
-            post(port, payload)
-            true
-        } catch (e: Exception) {
-            cachedPort = null
-            maybeWarn("POST /edit failed: ${e.message}")
-            false
+        val sock = CliPaths.readDaemonSocket()
+        return if (sock != null) {
+            try {
+                postViaSocket(sock, payload)
+                true
+            } catch (e: Exception) {
+                maybeWarn("POST /edit via socket failed: ${e.message}")
+                false
+            }
+        } else {
+            val port = resolvePort()
+            if (port == null) {
+                maybeWarn("daemon socket/port file missing (blamely daemon not running?)")
+                return false
+            }
+            try {
+                postViaTCP(port, payload)
+                true
+            } catch (e: Exception) {
+                cachedPort = null
+                maybeWarn("POST /edit failed: ${e.message}")
+                false
+            }
         }
     }
 
@@ -58,7 +70,36 @@ class DaemonClient {
         return p
     }
 
-    private fun post(port: Int, p: EditPayload) {
+    private fun postViaSocket(sockPath: String, p: EditPayload) {
+        val body = encodeJson(p).toByteArray(Charsets.UTF_8)
+        val reqHead = buildString {
+            append("POST /edit HTTP/1.1\r\n")
+            append("Host: localhost\r\n")
+            append("Content-Type: application/json\r\n")
+            append("Content-Length: ${body.size}\r\n")
+            append("Connection: close\r\n")
+            append("\r\n")
+        }.toByteArray(Charsets.UTF_8)
+
+        val addr = java.net.UnixDomainSocketAddress.of(sockPath)
+        java.nio.channels.SocketChannel.open(addr).use { ch ->
+            ch.configureBlocking(true)
+            val buf = ByteBuffer.allocate(reqHead.size + body.size)
+            buf.put(reqHead)
+            buf.put(body)
+            buf.flip()
+            while (buf.hasRemaining()) ch.write(buf)
+
+            val resp = ByteBuffer.allocate(128)
+            ch.read(resp)
+            resp.flip()
+            val statusLine = Charsets.UTF_8.decode(resp).toString().split("\r\n").firstOrNull() ?: ""
+            val code = statusLine.split(" ").getOrNull(1)?.toIntOrNull()
+            if (code != 204) throw RuntimeException("daemon returned $code")
+        }
+    }
+
+    private fun postViaTCP(port: Int, p: EditPayload) {
         val body = encodeJson(p).toByteArray(Charsets.UTF_8)
         val conn = URL("http://127.0.0.1:$port/edit").openConnection() as HttpURLConnection
         conn.connectTimeout = 1500
