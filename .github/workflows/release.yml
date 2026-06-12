@@ -1,15 +1,49 @@
-name: Release
+name: Build & Publish Release (IntelliJ plugin)
+
+# Mirrors the CLI's release workflow (blamely-cli/.github/workflows/release.yml):
+# on a vX.Y.Z tag, build the plugin distribution zip and publish it to the SAME
+# public release repo the CLI / other artifacts live in.
+#
+# Note: end users get this plugin from the JetBrains Marketplace (the CLI's
+# `blamely install` downloads it from there — see jetbrainsplugin.go), so the
+# GitHub release here is for archival + sideload ("Install Plugin from Disk").
+# The optional JetBrains Marketplace publish step is what actually ships it to
+# users; enable it by configuring `intellijPlatform.publishing.token` in
+# build.gradle.kts and setting JETBRAINS_MARKETPLACE_TOKEN.
+#
+# How it triggers:
+#   - Push a tag of the form `vX.Y.Z`.
+#   - Or kick off manually via "Run workflow" (workflow_dispatch).
+#
+# Required secrets:
+#   RELEASE_REPO        owner/repo of the PUBLIC release repo (e.g. blamely-ai/blamely)
+#   RELEASE_REPO_TOKEN  fine-grained PAT with `contents: write` on RELEASE_REPO
+#
+# Optional secrets:
+#   JETBRAINS_MARKETPLACE_TOKEN   permanent token from plugins.jetbrains.com
+#                                 (skipped when unset; requires the gradle
+#                                  publishing config noted above)
+#
+# Artifacts published to RELEASE_REPO:
+#   <tag> release:  blamely-intellij-<tag>.zip
+#   latest release: blamely-intellij.zip   (stable name)
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v1.4.9). Required when running manually.'
+        required: true
+        type: string
 
 permissions:
-  contents: write
+  contents: read   # release writes go to RELEASE_REPO via the PAT
 
 jobs:
   release:
+    name: build & publish plugin
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,33 +56,70 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            tag="${{ github.event.inputs.tag }}"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build plugin
         run: ./gradlew buildPlugin --no-daemon -Pblamely.release=true -Pblamely.obfuscate=true
 
-      - name: Get version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Find distribution zip
+      - name: Stage distribution zip
         id: dist
+        shell: bash
         run: |
-          ZIP=$(find build/distributions -maxdepth 1 -name "*.zip" | head -1)
-          if [ -z "$ZIP" ]; then
-            echo "No zip found in build/distributions"
+          set -e
+          zip="$(find build/distributions -maxdepth 1 -name '*.zip' | head -1)"
+          if [ -z "$zip" ]; then echo "No zip in build/distributions"; exit 1; fi
+          versioned="blamely-intellij-${{ steps.tag.outputs.tag }}.zip"
+          cp "$zip" "$versioned"
+          cp "$zip" blamely-intellij.zip   # stable name
+          ls -la *.zip
+          echo "versioned=$versioned" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to release repo
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
+          RELEASE_REPO: ${{ secrets.RELEASE_REPO }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          VERSIONED: ${{ steps.dist.outputs.versioned }}
+        shell: bash
+        run: |
+          set -e
+          if [ -z "$GH_TOKEN" ] || [ -z "$RELEASE_REPO" ]; then
+            echo "Missing required secrets: RELEASE_REPO and/or RELEASE_REPO_TOKEN."
             exit 1
           fi
-          echo "path=$ZIP" >> $GITHUB_OUTPUT
-          echo "name=$(basename "$ZIP")" >> $GITHUB_OUTPUT
+          gh release view "$TAG" --repo "$RELEASE_REPO" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$RELEASE_REPO" \
+              --title "blamely $TAG" --generate-notes --verify-tag=false
+          gh release upload "$TAG" --repo "$RELEASE_REPO" --clobber "$VERSIONED"
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ steps.dist.outputs.path }}
-          name: Release v${{ steps.version.outputs.VERSION }}
-          generate_release_notes: true
-          draft: false
+          gh release view latest --repo "$RELEASE_REPO" >/dev/null 2>&1 || \
+            gh release create latest --repo "$RELEASE_REPO" \
+              --title "Latest" \
+              --notes "Rolling build from the most recent release." \
+              --verify-tag=false
+          gh release upload latest --repo "$RELEASE_REPO" --clobber blamely-intellij.zip
+
+      - name: Publish to JetBrains Marketplace (optional)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "$JETBRAINS_MARKETPLACE_TOKEN" ]; then
+            echo "JETBRAINS_MARKETPLACE_TOKEN not set — skipping Marketplace publish."
+            exit 0
+          fi
+          # Requires `intellijPlatform.publishing.token` wired to this env var in
+          # build.gradle.kts (see header note).
+          ./gradlew publishPlugin --no-daemon -Pblamely.release=true -Pblamely.obfuscate=true
