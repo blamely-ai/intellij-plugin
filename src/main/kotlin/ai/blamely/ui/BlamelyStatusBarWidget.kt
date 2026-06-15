@@ -29,9 +29,10 @@ class BlamelyStatusBarWidget(project: Project) : EditorBasedWidget(project), Sta
         val blameService = project.getService(BlameMapService::class.java)
             ?: return "🤖 AI: 0 $iconLines 0% | 👤 Human: 0 $iconLines 0%"
         // Count the ACTIVE FILE only (with blank lines excluded) so the bar equals
-        // the gutter icons in front of the user. Falls back to the workspace total
-        // only when no file editor is focused / the file isn't in this repo.
-        val summary = activeFileSummary(blameService) ?: blameService.blameMap.getSummary()
+        // the gutter icons in front of the user — same behavior as the VS Code
+        // status bar. When no file editor is focused (or the file isn't in this
+        // repo) we show the empty state rather than a workspace-wide total.
+        val summary = activeFileSummary(blameService) ?: BlameMap.Summary(0, 0, 0, 0, 0)
         val totalLines = summary.aiLines + summary.humanLines
         return if (totalLines == 0) {
             "🤖 AI: 0 $iconLines 0% | 👤 Human: 0 $iconLines 0%"

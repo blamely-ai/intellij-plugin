@@ -10,6 +10,8 @@ import ai.blamely.ui.BlamelyStatusBarWidget
 import ai.blamely.utils.BlamelyLogger
 import ai.blamely.utils.BlamelyPluginInfo
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
+import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.StartupActivity
@@ -36,6 +38,19 @@ class BlamelyStartupActivity : StartupActivity, DumbAware {
             BlameUpdateListener.TOPIC,
             object : BlameUpdateListener {
                 override fun blameUpdated() {
+                    refreshUi(project)
+                }
+            }
+        )
+
+        // The status bar count is scoped to the ACTIVE FILE, so refresh it when the
+        // user switches editors — mirrors the gutter's own selectionChanged listener
+        // and VS Code's onDidChangeActiveTextEditor. Without this the bar would keep
+        // showing the previous file's numbers until the next blame update.
+        project.messageBus.connect(project).subscribe(
+            FileEditorManagerListener.FILE_EDITOR_MANAGER,
+            object : FileEditorManagerListener {
+                override fun selectionChanged(event: FileEditorManagerEvent) {
                     refreshUi(project)
                 }
             }
