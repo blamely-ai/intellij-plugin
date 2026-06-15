@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import proguard.gradle.ProGuardTask
 
 group = "ai.blamely"
-version = "1.4.9"
+version = "1.6.0"
 
 java {
     toolchain { languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(17)) }
@@ -27,6 +27,28 @@ repositories {
     mavenCentral()
     intellijPlatform {
         defaultRepositories()
+    }
+}
+
+// Marketplace publishing + (optional) plugin signing for `./gradlew publishPlugin`.
+// All values come from environment variables so nothing secret lives in the repo:
+//   JETBRAINS_MARKETPLACE_TOKEN   permanent token from plugins.jetbrains.com (REQUIRED to publish)
+//   CERTIFICATE_CHAIN / PRIVATE_KEY / PRIVATE_KEY_PASSWORD   plugin-signing material (OPTIONAL —
+//       when unset the signing task is skipped and the unsigned zip is published)
+// These are lazy providers, so a normal `buildPlugin` with none of them set is unaffected.
+intellijPlatform {
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+    publishing {
+        token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
+        // Publish to the stable channel unless a pre-release channel is passed
+        // (e.g. -PpublishChannel=eap → an EAP/beta channel on the Marketplace).
+        channels = providers.gradleProperty("publishChannel")
+            .map { listOf(it) }
+            .orElse(listOf("default"))
     }
 }
 

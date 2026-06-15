@@ -28,24 +28,50 @@ class BlameMap {
     }
 
     fun getSummary(): Summary {
+        val acc = MutableSummary()
+        for ((_, entries) in map) accumulate(acc, entries) { false }
+        return acc.toSummary()
+    }
+
+    /**
+     * AI/Human summary for a SINGLE file, matching what the gutter shows. Uses
+     * getBlame's path resolution and the same per-line dedup as getSummary, and
+     * (via [isBlankLine]) skips blank lines so the count equals the gutter icons
+     * in the active editor — the gutter draws no icon on a blank line, but a
+     * blank still carries a coerced char count, so a workspace-wide getSummary
+     * over-counts. Callers supply isBlankLine from the live document; the default
+     * keeps every line (used where no document is available).
+     */
+    fun getSummaryForFile(filePath: String, isBlankLine: (Int) -> Boolean = { false }): Summary {
+        val acc = MutableSummary()
+        accumulate(acc, getBlame(filePath), isBlankLine)
+        return acc.toSummary()
+    }
+
+    /** Fold one file's entries into [acc]: dedup by line (best entry wins), drop
+     *  DELETE rows and blank lines, then tally AI vs Human. Shared by getSummary
+     *  and getSummaryForFile so the workspace total and per-file count agree. */
+    private fun accumulate(acc: MutableSummary, entries: List<LineBlame>, isBlankLine: (Int) -> Boolean) {
+        val byLine = linkedMapOf<Int, LineBlame>()
+        for (e in entries) {
+            if (e.changeType == LineBlame.ChangeType.DELETE) continue
+            byLine[e.lineNumber] = LineBlame.betterLineEntry(byLine[e.lineNumber], e)
+        }
+        for ((line, e) in byLine) {
+            if (e.aiChars + e.humanChars == 0) continue
+            if (isBlankLine(line)) continue
+            acc.aiChars += e.aiChars
+            acc.humanChars += e.humanChars
+            if (e.effectiveAuthorType() == LineBlame.AuthorType.AI) acc.aiLines++ else acc.humanLines++
+        }
+    }
+
+    private class MutableSummary {
         var aiChars = 0
         var humanChars = 0
         var aiLines = 0
         var humanLines = 0
-        for ((_, entries) in map) {
-            val byLine = linkedMapOf<Int, LineBlame>()
-            for (e in entries) {
-                if (e.changeType == LineBlame.ChangeType.DELETE) continue
-                byLine[e.lineNumber] = LineBlame.betterLineEntry(byLine[e.lineNumber], e)
-            }
-            for (e in byLine.values) {
-                if (e.aiChars + e.humanChars == 0) continue
-                aiChars += e.aiChars
-                humanChars += e.humanChars
-                if (e.effectiveAuthorType() == LineBlame.AuthorType.AI) aiLines++ else humanLines++
-            }
-        }
-        return Summary(aiChars, humanChars, aiLines, humanLines, aiLines + humanLines)
+        fun toSummary() = Summary(aiChars, humanChars, aiLines, humanLines, aiLines + humanLines)
     }
 
     fun clear() {

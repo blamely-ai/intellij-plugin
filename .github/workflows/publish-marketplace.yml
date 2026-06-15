@@ -1,0 +1,77 @@
+name: Publish to JetBrains Marketplace
+
+# Standalone pipeline that ships the IntelliJ plugin to the JetBrains Marketplace
+# via `./gradlew publishPlugin`. Unlike release.yml (which uploads the zip to the
+# GitHub release repo), this job's ONLY job is the Marketplace publish.
+#
+# Triggers:
+#   - Push a tag `vX.Y.Z` (keep it in sync with plugin.xml <version>).
+#   - Or run manually via "Run workflow" (workflow_dispatch), optionally choosing
+#     a pre-release channel.
+#
+# Required secret:
+#   JETBRAINS_MARKETPLACE_TOKEN   permanent token from
+#                                 https://plugins.jetbrains.com/author/me/tokens
+#
+# Optional secrets (plugin signing — recommended; skipped when unset):
+#   CERTIFICATE_CHAIN        the certificate chain (PEM)
+#   PRIVATE_KEY              the private key (PEM)
+#   PRIVATE_KEY_PASSWORD     the private key password
+#   See https://plugins.jetbrains.com/docs/intellij/plugin-signing.html
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Marketplace channel (default = stable; e.g. eap, beta)'
+        required: false
+        default: 'default'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jetbrains-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publishPlugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Verify token is configured
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: |
+          if [ -z "$JETBRAINS_MARKETPLACE_TOKEN" ]; then
+            echo "::error::JETBRAINS_MARKETPLACE_TOKEN secret is not set — cannot publish."
+            exit 1
+          fi
+
+      - name: Publish to JetBrains Marketplace
+        env:
+          # Consumed by intellijPlatform.publishing.token / .signing in build.gradle.kts.
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+        run: |
+          ./gradlew publishPlugin --no-daemon \
+            -Pblamely.release=true \
+            -Pblamely.obfuscate=true \
+            -PpublishChannel="${{ github.event.inputs.channel || 'default' }}"

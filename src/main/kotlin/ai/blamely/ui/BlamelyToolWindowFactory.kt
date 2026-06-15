@@ -67,19 +67,19 @@ private class OpenBlamelySettingsAction(private val project: Project) : AnAction
 private class CurrentChangesPanel(private val project: Project) : JPanel(BorderLayout()) {
 
     // Design colors
-    private val colBgSecondary = java.awt.Color(0x2B, 0x2D, 0x30)
-    private val colBgElevated = java.awt.Color(0x31, 0x34, 0x38)
-    private val colBgHover = java.awt.Color(0x2E, 0x30, 0x35)
-    private val colBorder = java.awt.Color(0x3D, 0x40, 0x45)
-    private val colBorderSubtle = java.awt.Color(0x2A, 0x2C, 0x30)
-    private val colTextPrimary = java.awt.Color(0xDF, 0xE1, 0xE5)
-    private val colTextSecondary = java.awt.Color(0x9D, 0xA0, 0xA8)
-    private val colTextMuted = java.awt.Color(0x6B, 0x6F, 0x76)
-    private val colAi = java.awt.Color(0x4D, 0x9D, 0xE0)
-    private val colAiBg = java.awt.Color(0x4D, 0x9D, 0xE0, 30)
-    private val colHuman = java.awt.Color(0x56, 0xA0, 0x64)
-    private val colHumanBg = java.awt.Color(0x56, 0xA0, 0x64, 30)
-    private val colDelete = java.awt.Color(0xE0, 0x6C, 0x75)
+    private val colBgSecondary = java.awt.Color(0x26, 0x28, 0x2C)
+    private val colBgElevated = java.awt.Color(0x30, 0x33, 0x38)
+    private val colBgHover = java.awt.Color(0x32, 0x35, 0x3B)
+    private val colBorder = java.awt.Color(0x3A, 0x3D, 0x44)
+    private val colBorderSubtle = java.awt.Color(0x2C, 0x2E, 0x33)
+    private val colTextPrimary = java.awt.Color(0xE7, 0xE9, 0xEE)
+    private val colTextSecondary = java.awt.Color(0x9A, 0xA1, 0xAD)
+    private val colTextMuted = java.awt.Color(0x74, 0x78, 0x80)
+    private val colAi = java.awt.Color(0x5A, 0xA2, 0xF0)
+    private val colAiBg = java.awt.Color(0x5A, 0xA2, 0xF0, 32)
+    private val colHuman = java.awt.Color(0x5F, 0xB5, 0x6B)
+    private val colHumanBg = java.awt.Color(0x5F, 0xB5, 0x6B, 32)
+    private val colDelete = java.awt.Color(0xE8, 0x70, 0x7A)
 
     private fun hex(c: java.awt.Color) = "#%02X%02X%02X".format(c.red, c.green, c.blue)
     private fun withAlpha(c: java.awt.Color, a: Int) = java.awt.Color(c.red, c.green, c.blue, a)
@@ -777,20 +777,20 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
 
     // ── theme colors (matching HTML design) ──
 
-    private val colBgSecondary get() = java.awt.Color(0x2B, 0x2D, 0x30)
-    private val colBgElevated get() = java.awt.Color(0x31, 0x34, 0x38)
-    private val colBorder get() = java.awt.Color(0x3D, 0x40, 0x45)
-    private val colBorderSubtle get() = java.awt.Color(0x2E, 0x30, 0x34)
-    private val colTextPrimary get() = java.awt.Color(0xDF, 0xE1, 0xE5)
-    private val colTextSecondary get() = java.awt.Color(0x9D, 0xA0, 0xA8)
-    private val colTextMuted get() = java.awt.Color(0x6B, 0x6F, 0x76)
-    private val colAi get() = java.awt.Color(0x4D, 0x9D, 0xE0)
-    private val colHuman get() = java.awt.Color(0x56, 0xA0, 0x64)
-    private val colDelete get() = java.awt.Color(0xE0, 0x6C, 0x75)
-    private val colOrange get() = java.awt.Color(0xE5, 0x94, 0x3A)
-    private val colPurple get() = java.awt.Color(0x9E, 0x7B, 0xC4)
+    private val colBgSecondary get() = java.awt.Color(0x26, 0x28, 0x2C)
+    private val colBgElevated get() = java.awt.Color(0x30, 0x33, 0x38)
+    private val colBorder get() = java.awt.Color(0x3A, 0x3D, 0x44)
+    private val colBorderSubtle get() = java.awt.Color(0x2C, 0x2E, 0x33)
+    private val colTextPrimary get() = java.awt.Color(0xE7, 0xE9, 0xEE)
+    private val colTextSecondary get() = java.awt.Color(0x9A, 0xA1, 0xAD)
+    private val colTextMuted get() = java.awt.Color(0x74, 0x78, 0x80)
+    private val colAi get() = java.awt.Color(0x5A, 0xA2, 0xF0)
+    private val colHuman get() = java.awt.Color(0x5F, 0xB5, 0x6B)
+    private val colDelete get() = java.awt.Color(0xE8, 0x70, 0x7A)
+    private val colOrange get() = java.awt.Color(0xE9, 0xA2, 0x3B)
+    private val colPurple get() = java.awt.Color(0xA7, 0x8B, 0xD6)
     /** Alternating commit row background inside History table. */
-    private val colRowStripe get() = java.awt.Color(0x27, 0x29, 0x2E)
+    private val colRowStripe get() = java.awt.Color(0x29, 0x2B, 0x30)
 
     private val rankColors = listOf(colAi, colHuman, colOrange)
 
@@ -1226,6 +1226,45 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
         overviewInner.add(spacer(6))
         overviewInner.add(historyInsertDeleteBar(latest.totalLinesAdded, latest.totalLinesDeleted, 5, latest.aiLinesDeleted))
 
+        // ── Totals across ALL commits in history (report-level detail) ──
+        var totAiDel = 0
+        val toolNames = sortedSetOf<String>()
+        for (c in data.commits) {
+            totAiDel += c.aiLinesDeleted
+            c.models.filter { it.isNotBlank() && it != "unknown" }.forEach { toolNames.add(it) }
+        }
+        val totHumanDel = (data.totalDeleted - totAiDel).coerceAtLeast(0)
+        val toolsLabel = when {
+            toolNames.isEmpty() -> "—"
+            toolNames.size <= 2 -> toolNames.joinToString(", ")
+            else -> "${toolNames.size} tools"
+        }
+
+        overviewInner.add(spacer(12))
+        overviewInner.add(JLabel("All commits (${data.commits.size})").apply {
+            foreground = colTextMuted; font = font.deriveFont(java.awt.Font.BOLD, 10f); alignmentX = LEFT_ALIGNMENT
+        })
+        overviewInner.add(spacer(7))
+        val totalsRow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 4)).apply {
+            isOpaque = false; alignmentX = LEFT_ALIGNMENT
+            maximumSize = java.awt.Dimension(Short.MAX_VALUE.toInt(), 60)
+        }
+        totalsRow.add(statBadge("+${data.totalAiLines} AI", colAi))
+        totalsRow.add(statBadge("+${data.totalHumanLines} Human", colHuman))
+        totalsRow.add(statBadge("−$totAiDel AI", colAi))
+        totalsRow.add(statBadge("−$totHumanDel Human", colDelete))
+        overviewInner.add(totalsRow)
+        overviewInner.add(spacer(6))
+        val totalsChips = JPanel(FlowLayout(FlowLayout.LEFT, 12, 0)).apply {
+            isOpaque = false; alignmentX = LEFT_ALIGNMENT
+            maximumSize = java.awt.Dimension(Short.MAX_VALUE.toInt(), 24)
+        }
+        totalsChips.add(metaChip("Tools: $toolsLabel", colOrange))
+        totalsChips.add(metaChip("${data.totalFiles} files", colAi))
+        if (data.totalCodingTimeMs > 0) totalsChips.add(metaChip("Coding: ${formatDuration(data.totalCodingTimeMs)}", colHuman))
+        if (data.totalWaitingMs > 0) totalsChips.add(metaChip("AI wait: ${formatDuration(data.totalWaitingMs)}", colPurple))
+        overviewInner.add(totalsChips)
+
         contentPanel.add(roundedCard(overviewInner))
         contentPanel.add(spacer(14))
 
@@ -1383,7 +1422,8 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
                 preferredSize = fixCellW(COMMIT_COL_ADDDEL_W)
                 minimumSize = fixCellW(COMMIT_COL_ADDDEL_W)
                 maximumSize = java.awt.Dimension(COMMIT_COL_ADDDEL_W, 28)
-                toolTipText = "Lines deleted"
+                toolTipText = "Deleted: AI \u2212${report.aiLinesDeleted} \u00b7 Human \u2212${(report.totalLinesDeleted - report.aiLinesDeleted).coerceAtLeast(0)}" +
+                    (report.models.filter { it.isNotBlank() && it != "unknown" }.takeIf { it.isNotEmpty() }?.let { "  \u00b7  " + it.joinToString(", ") } ?: "")
             }, commitHistoryGbc(4))
 
             row.add(miniBarCell(aiPctNum), commitHistoryGbc(5))

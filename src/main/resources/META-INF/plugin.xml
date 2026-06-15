@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.4.9</version>
+  <version>1.6.0</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
@@ -96,6 +96,13 @@ blamely doctor    # full self-check
       <li><b>VS Code compatible</b> — Same <code>.git/blamely</code> layout; both IDEs share attribution data</li>
     </ul>
   ]]></description>
+
+  <change-notes><![CDATA[
+    <h3>1.6.0</h3>
+    <ul>
+      <li><b>Status bar count now matches the gutter</b> — the AI/Human status bar widget previously summed every tracked file across the project and counted blank lines, while the gutter shows only the active file and skips blanks. The widget now reports the <b>active file only</b>, resolved exactly like the gutter (repo-relative path + live blank-line check), so the number equals the icons in front of you.</li>
+    </ul>
+  ]]></change-notes>
 
   <depends>com.intellij.modules.platform</depends>
   <depends>Git4Idea</depends>

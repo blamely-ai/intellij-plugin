@@ -17,10 +17,11 @@ data class CliNote(
 )
 
 data class CliNoteTotals(
-    @SerializedName("ai_lines") val aiLines: Int = 0,
-    @SerializedName("human_lines") val humanLines: Int = 0,
+    @SerializedName(value = "ai_added_lines", alternate = ["ai_lines"]) val aiLines: Int = 0,
+    @SerializedName(value = "human_added_lines", alternate = ["human_lines"]) val humanLines: Int = 0,
     @SerializedName("deleted_lines") val deletedLines: Int = 0,
     @SerializedName("ai_deleted_lines") val aiDeletedLines: Int = 0,
+    @SerializedName("human_deleted_lines") val humanDeletedLines: Int = 0,
     val files: Int = 0,
     val models: Map<String, Int>? = null,
 )
