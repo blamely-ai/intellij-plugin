@@ -110,7 +110,13 @@ object GitUtils {
                     val baseDir = File(basePath)
                     if (!baseDir.exists()) return@runReadAction null
                     val vf = LocalFileSystem.getInstance().findFileByIoFile(baseDir) ?: return@runReadAction basePath
-                    GitUtil.getRepositoryManager(project).getRepositoryForFile(vf)?.root?.path ?: basePath
+                    // getRepositoryForFileQuick — NOT getRepositoryForFile — because this
+                    // can run on the EDT (the gutter's applyGutterForEditor calls getRepoRoot
+                    // there). getRepositoryForFile triggers a SYNCHRONOUS repository update,
+                    // which IntelliJ forbids on the EDT ("Do not call synchronous repository
+                    // update in EDT"). The quick variant returns the already-registered repo
+                    // without updating; on a cache miss we still fall back to `git rev-parse`.
+                    GitUtil.getRepositoryManager(project).getRepositoryForFileQuick(vf)?.root?.path ?: basePath
                 }
                 if (result != null) {
                     repoRootCache[basePath] = result
