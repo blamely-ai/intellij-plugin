@@ -4,10 +4,11 @@ name: Publish to JetBrains Marketplace
 # via `./gradlew publishPlugin`. Unlike release.yml (which uploads the zip to the
 # GitHub release repo), this job's ONLY job is the Marketplace publish.
 #
-# Triggers:
-#   - Push a tag `vX.Y.Z` (keep it in sync with plugin.xml <version>).
-#   - Or run manually via "Run workflow" (workflow_dispatch), optionally choosing
-#     a pre-release channel.
+# Triggers (MANUAL ONLY — this never runs automatically on a tag push):
+#   - Run manually via "Run workflow" (workflow_dispatch). Pick the tag/branch to
+#     build from in the GitHub UI's "Use workflow from" ref selector, and
+#     optionally choose a pre-release channel. Build/verify the artifact with
+#     release.yml first, then run this by hand to actually ship to the Marketplace.
 #
 # Required secret:
 #   JETBRAINS_MARKETPLACE_TOKEN   permanent token from
@@ -20,8 +21,6 @@ name: Publish to JetBrains Marketplace
 #   See https://plugins.jetbrains.com/docs/intellij/plugin-signing.html
 
 on:
-  push:
-    tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
       channel:

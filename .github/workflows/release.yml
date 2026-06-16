@@ -4,12 +4,14 @@ name: Build & Publish Release (IntelliJ plugin)
 # on a vX.Y.Z tag, build the plugin distribution zip and publish it to the SAME
 # public release repo the CLI / other artifacts live in.
 #
-# Note: end users get this plugin from the JetBrains Marketplace (the CLI's
-# `blamely install` downloads it from there — see jetbrainsplugin.go), so the
-# GitHub release here is for archival + sideload ("Install Plugin from Disk").
-# The optional JetBrains Marketplace publish step is what actually ships it to
-# users; enable it by configuring `intellijPlatform.publishing.token` in
-# build.gradle.kts and setting JETBRAINS_MARKETPLACE_TOKEN.
+# This workflow ONLY builds the plugin zip and uploads it to the release repo.
+# It deliberately does NOT publish to the JetBrains Marketplace — shipping to the
+# Marketplace is a separate, MANUAL action: run the "Publish to JetBrains
+# Marketplace" workflow (publish-marketplace.yml) by hand once you've verified the
+# artifact built here. This keeps a tag push from auto-shipping to end users.
+#
+# Note: the GitHub release here is for archival + sideload ("Install Plugin from
+# Disk") and is what the CLI's `blamely install` can download.
 #
 # How it triggers:
 #   - Push a tag of the form `vX.Y.Z`.
@@ -18,11 +20,6 @@ name: Build & Publish Release (IntelliJ plugin)
 # Required secrets:
 #   RELEASE_REPO        owner/repo of the PUBLIC release repo (e.g. blamely-ai/blamely)
 #   RELEASE_REPO_TOKEN  fine-grained PAT with `contents: write` on RELEASE_REPO
-#
-# Optional secrets:
-#   JETBRAINS_MARKETPLACE_TOKEN   permanent token from plugins.jetbrains.com
-#                                 (skipped when unset; requires the gradle
-#                                  publishing config noted above)
 #
 # Artifacts published to RELEASE_REPO:
 #   <tag> release:  blamely-intellij-<tag>.zip
@@ -111,15 +108,6 @@ jobs:
               --verify-tag=false
           gh release upload latest --repo "$RELEASE_REPO" --clobber blamely-intellij.zip
 
-      - name: Publish to JetBrains Marketplace (optional)
-        env:
-          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
-        shell: bash
-        run: |
-          if [ -z "$JETBRAINS_MARKETPLACE_TOKEN" ]; then
-            echo "JETBRAINS_MARKETPLACE_TOKEN not set — skipping Marketplace publish."
-            exit 0
-          fi
-          # Requires `intellijPlatform.publishing.token` wired to this env var in
-          # build.gradle.kts (see header note).
-          ./gradlew publishPlugin --no-daemon -Pblamely.release=true -Pblamely.obfuscate=true
+      # NOTE: this workflow only BUILDS the artifact and uploads it to the release
+      # repo. It does NOT publish to the JetBrains Marketplace — that is a separate,
+      # MANUAL step (run the "Publish to JetBrains Marketplace" workflow by hand).
