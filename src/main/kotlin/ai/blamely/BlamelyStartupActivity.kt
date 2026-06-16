@@ -12,18 +12,23 @@ import ai.blamely.utils.BlamelyPluginInfo
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
-import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.startup.StartupActivity
+import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.util.Alarm
 
 /**
  * Starts read-only blamely CLI data polling and wires UI refresh on blame updates.
+ *
+ * Implements [ProjectActivity] (not the old StartupActivity, which IntelliJ 2026.1 /
+ * build 261 removed — registering a StartupActivity there throws "Migrate … to
+ * ProjectActivity" and the activity never runs). execute() is a suspend fun invoked
+ * on a background coroutine after the project opens; all UI work below already hops
+ * to the EDT via invokeLater, so nothing here needs the EDT directly.
  */
-class BlamelyStartupActivity : StartupActivity, DumbAware {
+class BlamelyStartupActivity : ProjectActivity {
 
-    override fun runActivity(project: Project) {
+    override suspend fun execute(project: Project) {
         if (project.isDefault || project.basePath == null) return
 
         // Log the running plugin version so it's unambiguous in idea.log which build

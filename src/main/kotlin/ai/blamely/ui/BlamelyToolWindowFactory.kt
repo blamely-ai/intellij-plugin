@@ -191,19 +191,36 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         refreshView()
         project.messageBus.connect(project).subscribe(BlameUpdateListener.TOPIC, object : BlameUpdateListener {
             override fun blameUpdated() {
-                ApplicationManager.getApplication().invokeLater { refreshView() }
+                // refreshView() self-dispatches: git work on a pooled thread, UI on
+                // the EDT. Calling it directly avoids pinning git subprocesses to the
+                // EDT (the old invokeLater wrapper was the freeze trigger).
+                refreshView()
             }
         })
     }
 
     private fun refreshView() {
         if (project.isDisposed) return
+        // Resolve git data (repo root + branch) OFF the EDT. GitUtils.getRepoRoot /
+        // getBranch spawn `git` subprocesses; running those on the EDT froze the IDE
+        // for 10-20s on every blameUpdated event. Compute them on a pooled thread,
+        // then build the Swing UI back on the EDT via applyRefresh().
+        ApplicationManager.getApplication().executeOnPooledThread {
+            if (project.isDisposed) return@executeOnPooledThread
+            val repoRoot = GitUtils.getRepoRoot(project)
+            val branchName = GitUtils.getBranch(project)
+            ApplicationManager.getApplication().invokeLater {
+                if (!project.isDisposed) applyRefresh(repoRoot, branchName)
+            }
+        }
+    }
+
+    private fun applyRefresh(repoRoot: String?, branchName: String?) {
+        if (project.isDisposed) return
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val blameMap = blameService.blameMap
         val base = basePath
 
-        val repoRoot = GitUtils.getRepoRoot(project)
-        val branchName = GitUtils.getBranch(project)
         val daemon = project.getService(CliDataService::class.java)?.daemonStatus
 
         val trackedFiles = if (base.isNotEmpty()) {
