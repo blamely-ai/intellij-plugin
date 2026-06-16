@@ -9,6 +9,10 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.editor.event.DocumentEvent
+import com.intellij.openapi.editor.event.DocumentListener
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
@@ -68,6 +72,14 @@ class AgentEditDetector(private val project: Project) : Disposable {
     // events a single agent write produces collapses into one daemon record.
     private val lastSentSig = ConcurrentHashMap<String, String>()
 
+    // Pre-write content baseline, keyed by absolute path: the document text as it
+    // looked JUST BEFORE the current change. Captured on every documentChange (so
+    // it includes lines the human typed between AI applies), then consumed when an
+    // agent write is recorded — we diff the new file content against THIS instead
+    // of against HEAD, so an agent rewrite doesn't sweep human-typed lines into AI.
+    // This is the IntelliJ analogue of the VS Code plugin's putSnapshot baseline.
+    private val preWriteBaseline = ConcurrentHashMap<String, String>()
+
     private fun debugEnabled(): Boolean = try {
         ai.blamely.settings.BlamelySettings.getInstance().debugDetection
     } catch (_: Throwable) {
@@ -77,6 +89,21 @@ class AgentEditDetector(private val project: Project) : Disposable {
     fun register() {
         if (project.isDisposed) return
         startCopilotLogTailer()
+
+        // Capture the pre-change document text for every edit. beforeDocumentChange
+        // fires while document.text is still the OLD content — so right before an
+        // agent rewrites an open file, this records the human's latest content as
+        // the diff baseline. Parented to `this` so it's removed on dispose.
+        EditorFactory.getInstance().eventMulticaster.addDocumentListener(
+            object : DocumentListener {
+                override fun beforeDocumentChange(event: DocumentEvent) {
+                    val path = FileDocumentManager.getInstance().getFile(event.document)?.path ?: return
+                    if (isExcludedPath(path)) return
+                    preWriteBaseline[path] = event.document.text
+                }
+            },
+            this,
+        )
 
         // VFS_CHANGES is published on the APPLICATION message bus — subscribing
         // via project.messageBus would never receive it.
@@ -191,11 +218,29 @@ class AgentEditDetector(private val project: Project) : Disposable {
         if (lines.isEmpty()) return
 
         // Which lines did the agent actually change?
-        //   • tracked file with HEAD history → the lines that differ from HEAD (git diff)
-        //   • new/untracked file, or no prior version at HEAD (e.g. brand-new repo
-        //     with no commits yet, or a freshly `git add`ed file) → every (non-blank) line
-        val changed: List<Int> = changedLinesVsHead(projectRoot, relPath).ifEmpty {
+        //   • PREFERRED: diff against the pre-write baseline (the file as it looked
+        //     immediately before this write, captured by the document listener and
+        //     INCLUDING any lines the human typed since the last apply). This is the
+        //     fix for "AI → human edit → AI rewrite re-claims the human's lines":
+        //     lines already in the baseline are excluded, so only the agent's new
+        //     lines are attributed. Mirrors the VS Code plugin's snapshot baseline.
+        //   • FALLBACK (no baseline — e.g. agent created a file with no open editor):
+        //     tracked file → lines that differ from HEAD; new/untracked → every line.
+        val baseline = preWriteBaseline.remove(absPath)
+        val baselineChanged: List<Int>? = baseline?.let {
+            changedNewLines(it.split('\n').map { l -> l.removeSuffix("\r") }, lines)
+        }
+        // Stash the baseline in the daemon too (parity with the VS Code plugin) so
+        // any CLI-side narrowing that compares against a "before" snapshot agrees.
+        if (baseline != null) {
+            daemon.putSnapshot(CliRepoId.get(projectRoot) ?: projectRoot, relPath, baseline)
+        }
+        val changed: List<Int> = baselineChanged ?: changedLinesVsHead(projectRoot, relPath).ifEmpty {
             if (hasNoHeadVersion(projectRoot, relPath)) (1..lines.size).toList() else emptyList()
+        }
+        if (debugEnabled()) {
+            val via = if (baselineChanged != null) "baseline(${baseline?.length} chars)" else "HEAD-diff (no baseline)"
+            BlamelyLogger.info("agent narrow: $relPath via=$via changedLines=${changed.size} -> ${changed.take(20)}")
         }
         if (changed.isEmpty()) return
 
@@ -241,6 +286,39 @@ class AgentEditDetector(private val project: Project) : Disposable {
             // next 2s CliDataService poll.
             project.getService(CliDataService::class.java)?.refresh()
         }
+    }
+
+    // changedNewLines returns the 1-based line numbers in [new] that are insertions
+    // or changes relative to [old] — i.e. NOT part of the longest common subsequence
+    // of the two line lists. Lines that already existed in [old] (including ones the
+    // human typed) are excluded, so an agent rewrite is narrowed to its genuinely
+    // new lines. Returns null when the inputs are too large to diff cheaply, so the
+    // caller falls back to the HEAD diff.
+    private fun changedNewLines(old: List<String>, new: List<String>): List<Int>? {
+        val n = old.size
+        val m = new.size
+        if (n == 0) return (1..m).toList()
+        if (n.toLong() * m > 6_000_000L) return null // guard the O(n*m) DP
+        val dp = Array(n + 1) { IntArray(m + 1) }
+        for (i in n - 1 downTo 0) {
+            val oi = old[i]
+            for (j in m - 1 downTo 0) {
+                dp[i][j] = if (oi == new[j]) dp[i + 1][j + 1] + 1
+                else maxOf(dp[i + 1][j], dp[i][j + 1])
+            }
+        }
+        val changed = ArrayList<Int>()
+        var i = 0
+        var j = 0
+        while (i < n && j < m) {
+            when {
+                old[i] == new[j] -> { i++; j++ }
+                dp[i + 1][j] >= dp[i][j + 1] -> i++
+                else -> { changed.add(j + 1); j++ }
+            }
+        }
+        while (j < m) { changed.add(j + 1); j++ }
+        return changed
     }
 
     // git diff --unified=0 HEAD -- <file> → 1-based new-side changed line numbers.

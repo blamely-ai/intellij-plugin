@@ -63,6 +63,70 @@ class DaemonClient {
         }
     }
 
+    /**
+     * Store the pre-apply file content in the daemon (PUT /snapshot) so the chat
+     * watcher — and any narrowing that compares against a "before" baseline — has
+     * the file as it looked BEFORE an AI agent rewrote it, including lines the
+     * human typed since the last apply. Mirrors the VS Code plugin's
+     * DaemonClient.putSnapshot. Fire-and-forget: best-effort, failures ignored.
+     */
+    fun putSnapshot(repoPath: String, filePath: String, content: String): Boolean {
+        val body = encodeSnapshotJson(repoPath, filePath, content).toByteArray(Charsets.UTF_8)
+        val sock = CliPaths.readDaemonSocket()
+        return try {
+            if (sock != null) {
+                putViaSocket(sock, body)
+            } else {
+                val port = resolvePort() ?: return false
+                putViaTCP(port, body)
+            }
+            true
+        } catch (e: Exception) {
+            maybeWarn("PUT /snapshot failed: ${e.message}")
+            false
+        }
+    }
+
+    private fun putViaSocket(sockPath: String, body: ByteArray) {
+        val reqHead = buildString {
+            append("PUT /snapshot HTTP/1.1\r\n")
+            append("Host: localhost\r\n")
+            append("Content-Type: application/json\r\n")
+            append("Content-Length: ${body.size}\r\n")
+            append("Connection: close\r\n")
+            append("\r\n")
+        }.toByteArray(Charsets.UTF_8)
+        val addr = java.net.UnixDomainSocketAddress.of(sockPath)
+        java.nio.channels.SocketChannel.open(addr).use { ch ->
+            ch.configureBlocking(true)
+            val buf = ByteBuffer.allocate(reqHead.size + body.size)
+            buf.put(reqHead); buf.put(body); buf.flip()
+            while (buf.hasRemaining()) ch.write(buf)
+            val resp = ByteBuffer.allocate(128)
+            ch.read(resp); resp.flip()
+            val statusLine = Charsets.UTF_8.decode(resp).toString().split("\r\n").firstOrNull() ?: ""
+            val code = statusLine.split(" ").getOrNull(1)?.toIntOrNull()
+            if (code != 204 && code != 200) throw RuntimeException("daemon returned $code")
+        }
+    }
+
+    private fun putViaTCP(port: Int, body: ByteArray) {
+        val conn = URL("http://127.0.0.1:$port/snapshot").openConnection() as HttpURLConnection
+        conn.connectTimeout = 1500
+        conn.readTimeout = 1500
+        conn.requestMethod = "PUT"
+        conn.doOutput = true
+        conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("Content-Length", body.size.toString())
+        try {
+            conn.outputStream.use { it.write(body) }
+            val code = conn.responseCode
+            if (code != 204 && code != 200) throw RuntimeException("daemon returned $code")
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     private fun resolvePort(): Int? {
         cachedPort?.let { return it }
         val p = CliPaths.readDaemonPort()
@@ -157,6 +221,16 @@ private fun encodeJson(p: EditPayload): String {
     sb.append('}')
     return sb.toString()
 }
+
+// encodeSnapshotJson builds the {repo,file,content} body for PUT /snapshot.
+private fun encodeSnapshotJson(repo: String, file: String, content: String): String =
+    buildString {
+        append('{')
+        append("\"repo\":").append(quote(repo))
+        append(",\"file\":").append(quote(file))
+        append(",\"content\":").append(quote(content))
+        append('}')
+    }
 
 private fun quote(s: String): String {
     val sb = StringBuilder(s.length + 2)
