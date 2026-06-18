@@ -119,6 +119,39 @@ class CliDataService(private val project: Project) : Disposable {
         periodicAlarm.cancelAllRequests()
     }
 
+    private data class RepoBlame(
+        val byFile: Map<String, List<LineBlame>>,
+        val hasUncommittedWork: Boolean,
+    )
+
+    /**
+     * Every distinct git repo this project spans. A project can mix several
+     * independent repos (e.g. a parent folder holding backend/ and frontend/, each
+     * with its own .git, opened as separate content roots) — or the project dir can
+     * itself be the one repo. Without enumerating all of them, only the project's
+     * base repo got a gutter; files in the other repos showed no count and no icons.
+     * The project base dir is often NOT a git repo in the multi-repo case, so a
+     * `.git` presence check filters out non-repo roots (the basePath fallback).
+     */
+    private fun projectRepoRoots(): List<String> {
+        val roots = LinkedHashSet<String>()
+        fun consider(path: String?) {
+            val p = path ?: return
+            if (File(p, ".git").exists()) roots.add(File(p).path)
+        }
+        consider(GitUtils.getRepoRoot(project))
+        try {
+            ApplicationManager.getApplication().runReadAction {
+                if (project.isDisposed) return@runReadAction
+                for (vf in com.intellij.openapi.roots.ProjectRootManager.getInstance(project).contentRoots) {
+                    consider(GitUtils.getRepoRoot(vf.path))
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return roots.toList()
+    }
+
     fun refresh() {
         if (project.isDisposed) return
         ApplicationManager.getApplication().executeOnPooledThread {
@@ -128,153 +161,48 @@ class CliDataService(private val project: Project) : Disposable {
             // to it and we must NOT clobber the gutter — see apply guard below.
             val refreshStartMs = System.currentTimeMillis()
             try {
-                val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath ?: return@executeOnPooledThread
                 checkDaemonHealth()
-
-                // Scope by branch-based work session, not a timestamp window: load
-                // edits recorded on the current branch and let the git-diff-HEAD
-                // intersection below narrow them to the uncommitted lines. This is
-                // robust to cherry-pick/squash (no fragile ts cutoff) and switching
-                // branches naturally scopes the gutter. A null branch (detached HEAD)
-                // loads only un-sessioned rows.
-                val branch = GitUtils.getBranchName(repoRoot)
-                val headSha = GitUtils.run(repoRoot, "rev-parse", "HEAD")?.trim().orEmpty()
-
-                val edits = CliSqliteReader.loadEditsForRepo(repoRoot, branch, headSha)
-                    ?: run {
-                        // null = DB read failed (driver, lock, missing sqlite3). Keep gutter.
-                        ai.blamely.utils.BlamelyLogger.debug(
-                            "refresh: skipped (edit read unavailable) repoRoot=$repoRoot " +
-                                "branch=$branch head=${headSha.take(12)}"
-                        )
-                        return@executeOnPooledThread
+                val blameService = project.getService(BlameMapService::class.java)
+                val repoRoots = projectRepoRoots()
+                if (repoRoots.isEmpty()) {
+                    ApplicationManager.getApplication().invokeLater {
+                        if (project.isDisposed) return@invokeLater
+                        blameService.blameMap.clear()
+                        project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
                     }
+                    return@executeOnPooledThread
+                }
 
-                if (ai.blamely.utils.BlamelyLogger.isDebugEnabled()) {
-                    ai.blamely.utils.BlamelyLogger.debug(
-                        "refresh: repoRoot=$repoRoot branch=$branch loadedEdits=${edits.size}"
-                    )
-                    edits.take(50).forEach { r ->
-                        ai.blamely.utils.BlamelyLogger.debug(
-                            "refresh: edit id=${r.id} tool=${r.tool} gen_type=${r.genType}" +
-                                " ${r.filePath} L${r.startLine}-${r.endLine}" +
-                                " sha=${r.contentSha != null} ai=${isAiInteractionType(r.genType)}"
-                        )
+                // Build the blame map once per repo (in repo-relative space, as the
+                // SQLite/git helpers expect), then merge under absolute-path keys so
+                // identical relative paths in different repos don't overwrite each other.
+                val merged = HashMap<String, List<LineBlame>>()
+                var anyUncommittedWork = false
+                var anyReadFailure = false
+                for (repoRoot in repoRoots) {
+                    val result = refreshRepo(repoRoot, blameService)
+                    if (result == null) {
+                        // null = DB read failed (lock/driver). Keep the current gutter
+                        // rather than rebuild it incomplete; defer the whole refresh.
+                        anyReadFailure = true
+                        continue
+                    }
+                    anyUncommittedWork = anyUncommittedWork || result.hasUncommittedWork
+                    for ((rel, entries) in result.byFile) {
+                        merged[GitUtils.blameKey(File(repoRoot, rel).path)] = entries
                     }
                 }
+                if (anyReadFailure) return@executeOnPooledThread
 
-                // Flush unsaved documents for files with AI edits BEFORE building the
-                // blame map and BEFORE running git diff. Two things depend on the file
-                // being saved:
-                //
-                //   1. editsToBlameMap reads File(...).readLines().size to cap line
-                //      ranges — if the file still has the old line count (pre-completion),
-                //      cappedEnd < startLine for any line appended at the end, and the
-                //      loop body never runs → no AI entry → Human gutter.
-                //
-                //   2. getWorkingTreeHumanLines runs `git diff HEAD` which only sees
-                //      saved files — if the file isn't saved, changed = null for that
-                //      file and all AI entries are stripped by the constrain step.
-                saveDirtyDocumentsForFiles(repoRoot, pathsNeedingFlush(repoRoot, edits.map { it.filePath }))
-
-                val byFile = editsToBlameMap(repoRoot, edits).toMutableMap()
-
-                // Lines that actually differ from HEAD in the working tree.
-                val humanLinesByFile = getWorkingTreeHumanLines(repoRoot)
-                val changedSets = humanLinesByFile.mapValues { it.value.toHashSet() }
-
-                // Untracked (new) files aren't in `git diff HEAD`; all lines are new.
-                val untrackedSet = HashSet<String>()
-                GitUtils.run(repoRoot, "ls-files", "--others", "--exclude-standard")?.lines()?.forEach {
-                    val fp = it.trim().replace('\\', '/')
-                    if (fp.isNotEmpty()) untrackedSet.add(fp)
+                // Pending-AI overlay is global (keyed by absolute path). Only clear it
+                // once NO repo has uncommitted work, so a clean repo can't wipe a dirty
+                // repo's pending lines. Repos with work applied their pending in refreshRepo.
+                if (!anyUncommittedWork) {
+                    blameService.clearAllPendingAi()
                 }
-
-                val affectedFiles = changedSets.keys + untrackedSet
-                applyContentShaAttribution(repoRoot, edits, affectedFiles, byFile, untrackedSet)
-
-                scopeToUncommittedWorkingTree(byFile, changedSets, untrackedSet)
-
-                val blameServiceForPending = project.getService(BlameMapService::class.java)
-                val hasUncommittedWork = humanLinesByFile.isNotEmpty() || untrackedSet.isNotEmpty()
-                if (!hasUncommittedWork) {
-                    blameServiceForPending.clearAllPendingAi()
-                }
-
-                // git diff HEAD does not include untracked (new) files. When AI generates
-                // a new file via a chat panel and the user adds more lines, those human-typed
-                // lines are invisible to the diff. For each untracked file that has AI
-                // attribution in byFile, add human entries for all non-AI lines.
-                val untrackedOut = GitUtils.run(repoRoot, "ls-files", "--others", "--exclude-standard")
-                if (untrackedOut != null) {
-                    for (line in untrackedOut.lines()) {
-                        val fp = line.trim().replace('\\', '/')
-                        if (fp.isEmpty() || !byFile.containsKey(fp)) continue
-                        // Untracked files have no git-diff to narrow WIDE AI ranges, so a
-                        // wide chat/cli row would otherwise blanket the entire new file as
-                        // AI. Trust only TIGHT (bounded) AI ranges here; drop wide AI ranges
-                        // that can't be verified line-by-line. Recent accepts are still
-                        // re-asserted afterwards via the pending-AI overlay.
-                        val existing = byFile[fp]!!.filter { e ->
-                            e.effectiveAuthorType() != LineBlame.AuthorType.AI || e.boundedAiRange
-                        }
-                        val aiLineSet = existing
-                            .filter { it.effectiveAuthorType() == LineBlame.AuthorType.AI }
-                            .mapTo(HashSet()) { it.lineNumber }
-                        try {
-                            val fileLines = File(repoRoot, fp).readLines().size
-                            val humanEntries = (1..fileLines)
-                                .filter { ln -> ln !in aiLineSet }
-                                .map { ln ->
-                                    LineBlame(
-                                        lineNumber = ln,
-                                        authorType = LineBlame.AuthorType.HUMAN,
-                                        timestamp = Instant.now().toString(),
-                                        aiChars = 0,
-                                        humanChars = 1,
-                                    )
-                                }
-                            byFile[fp] = existing + humanEntries
-                        } catch (_: Exception) {}
-                    }
-                }
-
-                if (hasUncommittedWork) for (path in blameServiceForPending.pendingAiPaths()) {
-                    val pending = blameServiceForPending.pendingAiLinesFor(path)
-                    if (pending.isEmpty()) continue
-                    val entries = byFile[path]?.toMutableList() ?: mutableListOf()
-                    var mutated = false
-                    for ((ln, p) in pending) {
-                        val idx = entries.indexOfFirst { it.lineNumber == ln }
-                        val existing = if (idx >= 0) entries[idx] else null
-                        if (existing != null && existing.effectiveAuthorType() == LineBlame.AuthorType.AI) {
-                            // SQLite (or contiguous-run expansion) already confirms AI here.
-                            blameServiceForPending.clearPendingAiLine(path, ln)
-                            continue
-                        }
-                        val chars = (existing?.humanChars ?: 1).coerceAtLeast(1)
-                        val aiEntry = LineBlame(
-                            lineNumber = ln,
-                            authorType = LineBlame.AuthorType.AI,
-                            provider = p.tool,
-                            timestamp = Instant.now().toString(),
-                            model = p.model,
-                            interactionType = p.genType ?: "completion",
-                            aiChars = chars,
-                            humanChars = 0,
-                            boundedAiRange = true,
-                        )
-                        if (idx >= 0) entries[idx] = aiEntry else entries.add(aiEntry)
-                        mutated = true
-                    }
-                    if (mutated) byFile[path] = entries.sortedBy { it.lineNumber }
-                }
-
-                reconcileChangedLinesAttribution(repoRoot, edits, humanLinesByFile, byFile, blameServiceForPending)
 
                 ApplicationManager.getApplication().invokeLater {
                     if (project.isDisposed) return@invokeLater
-                    val blameService = project.getService(BlameMapService::class.java)
                     // Anti-flicker: if an optimistic AI paint happened while this
                     // refresh was loading (its data is older than the paint), skip
                     // the destructive clear+rebuild. The completion's own post-send
@@ -285,7 +213,7 @@ class CliDataService(private val project: Project) : Disposable {
                     ) return@invokeLater
                     blameService.lastOptimisticPaintMs = 0
                     if (ai.blamely.utils.BlamelyLogger.isDebugEnabled()) {
-                        byFile.forEach { (path, entries) ->
+                        merged.forEach { (path, entries) ->
                             val aiLines = entries.filter { it.effectiveAuthorType() == LineBlame.AuthorType.AI }
                                 .map { it.lineNumber }.sorted()
                             val humanLines = entries.filter { it.effectiveAuthorType() == LineBlame.AuthorType.HUMAN }
@@ -297,12 +225,156 @@ class CliDataService(private val project: Project) : Disposable {
                     }
                     // Atomic swap — no clear()-then-repopulate window where the gutter
                     // is momentarily empty.
-                    blameService.blameMap.replaceAll(byFile)
+                    blameService.blameMap.replaceAll(merged)
                     project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
                 }
             } catch (_: Exception) {
             }
         }
+    }
+
+    /**
+     * Build the uncommitted-work blame map (repo-relative keys) for one git repo.
+     * Returns null only on a transient SQLite read failure, signalling the caller to
+     * keep the current gutter rather than rebuild it incomplete.
+     */
+    private fun refreshRepo(repoRoot: String, blameService: BlameMapService): RepoBlame? {
+        // Scope by branch-based work session, not a timestamp window: load
+        // edits recorded on the current branch and let the git-diff-HEAD
+        // intersection below narrow them to the uncommitted lines. This is
+        // robust to cherry-pick/squash (no fragile ts cutoff) and switching
+        // branches naturally scopes the gutter. A null branch (detached HEAD)
+        // loads only un-sessioned rows.
+        val branch = GitUtils.getBranchName(repoRoot)
+        val headSha = GitUtils.run(repoRoot, "rev-parse", "HEAD")?.trim().orEmpty()
+
+        val edits = CliSqliteReader.loadEditsForRepo(repoRoot, branch, headSha)
+            ?: run {
+                ai.blamely.utils.BlamelyLogger.debug(
+                    "refresh: skipped (edit read unavailable) repoRoot=$repoRoot " +
+                        "branch=$branch head=${headSha.take(12)}"
+                )
+                return null
+            }
+
+        if (ai.blamely.utils.BlamelyLogger.isDebugEnabled()) {
+            ai.blamely.utils.BlamelyLogger.debug(
+                "refresh: repoRoot=$repoRoot branch=$branch loadedEdits=${edits.size}"
+            )
+            edits.take(50).forEach { r ->
+                ai.blamely.utils.BlamelyLogger.debug(
+                    "refresh: edit id=${r.id} tool=${r.tool} gen_type=${r.genType}" +
+                        " ${r.filePath} L${r.startLine}-${r.endLine}" +
+                        " sha=${r.contentSha != null} ai=${isAiInteractionType(r.genType)}"
+                )
+            }
+        }
+
+        // Flush unsaved documents for files with AI edits BEFORE building the
+        // blame map and BEFORE running git diff. Two things depend on the file
+        // being saved:
+        //
+        //   1. editsToBlameMap reads File(...).readLines().size to cap line
+        //      ranges — if the file still has the old line count (pre-completion),
+        //      cappedEnd < startLine for any line appended at the end, and the
+        //      loop body never runs → no AI entry → Human gutter.
+        //
+        //   2. getWorkingTreeHumanLines runs `git diff HEAD` which only sees
+        //      saved files — if the file isn't saved, changed = null for that
+        //      file and all AI entries are stripped by the constrain step.
+        saveDirtyDocumentsForFiles(repoRoot, pathsNeedingFlush(repoRoot, edits.map { it.filePath }))
+
+        val byFile = editsToBlameMap(repoRoot, edits).toMutableMap()
+
+        // Lines that actually differ from HEAD in the working tree.
+        val humanLinesByFile = getWorkingTreeHumanLines(repoRoot)
+        val changedSets = humanLinesByFile.mapValues { it.value.toHashSet() }
+
+        // Untracked (new) files aren't in `git diff HEAD`; all lines are new.
+        val untrackedSet = HashSet<String>()
+        GitUtils.run(repoRoot, "ls-files", "--others", "--exclude-standard")?.lines()?.forEach {
+            val fp = it.trim().replace('\\', '/')
+            if (fp.isNotEmpty()) untrackedSet.add(fp)
+        }
+
+        val affectedFiles = changedSets.keys + untrackedSet
+        applyContentShaAttribution(repoRoot, edits, affectedFiles, byFile, untrackedSet)
+
+        scopeToUncommittedWorkingTree(byFile, changedSets, untrackedSet)
+
+        val hasUncommittedWork = humanLinesByFile.isNotEmpty() || untrackedSet.isNotEmpty()
+
+        // git diff HEAD does not include untracked (new) files. When AI generates
+        // a new file via a chat panel and the user adds more lines, those human-typed
+        // lines are invisible to the diff. For each untracked file that has AI
+        // attribution in byFile, add human entries for all non-AI lines.
+        for (fp in untrackedSet) {
+            if (!byFile.containsKey(fp)) continue
+            // Untracked files have no git-diff to narrow WIDE AI ranges, so a
+            // wide chat/cli row would otherwise blanket the entire new file as
+            // AI. Trust only TIGHT (bounded) AI ranges here; drop wide AI ranges
+            // that can't be verified line-by-line. Recent accepts are still
+            // re-asserted afterwards via the pending-AI overlay.
+            val existing = byFile[fp]!!.filter { e ->
+                e.effectiveAuthorType() != LineBlame.AuthorType.AI || e.boundedAiRange
+            }
+            val aiLineSet = existing
+                .filter { it.effectiveAuthorType() == LineBlame.AuthorType.AI }
+                .mapTo(HashSet()) { it.lineNumber }
+            try {
+                val fileLines = File(repoRoot, fp).readLines().size
+                val humanEntries = (1..fileLines)
+                    .filter { ln -> ln !in aiLineSet }
+                    .map { ln ->
+                        LineBlame(
+                            lineNumber = ln,
+                            authorType = LineBlame.AuthorType.HUMAN,
+                            timestamp = Instant.now().toString(),
+                            aiChars = 0,
+                            humanChars = 1,
+                        )
+                    }
+                byFile[fp] = existing + humanEntries
+            } catch (_: Exception) {}
+        }
+
+        // Pending-AI paths are absolute (global across repos); translate each to this
+        // repo's relative key and skip those that belong to another repo.
+        if (hasUncommittedWork) for (absPath in blameService.pendingAiPaths()) {
+            val rel = GitUtils.toRepoRelativePath(repoRoot, absPath) ?: continue
+            val pending = blameService.pendingAiLinesFor(absPath)
+            if (pending.isEmpty()) continue
+            val entries = byFile[rel]?.toMutableList() ?: mutableListOf()
+            var mutated = false
+            for ((ln, p) in pending) {
+                val idx = entries.indexOfFirst { it.lineNumber == ln }
+                val existing = if (idx >= 0) entries[idx] else null
+                if (existing != null && existing.effectiveAuthorType() == LineBlame.AuthorType.AI) {
+                    // SQLite (or contiguous-run expansion) already confirms AI here.
+                    blameService.clearPendingAiLine(absPath, ln)
+                    continue
+                }
+                val chars = (existing?.humanChars ?: 1).coerceAtLeast(1)
+                val aiEntry = LineBlame(
+                    lineNumber = ln,
+                    authorType = LineBlame.AuthorType.AI,
+                    provider = p.tool,
+                    timestamp = Instant.now().toString(),
+                    model = p.model,
+                    interactionType = p.genType ?: "completion",
+                    aiChars = chars,
+                    humanChars = 0,
+                    boundedAiRange = true,
+                )
+                if (idx >= 0) entries[idx] = aiEntry else entries.add(aiEntry)
+                mutated = true
+            }
+            if (mutated) byFile[rel] = entries.sortedBy { it.lineNumber }
+        }
+
+        reconcileChangedLinesAttribution(repoRoot, edits, humanLinesByFile, byFile, blameService)
+
+        return RepoBlame(byFile, hasUncommittedWork)
     }
 
     private fun scopeToUncommittedWorkingTree(

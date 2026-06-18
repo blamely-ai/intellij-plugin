@@ -207,15 +207,14 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         // then build the Swing UI back on the EDT via applyRefresh().
         ApplicationManager.getApplication().executeOnPooledThread {
             if (project.isDisposed) return@executeOnPooledThread
-            val repoRoot = GitUtils.getRepoRoot(project)
             val branchName = GitUtils.getBranch(project)
             ApplicationManager.getApplication().invokeLater {
-                if (!project.isDisposed) applyRefresh(repoRoot, branchName)
+                if (!project.isDisposed) applyRefresh(branchName)
             }
         }
     }
 
-    private fun applyRefresh(repoRoot: String?, branchName: String?) {
+    private fun applyRefresh(branchName: String?) {
         if (project.isDisposed) return
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val blameMap = blameService.blameMap
@@ -224,7 +223,7 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
         val daemon = project.getService(CliDataService::class.java)?.daemonStatus
 
         val trackedFiles = if (base.isNotEmpty()) {
-            blameMap.getTrackedFiles().filter { isPathUnderProject(base, repoRoot, it) }
+            blameMap.getTrackedFiles().filter { isPathUnderProject(base, it) }
         } else {
             emptyList()
         }
@@ -266,7 +265,9 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
             totalAiLines += aiL; totalHumanLines += hL
             val total = aiL + hL
             val pct = if (total > 0) 100.0 * aiL / total else 0.0
-            val name = fp.substringAfterLast('/').ifEmpty { fp }
+            // Project-relative (e.g. backend/src/index.ts) so files with the same
+            // name in different repos are distinguishable in the list.
+            val name = projectRelativeName(base, fp).ifEmpty { fp }
             fileStatsList.add(FileStats(fp, name, aiL, hL, pct))
         }
 
@@ -610,24 +611,32 @@ private class CurrentChangesPanel(private val project: Project) : JPanel(BorderL
     }
 
     private fun openFile(filePath: String) {
-        val root = GitUtils.getRepoRoot(project) ?: basePath
-        val vf = LocalFileSystem.getInstance().findFileByIoFile(File(root, filePath.replace('\\', '/')))
+        // filePath is an absolute BlameMap key.
+        val vf = LocalFileSystem.getInstance().findFileByPath(filePath.replace('\\', '/'))
+            ?: LocalFileSystem.getInstance().findFileByIoFile(File(filePath))
         if (vf != null) {
             FileEditorManager.getInstance(project).openFile(vf, true)
         }
     }
 
-    private fun isPathUnderProject(basePath: String, repoRoot: String?, filePath: String): Boolean {
-        val normalized = filePath.replace('\\', '/')
-        if (normalized.contains("..") || normalized.startsWith("/")) return false
-        val root = repoRoot ?: basePath
-        val file = File(root, normalized)
+    /** [filePath] is an absolute BlameMap key; keep only files under the project. */
+    private fun isPathUnderProject(basePath: String, filePath: String): Boolean {
         return try {
-            file.exists() && file.canonicalPath.startsWith(File(basePath).canonicalPath)
+            File(filePath).canonicalPath.startsWith(File(basePath).canonicalPath)
         } catch (_: Exception) {
             false
         }
     }
+
+    /** Path of an absolute BlameMap key relative to the project base, else its file name. */
+    private fun projectRelativeName(basePath: String, absPath: String): String =
+        try {
+            val b = File(basePath).canonicalPath
+            val f = File(absPath).canonicalPath
+            if (f.startsWith("$b/")) f.substring(b.length + 1) else absPath.substringAfterLast('/')
+        } catch (_: Exception) {
+            absPath.substringAfterLast('/')
+        }
 }
 
 // ─── Overall Changes (from committed git notes) ─────────────────────────────

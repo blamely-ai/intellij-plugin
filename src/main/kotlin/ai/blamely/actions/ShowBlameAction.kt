@@ -18,17 +18,16 @@ class ShowBlameAction : AnAction() {
             notify(project, "No file selected")
             return
         }
-        val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath ?: return
-        val path = GitUtils.toRepoRelativePath(repoRoot, file.path) ?: run {
-            notify(project, "File is outside the git repository")
-            return
-        }
+        // Resolve the file's OWN repo (not the project base repo) so this works in a
+        // multi-repo project; fall back to the file name for display.
+        val repoRoot = GitUtils.getRepoRoot(file.path)
+        val displayPath = repoRoot?.let { GitUtils.toRepoRelativePath(it, file.path) } ?: file.name
         project.getService(CliDataService::class.java)?.refresh()
         val blameService = project.getService(BlameMapService::class.java) ?: return
-        val entries = blameService.blameMap.getBlame(path)
+        val entries = blameService.blameMap.getBlame(GitUtils.blameKey(file.path))
         val ai = entries.count { it.effectiveAuthorType() == LineBlame.AuthorType.AI }
         val human = entries.count { it.effectiveAuthorType() == LineBlame.AuthorType.HUMAN }
-        notify(project, "Blame for $path: $ai AI lines, $human human lines")
+        notify(project, "Blame for $displayPath: $ai AI lines, $human human lines")
     }
 
     private fun notify(project: Project, message: String) {

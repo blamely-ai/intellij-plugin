@@ -6,7 +6,6 @@ import ai.blamely.core.LineBlame
 import ai.blamely.git.GitUtils
 import ai.blamely.utils.BlankLines
 import ai.blamely.settings.BlamelySettings
-import ai.blamely.utils.Platform
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
@@ -27,7 +26,6 @@ import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.Alarm
 import java.time.Instant
 import java.time.ZoneId
@@ -144,16 +142,15 @@ class BlameDecorations(private val project: Project) : Disposable {
 
         val doc = editor.document
         val file = FileDocumentManager.getInstance().getFile(doc) ?: return
-        val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath ?: return
-        val path = GitUtils.toRepoRelativePath(repoRoot, file.path)
-            ?: toProjectRelativePath(file, repoRoot)
-            ?: return
+        // Look up by absolute path: the BlameMap is keyed by absolute path so files
+        // from any of the project's repos resolve, not just the project's base repo.
+        val path = GitUtils.blameKey(file.path)
 
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val raw = blameService.blameMap.getBlame(path).filter { it.changeType != LineBlame.ChangeType.DELETE }
         if (raw.isEmpty()) {
             if (ai.blamely.utils.BlamelyLogger.isDebugEnabled()) {
-                ai.blamely.utils.BlamelyLogger.debug("gutter: file=$path repoRoot=$repoRoot -> NO blame entries (no icons)")
+                ai.blamely.utils.BlamelyLogger.debug("gutter: file=$path -> NO blame entries (no icons)")
             }
             return
         }
@@ -166,7 +163,7 @@ class BlameDecorations(private val project: Project) : Disposable {
         val debug = ai.blamely.utils.BlamelyLogger.isDebugEnabled()
         if (debug) {
             ai.blamely.utils.BlamelyLogger.debug(
-                "gutter: file=$path repoRoot=$repoRoot rawEntries=${raw.size} lines=${byLine.size}"
+                "gutter: file=$path rawEntries=${raw.size} lines=${byLine.size}"
             )
         }
 
@@ -250,19 +247,6 @@ class BlameDecorations(private val project: Project) : Disposable {
         /** Matches BlameMap line dominance: AI gutter iff `aiChars >= humanChars` when there is typed content. */
         fun effectiveAuthorType(entry: LineBlame): LineBlame.AuthorType {
             return entry.effectiveAuthorType()
-        }
-
-        fun toProjectRelativePath(file: VirtualFile, basePath: String): String? {
-            if (basePath.isBlank()) return null
-            val path = file.path
-            val normalizedBase = basePath.trimEnd('/', '\\')
-            val relative = when {
-                path == normalizedBase -> ""
-                path.startsWith("$normalizedBase/") -> path.substring(normalizedBase.length + 1)
-                path.startsWith("$normalizedBase\\") -> path.substring(normalizedBase.length + 1).replace('\\', '/')
-                else -> return null
-            }
-            return Platform.normalizePath(relative)
         }
 
         fun blameGutterTooltipText(entry: LineBlame): String =

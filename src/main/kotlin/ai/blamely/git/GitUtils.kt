@@ -149,6 +149,21 @@ object GitUtils {
         repoRootCache.clear()
     }
 
+    /**
+     * Canonical absolute-path key for the in-memory BlameMap. Unlike repo-relative
+     * paths — which collide across repos (backend/src/index.ts and frontend/src/index.ts
+     * both reduce to "src/index.ts") — an absolute path is unambiguous, so a project
+     * spanning several git repos can store every file's blame in one map. Canonicalized
+     * so the producer (repoRoot + relPath) and the gutter (VirtualFile.path) agree even
+     * when the repo lives under a symlinked path.
+     */
+    fun blameKey(absolutePath: String): String =
+        try {
+            Platform.normalizePath(File(absolutePath).canonicalFile.path)
+        } catch (_: Exception) {
+            Platform.normalizePath(absolutePath)
+        }
+
     /** Path relative to git repo root (matches oobeya-cli / daemon `file_path` keys). */
     fun toRepoRelativePath(repoRoot: String, absolutePath: String): String? {
         if (repoRoot.isBlank() || absolutePath.isBlank()) return null

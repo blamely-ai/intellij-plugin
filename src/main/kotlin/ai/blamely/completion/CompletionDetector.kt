@@ -164,7 +164,7 @@ class CompletionDetector(private val project: Project) : Disposable {
     // gutter icon appear on the frame after the Tab-accept, bypassing the
     // CliDataService 2-second background refresh cycle entirely.
     private fun pushImmediateBlame(
-        relPath: String,
+        pathKey: String,
         startLine: Int,
         endLine: Int,
         tool: String,
@@ -174,7 +174,7 @@ class CompletionDetector(private val project: Project) : Disposable {
             if (project.isDisposed) return@invokeLater
             val blameService = project.getService(BlameMapService::class.java) ?: return@invokeLater
             val blameMap = blameService.blameMap
-            val existing = blameMap.getBlame(relPath).toMutableList()
+            val existing = blameMap.getBlame(pathKey).toMutableList()
             val now = java.time.Instant.now().toString()
             for (ln in startLine..endLine) {
                 existing.removeAll { it.lineNumber == ln }
@@ -190,7 +190,7 @@ class CompletionDetector(private val project: Project) : Disposable {
                     )
                 )
             }
-            blameMap.setFileBlame(relPath, existing)
+            blameMap.setFileBlame(pathKey, existing)
             // Mark this paint so an in-flight CliDataService.refresh() (whose data
             // predates this completion) skips its clear+rebuild and doesn't flip
             // the gutter AI→Human→AI.
@@ -199,7 +199,7 @@ class CompletionDetector(private val project: Project) : Disposable {
             // after daemon.send() returns 204, but the daemon may not have committed
             // this row to SQLite yet. Register the accepted lines so refresh() re-asserts
             // them as AI until the row is persisted (then it clears them).
-            blameService.markPendingAiLines(relPath, startLine..endLine, tool, null, genType)
+            blameService.markPendingAiLines(pathKey, startLine..endLine, tool, null, genType)
             project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
         }
     }
@@ -262,12 +262,22 @@ class CompletionDetector(private val project: Project) : Disposable {
         // history aren't fresh authorship. content_sha re-attributes them after.
         if (GitUtils.inProgressGitOp(repoRoot)) return
 
-        // Only handle files whose git root matches this project. Without this
-        // check every open project's CompletionDetector handles the same event,
-        // producing duplicate daemon records.
-        val projectRoot = GitUtils.getRepoRoot(project)
-        
-        if (projectRoot != null && repoRoot != projectRoot) return
+        // Only handle files that belong to THIS project (under one of its content
+        // roots). Without this check every open project's CompletionDetector handles
+        // the same event, producing duplicate daemon records. A strict
+        // repoRoot == getRepoRoot(project) check would wrongly drop files in the
+        // project's OTHER repos — e.g. a parent folder opened with backend/ and
+        // frontend/ as separate content roots, each its own git repo (and a parent
+        // dir that is itself not a repo, so getRepoRoot(project) matches neither).
+        val inProject = try {
+            ApplicationManager.getApplication().runReadAction<Boolean> {
+                !project.isDisposed &&
+                    com.intellij.openapi.roots.ProjectFileIndex.getInstance(project).isInContent(vFile)
+            }
+        } catch (_: Exception) {
+            false
+        }
+        if (!inProject) return
 
         if (GitUtils.toRepoRelativePath(repoRoot, absPath) == null) return
 
@@ -318,7 +328,7 @@ class CompletionDetector(private val project: Project) : Disposable {
             // refresh cycle runs. This makes the AI icon appear instantly on
             // Tab-accept instead of waiting up to 2 seconds for the next
             // CliDataService.refresh() poll.
-            pushImmediateBlame(relPath, band.first, band.second, tool, genType)
+            pushImmediateBlame(GitUtils.blameKey(absPath), band.first, band.second, tool, genType)
 
             if (daemon.send(payload)) {
                 // Save THIS document, then refresh — in that order. The authoritative
