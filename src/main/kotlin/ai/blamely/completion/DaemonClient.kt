@@ -8,7 +8,14 @@ import java.nio.ByteBuffer
 
 // EditPayload mirrors daemon.EditPayload (Go side). Field names match the
 // JSON tags expected by /edit on the blamely daemon.
-data class EditRange(val start: Int, val end: Int, val contentSha: String? = null)
+data class EditRange(
+    val start: Int,
+    val end: Int,
+    val contentSha: String? = null,
+    // Whitespace-normalized hash — lets an AI line still match after a reformat
+    // (reindent/reflow) that changes contentSha but not the collapsed text.
+    val contentShaNorm: String? = null,
+)
 
 data class EditPayload(
     val tool: String,
@@ -213,6 +220,7 @@ private fun encodeJson(p: EditPayload): String {
         sb.append("\"start\":").append(r.start)
         sb.append(",\"end\":").append(r.end)
         r.contentSha?.let { sb.append(",\"content_sha\":").append(quote(it)) }
+        r.contentShaNorm?.let { sb.append(",\"content_sha_norm\":").append(quote(it)) }
         sb.append('}')
     }
     sb.append(']')

@@ -360,8 +360,8 @@ class CompletionDetector(private val project: Project) : Disposable {
             if (idx < 0 || idx >= doc.lineCount) continue
             val s = doc.getLineStartOffset(idx)
             val e = doc.getLineEndOffset(idx)
-            val text = doc.getText(com.intellij.openapi.util.TextRange(s, e))
-            out.add(EditRange(ln, ln, sha256Hex(text.removeSuffix("\r"))))
+            val text = doc.getText(com.intellij.openapi.util.TextRange(s, e)).removeSuffix("\r")
+            out.add(EditRange(ln, ln, sha256Hex(text), sha256HexNorm(text)))
         }
         return out.ifEmpty { listOf(EditRange(startLine, endLine)) }
     }
@@ -533,6 +533,15 @@ internal fun sha256Hex(s: String): String =
     java.security.MessageDigest.getInstance("SHA-256")
         .digest(s.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
+
+// Whitespace-normalized line hash (trim + collapse internal whitespace), matching
+// the daemon's content_sha_norm. Recording it alongside content_sha lets an AI
+// line still attribute to AI after a reformat (reindent/reflow) that changes the
+// exact hash but not the collapsed text. Empty string for blank/whitespace-only.
+internal fun sha256HexNorm(s: String): String {
+    val norm = s.trim().split(Regex("\\s+")).joinToString(" ")
+    return if (norm.isEmpty()) "" else sha256Hex(norm)
+}
 
 // resolveTool maps the host IDE / installed inline-completion plugin onto the
 // store's fixed Tool taxonomy. Copilot and Cursor are independent tools —

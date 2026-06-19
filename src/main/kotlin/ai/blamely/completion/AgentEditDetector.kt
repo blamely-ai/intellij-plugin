@@ -246,9 +246,10 @@ class AgentEditDetector(private val project: Project) : Disposable {
 
         val ranges = ArrayList<EditRange>(changed.size)
         for (ln in changed) {
-            val text = lines.getOrNull(ln - 1) ?: continue
-            if (text.isBlank()) continue
-            ranges.add(EditRange(ln, ln, sha256Hex(text.removeSuffix("\r"))))
+            val raw = lines.getOrNull(ln - 1) ?: continue
+            if (raw.isBlank()) continue
+            val text = raw.removeSuffix("\r")
+            ranges.add(EditRange(ln, ln, sha256Hex(text), sha256HexNorm(text)))
         }
         if (ranges.isEmpty()) return
 
