@@ -518,57 +518,90 @@ class CliDataService(private val project: Project) : Disposable {
         return g == "chat" || g == "cli" || (g == "completion" && hasBoundedRange(row))
     }
 
-    /**
-     * Newest-first SQLite rows: match content_sha for this line before falling
-     * back to line-number ranges, so later whole-file applies do not overwrite
-     * tooltips with the last model for every line.
-     */
-    private fun resolveAiEditForChangedLine(
-        filePath: String,
-        ln: Int,
-        lineText: String,
-        edits: List<CliEditRow>,
-    ): CliEditRow? {
-        val normFile = filePath.replace('\\', '/')
-        val text = lineText.removeSuffix("\r")
-        val hash = lineSha(text)
-        // Prefer exact line-number match so the copy-paste guard doesn't fire for a
-        // line that is genuinely at its recorded position. When multiple edits share
-        // the same content (e.g. `}`), exact-first prevents a newer edit at line 25
-        // from overshadowing the real edit at line 50.
-        var bestRow: CliEditRow? = null
-        var bestDrift = Int.MAX_VALUE
+    // Per-edit occurrence budget. When the SAME content was recorded by several
+    // edits (e.g. a chat that wrote 5 identical lines and a later completion that
+    // wrote 1), each committed copy must be distributed across those edits by
+    // recorded count — otherwise the nearest/newest edit claims them all and the
+    // gutter mislabels them (chat lines shown as completion). Mirrors the daemon's
+    // pickDriftEdit so the gutter agrees with the commit report. Keyed
+    // "$editId:s:$sha" / "$editId:n:$norm".
+    private class Budget(
+        val recorded: MutableMap<String, Int>,
+        val consumed: MutableMap<String, Int> = mutableMapOf(),
+    )
+
+    private fun shaKey(id: Long, sha: String) = "$id:s:$sha"
+    private fun normKey(id: Long, norm: String) = "$id:n:$norm"
+    private fun budgetLeft(b: Budget, key: String) = (b.consumed[key] ?: 0) < (b.recorded[key] ?: 0)
+    private fun consumeBudget(b: Budget, key: String) { b.consumed[key] = (b.consumed[key] ?: 0) + 1 }
+
+    /** Build the per-edit recorded-occurrence budget for one file's attribution candidates. */
+    private fun buildBudget(normFile: String, edits: List<CliEditRow>): Budget {
+        val recorded = mutableMapOf<String, Int>()
         for (row in edits) {
             if (row.filePath.replace('\\', '/') != normFile) continue
             if (!isLineAttributionCandidate(row)) continue
-            val sha = row.contentSha ?: continue
-            if (sha != hash) continue
-            if (row.startLine == ln) return row  // exact match: no drift, no copy-paste ambiguity
-            val drift = kotlin.math.abs(row.startLine - ln)
-            if (drift < bestDrift) { bestDrift = drift; bestRow = row }
+            row.contentSha?.let { recorded[shaKey(row.id, it)] = (recorded[shaKey(row.id, it)] ?: 0) + 1 }
+            row.contentShaNorm?.let { recorded[normKey(row.id, it)] = (recorded[normKey(row.id, it)] ?: 0) + 1 }
         }
-        if (bestRow != null) return bestRow
+        return Budget(recorded)
+    }
 
-        // content_sha_norm fallback: an autoformatter reflowed this line's
-        // whitespace (reindent, trailing whitespace) after the AI wrote it, so its
-        // exact content_sha no longer matches but its whitespace-collapsed
-        // content_sha_norm still does.
+    /** An AI edit that recorded THIS content at THIS exact line. Consumes one occurrence. */
+    private fun pickExactAiEdit(filePath: String, ln: Int, lineText: String, edits: List<CliEditRow>, b: Budget): CliEditRow? {
+        val normFile = filePath.replace('\\', '/')
+        val text = lineText.removeSuffix("\r")
+        val hash = lineSha(text)
+        val normHash = lineShaNorm(text)
+        for (row in edits) {
+            if (row.filePath.replace('\\', '/') != normFile) continue
+            if (!isLineAttributionCandidate(row)) continue
+            if (row.startLine != ln) continue
+            if (row.contentSha != null && row.contentSha == hash) { consumeBudget(b, shaKey(row.id, hash)); return row }
+            if (normHash.isNotEmpty() && row.contentShaNorm != null && row.contentShaNorm == normHash) { consumeBudget(b, normKey(row.id, normHash)); return row }
+        }
+        return null
+    }
+
+    /**
+     * An AI edit whose content matches this line but at a DIFFERENT position (drift).
+     * Prefers an edit that still has an unconsumed occurrence (nearest among those),
+     * so identical content distributes across the edits that recorded it; falls back
+     * to the nearest match overall when every budget is spent.
+     */
+    private fun pickDriftAiEdit(filePath: String, ln: Int, lineText: String, edits: List<CliEditRow>, b: Budget): CliEditRow? {
+        val normFile = filePath.replace('\\', '/')
+        val text = lineText.removeSuffix("\r")
+        val hash = lineSha(text)
+
+        var best: CliEditRow? = null; var bestDrift = Int.MAX_VALUE
+        var budgeted: CliEditRow? = null; var budgetedDrift = Int.MAX_VALUE
+        for (row in edits) {
+            if (row.filePath.replace('\\', '/') != normFile) continue
+            if (!isLineAttributionCandidate(row)) continue
+            if (row.contentSha == null || row.contentSha != hash) continue
+            val drift = kotlin.math.abs(row.startLine - ln)
+            if (drift < bestDrift) { bestDrift = drift; best = row }
+            if (budgetLeft(b, shaKey(row.id, hash)) && drift < budgetedDrift) { budgetedDrift = drift; budgeted = row }
+        }
+        (budgeted ?: best)?.let { consumeBudget(b, shaKey(it.id, hash)); return it }
+
         val normHash = lineShaNorm(text)
         if (normHash.isNotEmpty()) {
-            var bestNormRow: CliEditRow? = null
-            var bestNormDrift = Int.MAX_VALUE
+            var bn: CliEditRow? = null; var bnDrift = Int.MAX_VALUE
+            var bnBudgeted: CliEditRow? = null; var bnBudgetedDrift = Int.MAX_VALUE
             for (row in edits) {
                 if (row.filePath.replace('\\', '/') != normFile) continue
                 if (!isLineAttributionCandidate(row)) continue
-                val sha = row.contentShaNorm ?: continue
-                if (sha != normHash) continue
-                if (row.startLine == ln) return row
+                if (row.contentShaNorm == null || row.contentShaNorm != normHash) continue
                 val drift = kotlin.math.abs(row.startLine - ln)
-                if (drift < bestNormDrift) { bestNormDrift = drift; bestNormRow = row }
+                if (drift < bnDrift) { bnDrift = drift; bn = row }
+                if (budgetLeft(b, normKey(row.id, normHash)) && drift < bnBudgetedDrift) { bnBudgetedDrift = drift; bnBudgeted = row }
             }
-            if (bestNormRow != null) return bestNormRow
+            (bnBudgeted ?: bn)?.let { consumeBudget(b, normKey(it.id, normHash)); return it }
         }
 
+        // Range-only edits (no content_sha) cover a line by range — no content budget.
         for (row in edits) {
             if (row.filePath.replace('\\', '/') != normFile) continue
             if (!isLineAttributionCandidate(row)) continue
@@ -692,13 +725,24 @@ class CliDataService(private val project: Project) : Disposable {
             val lines = try { File(repoRoot, filePath).readLines() } catch (_: Exception) { continue }
             val entries = byFile[filePath]?.toMutableList() ?: mutableListOf()
             var mutated = false
+
+            // Resolve AI attribution with a per-edit occurrence budget so identical
+            // content recorded by several edits is distributed by recorded count
+            // (matching the commit report) instead of all going to the nearest edit.
+            val budget = buildBudget(filePath.replace('\\', '/'), edits)
+            val chosen = HashMap<Int, CliEditRow?>()
+            // Pass 1: exact-position matches — unambiguous; they consume their
+            // occurrence so a drifted duplicate can't steal it in pass 2.
             for (ln in lineNums) {
                 val text = lines.getOrNull(ln - 1) ?: continue
-                val idx = entries.indexOfFirst { it.lineNumber == ln }
-                val existing = if (idx >= 0) entries[idx] else null
-                val pending = blameService.pendingAiLinesFor(filePath)[ln]
-
-                var aiRow = resolveAiEditForChangedLine(filePath, ln, text, edits)
+                val row = pickExactAiEdit(filePath, ln, text, edits, budget)
+                if (row != null) chosen[ln] = row
+            }
+            // Pass 2: drifted lines — budgeted nearest match, then the copy-paste guard.
+            for (ln in lineNums) {
+                if (chosen.containsKey(ln)) continue
+                val text = lines.getOrNull(ln - 1) ?: continue
+                var aiRow = pickDriftAiEdit(filePath, ln, text, edits, budget)
 
                 // Copy-paste guard: content found at a different line than recorded.
                 // If the original position still holds that content, this is a human
@@ -722,6 +766,16 @@ class CliDataService(private val project: Project) : Disposable {
                     }
                     if (origStillAtHome) aiRow = null
                 }
+                chosen[ln] = aiRow
+            }
+
+            for (ln in lineNums) {
+                val text = lines.getOrNull(ln - 1) ?: continue
+                val idx = entries.indexOfFirst { it.lineNumber == ln }
+                val existing = if (idx >= 0) entries[idx] else null
+                val pending = blameService.pendingAiLinesFor(filePath)[ln]
+
+                val aiRow = chosen[ln]
 
                 val entry = when {
                     aiRow != null -> buildLineBlame(repoRoot, filePath, ln, aiRow)
