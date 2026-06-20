@@ -121,8 +121,9 @@ blamely doctor    # full self-check
     <postStartupActivity implementation="ai.blamely.BlamelyDeferredStartupActivity"/>
     <toolWindow id="Blamely" factoryClass="ai.blamely.ui.BlamelyToolWindowFactory"
           secondary="false" anchor="bottom" icon="/icons/toolwindow-ai.svg"/>
-    <statusBarWidgetFactory implementation="ai.blamely.ui.BlamelyStatusBarWidgetFactory" id="Blamely.BlameStatus"/>
-    <statusBarWidgetFactory implementation="ai.blamely.ui.DaemonStatusBarWidgetFactory" id="Blamely.DaemonStatus" order="after Blamely.BlameStatus"/>
+    <!-- Single combined widget (lamp + AI/Human), matching the VS Code status bar.
+         anchor=last keeps it on the right side of the status bar. -->
+    <statusBarWidgetFactory implementation="ai.blamely.ui.BlamelyStatusBarWidgetFactory" id="Blamely.BlameStatus" order="last"/>
   </extensions>
 
   <actions>

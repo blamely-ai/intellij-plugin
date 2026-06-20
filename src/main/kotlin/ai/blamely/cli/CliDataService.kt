@@ -402,26 +402,63 @@ class CliDataService(private val project: Project) : Disposable {
         }
     }
 
+    /**
+     * Content-aware: a `+` line byte-identical to its positionally-paired `-`
+     * line is NOT counted as changed. git emits that pair when a line gains or
+     * loses its trailing newline — the "\ No newline at end of file" transition
+     * when you append a line after a file whose last line had no newline. Without
+     * this, that unchanged last line got a Human gutter icon the moment you
+     * pressed Enter. With --unified=0 git emits all `-` then all `+` lines per
+     * hunk, so they pair positionally: dels[i] ↔ adds[i].
+     */
     private fun getWorkingTreeHumanLines(repoRoot: String): Map<String, List<Int>> {
         val out = GitUtils.run(repoRoot, "diff", "--unified=0", "HEAD") ?: return emptyMap()
         val result = mutableMapOf<String, MutableList<Int>>()
         var currentFile: String? = null
+        val dels = mutableListOf<String>()
+        val adds = mutableListOf<Pair<Int, String>>()
+        var addLine = 0
+
+        fun stripCR(s: String) = s.removeSuffix("\r")
+
+        fun flushHunk() {
+            val file = currentFile
+            if (file != null) {
+                val lines = result.getOrPut(file) { mutableListOf() }
+                val n = minOf(dels.size, adds.size)
+                for (i in adds.indices) {
+                    if (i < n && stripCR(adds[i].second) == stripCR(dels[i])) continue
+                    if (adds[i].first > 0) lines.add(adds[i].first)
+                }
+            }
+            dels.clear()
+            adds.clear()
+        }
+
         for (line in out.lines()) {
             when {
                 line.startsWith("+++ b/") -> {
-                    currentFile = line.removePrefix("+++ b/").replace('\\', '/').trim()
-                    result.getOrPut(currentFile) { mutableListOf() }
+                    flushHunk()
+                    val f = line.removePrefix("+++ b/").replace('\\', '/').trim()
+                    currentFile = f
+                    result.getOrPut(f) { mutableListOf() }
                 }
-                line.startsWith("+++ /dev/null") -> currentFile = null
+                line.startsWith("+++ /dev/null") -> { flushHunk(); currentFile = null }
                 line.startsWith("@@ ") && currentFile != null -> {
-                    val m = Regex("\\+(\\d+)(?:,(\\d+))?").find(line) ?: continue
-                    val start = m.groupValues[1].toIntOrNull() ?: continue
-                    val count = m.groupValues[2].let { if (it.isNotEmpty()) it.toIntOrNull() ?: 1 else 1 }
-                    val lines = result.getOrPut(currentFile) { mutableListOf() }
-                    for (i in 0 until count) if (start + i > 0) lines.add(start + i)
+                    flushHunk()
+                    val m = Regex("\\+(\\d+)(?:,(\\d+))?").find(line)
+                    addLine = m?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                }
+                currentFile != null -> when {
+                    line.startsWith("\\") -> {}       // "\ No newline at end of file"
+                    line.startsWith("---") -> {}      // file header, not a delete
+                    line.startsWith("-") -> dels.add(line.substring(1))
+                    line.startsWith("+++") -> {}      // (handled above; defensive)
+                    line.startsWith("+") -> { adds.add(addLine to line.substring(1)); addLine++ }
                 }
             }
         }
+        flushHunk()
         return result
     }
 
