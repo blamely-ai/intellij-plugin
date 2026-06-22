@@ -53,6 +53,12 @@ class CompletionDetector(private val project: Project) : Disposable {
 
     private val daemon = DaemonClient()
 
+    // Attribution v2: optional sink wired by BlamelyStartupActivity to the
+    // WorkingLogTracker. Called for every classified change (AI + human) with the
+    // full pre/post text; unset → no-op (v2 fully disabled).
+    @Volatile
+    var onEditObserved: ((absPath: String, prevText: String, newText: String, author: ai.blamely.authorship.Author) -> Unit)? = null
+
     @Volatile private var lastClipboardText: String = ""
     @Volatile private var lastClipboardReadMillis: Long = 0
 
@@ -242,6 +248,32 @@ class CompletionDetector(private val project: Project) : Disposable {
         if (inlineAccept) {
             pendingInlineAccept = false
             pendingInlineTimer?.cancel(false)
+        }
+
+        // Attribution v2 (flag-gated in the tracker): hand every classified change
+        // — AI (chat/completion) AND human — to the working-log tracker, with the
+        // full pre/post text as an exact baseline. One point that sees both authors;
+        // never affects the v1 recording below.
+        onEditObserved?.let { hook ->
+            val vf = FileDocumentManager.getInstance().getFile(event.document)
+            if (vf != null && vf.isInLocalFileSystem) {
+                try {
+                    val newFull = event.document.text
+                    val off = event.offset
+                    val nfLen = event.newFragment.length
+                    if (off in 0..newFull.length && off + nfLen <= newFull.length) {
+                        val prevFull = newFull.substring(0, off) + event.oldFragment.toString() +
+                            newFull.substring(off + nfLen)
+                        val author = when {
+                            chatApply -> ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.AI, tool = resolveTool(), genType = "chat")
+                            inlineAccept -> ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.AI, tool = resolveTool(), genType = "completion")
+                            else -> ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.HUMAN, genType = "human")
+                        }
+                        hook(vf.path, prevFull, newFull, author)
+                    }
+                } catch (_: Exception) {
+                }
+            }
         }
 
         // STRICT RULE: only a command/action signal makes an edit AI. No signal

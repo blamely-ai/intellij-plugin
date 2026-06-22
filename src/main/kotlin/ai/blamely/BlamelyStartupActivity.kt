@@ -66,7 +66,15 @@ class BlamelyStartupActivity : ProjectActivity {
         project.getService(ai.blamely.ui.BlameDecorations::class.java)?.refresh()
 
         if (BlamelySettings.getInstance().detectInlineCompletion) {
-            project.getService(CompletionDetector::class.java)?.register()
+            val detector = project.getService(CompletionDetector::class.java)
+            // Attribution v2 (flag-gated in the tracker): feed every classified
+            // change into the working-log tracker. No-op for attribution output
+            // until the Phase 3 flip; safe to wire unconditionally.
+            val workingLog = project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)
+            if (detector != null && workingLog != null) {
+                detector.onEditObserved = { absPath, prev, next, author -> workingLog.onEdit(absPath, prev, next, author) }
+            }
+            detector?.register()
             // Detects Copilot agent-mode / chat file writes (new files + rewrites)
             // that bypass the action system — see AgentEditDetector.
             project.getService(ai.blamely.completion.AgentEditDetector::class.java)?.register()

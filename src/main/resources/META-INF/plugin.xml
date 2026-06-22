@@ -117,6 +117,7 @@ blamely doctor    # full self-check
     <projectService serviceImplementation="ai.blamely.cli.CliDataService"/>
     <projectService serviceImplementation="ai.blamely.ui.BlameDecorations"/>
     <projectService serviceImplementation="ai.blamely.completion.CompletionDetector"/>
+    <projectService serviceImplementation="ai.blamely.authorship.WorkingLogTracker"/>
     <postStartupActivity implementation="ai.blamely.BlamelyStartupActivity"/>
     <postStartupActivity implementation="ai.blamely.BlamelyDeferredStartupActivity"/>
     <toolWindow id="Blamely" factoryClass="ai.blamely.ui.BlamelyToolWindowFactory"

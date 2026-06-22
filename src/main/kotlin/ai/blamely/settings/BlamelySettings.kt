@@ -40,6 +40,15 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
             state.debugDetection = value
         }
 
+    // Experimental Attribution v2: maintain the diff-based working log for
+    // in-editor edits. Writes .git/blamely working-log files only; does not yet
+    // change the gutter or commit note (Phase 3 flip pending). Off by default.
+    var attributionV2: Boolean
+        get() = state.attributionV2
+        set(value) {
+            state.attributionV2 = value
+        }
+
     override fun getState(): State = state
 
     override fun loadState(loaded: State) {
@@ -47,6 +56,7 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
         state.detectInlineCompletion = loaded.detectInlineCompletion
         state.aiTool = loaded.aiTool
         state.debugDetection = loaded.debugDetection
+        state.attributionV2 = loaded.attributionV2
     }
 
     data class State(
@@ -54,6 +64,7 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
         var detectInlineCompletion: Boolean = true,
         var aiTool: String = "auto",
         var debugDetection: Boolean = false,
+        var attributionV2: Boolean = false,
     )
 
     private var state = State()
