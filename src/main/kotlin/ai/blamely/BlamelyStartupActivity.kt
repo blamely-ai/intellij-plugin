@@ -65,6 +65,11 @@ class BlamelyStartupActivity : ProjectActivity {
         CliHealthNotifier(project).start()
         project.getService(ai.blamely.ui.BlameDecorations::class.java)?.refresh()
 
+        // Attribution v2 gutter overlay (flag-gated by blamely.attributionV2; inert
+        // when off). Paints the active editor from `blamely authorship` — the same
+        // working log the commit note flips to (I4).
+        project.getService(ai.blamely.authorship.GutterV2Overlay::class.java)?.activate()
+
         if (BlamelySettings.getInstance().detectInlineCompletion) {
             val detector = project.getService(CompletionDetector::class.java)
             // Attribution v2 (flag-gated in the tracker): feed every classified
