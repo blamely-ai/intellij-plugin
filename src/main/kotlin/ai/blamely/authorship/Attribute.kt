@@ -47,14 +47,24 @@ fun attribute(prior: WorkingLog?, baseline: String, newContent: String, author: 
     val newLines = splitLines(newContent)
     val matched = alignLines(oldLines, newLines)
 
+    // movedFrom[i] = old index a new line was MOVED from (relocated identical
+    // content), or -1.
+    val movedFrom = detectMoves(oldLines, newLines, matched)
+
     val perLine = ArrayList<Author>(newLines.size)
     for (i in newLines.indices) {
         val j = matched[i]
-        perLine.add(if (j >= 0) priorAuthorOr(prior, j + 1) else author)
+        perLine.add(
+            when {
+                j >= 0 -> priorAuthorOr(prior, j + 1)
+                movedFrom[i] >= 0 -> priorAuthorOr(prior, movedFrom[i] + 1)
+                else -> author
+            }
+        )
     }
     // overrode[i] = the author a CHANGED line replaced, when its type differs from
     // the new author (audit marker; does not change who owns the line now).
-    val overrode = detectOverrode(prior, matched, oldLines.size, author)
+    val overrode = detectOverrode(prior, matched, movedFrom, oldLines.size, author)
     return WorkingLog(
         schema = WORKING_LOG_SCHEMA,
         file = prior?.file ?: "",
@@ -63,12 +73,36 @@ fun attribute(prior: WorkingLog?, baseline: String, newContent: String, author: 
     )
 }
 
+/** detectMoves pairs each unmatched NEW line with an unmatched OLD line of identical
+ *  (whitespace-normalized) content — FIFO by content. Identical to the Go and TS
+ *  ports. A new line with no surviving deleted twin is a genuine add (-1). */
+private fun detectMoves(oldLines: List<String>, newLines: List<String>, matched: IntArray): IntArray {
+    val moved = IntArray(newLines.size) { -1 }
+    val oldMatched = BooleanArray(oldLines.size)
+    for (j in matched) if (j >= 0) oldMatched[j] = true
+    val oldN = oldLines.map { normalizeLineForMatch(it) }
+    val newN = newLines.map { normalizeLineForMatch(it) }
+    val queues = HashMap<String, ArrayDeque<Int>>()
+    for (oi in oldLines.indices) {
+        if (!oldMatched[oi]) queues.getOrPut(oldN[oi]) { ArrayDeque() }.addLast(oi)
+    }
+    for (ni in newLines.indices) {
+        if (matched[ni] >= 0) continue
+        val q = queues[newN[ni]]
+        if (q != null && q.isNotEmpty()) moved[ni] = q.removeFirst()
+    }
+    return moved
+}
+
 /** detectOverrode finds replace pairs and records the replaced author when its type
- *  differs from the new author. Walks the LCS alignment gap by gap and pairs
- *  unmatched old/new lines positionally — identical to the Go and TS ports. */
-private fun detectOverrode(prior: WorkingLog?, matched: IntArray, nOld: Int, author: Author): Array<Author?> {
+ *  differs from the new author. Walks the LCS gap by gap and pairs, positionally, the
+ *  NEW lines that are neither matched nor moved against the OLD lines not consumed by
+ *  a move — identical to the Go and TS ports. Moves never override. */
+private fun detectOverrode(prior: WorkingLog?, matched: IntArray, movedFrom: IntArray, nOld: Int, author: Author): Array<Author?> {
     val m = matched.size
     val overrode = arrayOfNulls<Author>(m)
+    val consumedOld = BooleanArray(nOld)
+    for (mf in movedFrom) if (mf >= 0) consumedOld[mf] = true
     var oldCursor = 0
     var i = 0
     while (i < m) {
@@ -80,10 +114,14 @@ private fun detectOverrode(prior: WorkingLog?, matched: IntArray, nOld: Int, aut
         var gapNewEnd = i
         while (gapNewEnd < m && matched[gapNewEnd] < 0) gapNewEnd++
         val gapOldEnd = if (gapNewEnd < m) matched[gapNewEnd] else nOld
+        val newAvail = ArrayList<Int>()
+        val oldAvail = ArrayList<Int>()
+        for (ni in i until gapNewEnd) if (movedFrom[ni] < 0) newAvail.add(ni)
+        for (oi in oldCursor until gapOldEnd) if (!consumedOld[oi]) oldAvail.add(oi)
         var k = 0
-        while (i + k < gapNewEnd && oldCursor + k < gapOldEnd) {
-            val replaced = priorAuthorOr(prior, oldCursor + k + 1)
-            if (replaced.type != author.type) overrode[i + k] = replaced
+        while (k < newAvail.size && k < oldAvail.size) {
+            val replaced = priorAuthorOr(prior, oldAvail[k] + 1)
+            if (replaced.type != author.type) overrode[newAvail[k]] = replaced
             k++
         }
         oldCursor = gapOldEnd
