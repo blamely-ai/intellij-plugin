@@ -40,9 +40,9 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
             state.debugDetection = value
         }
 
-    // Experimental Attribution v2: maintain the diff-based working log for
-    // in-editor edits. Writes .git/blamely working-log files only; does not yet
-    // change the gutter or commit note (Phase 3 flip pending). Off by default.
+    // Attribution v2: determine each line's author from the observed edit
+    // (diff-based working log) instead of content-hash guessing. Drives the gutter
+    // and the committed note. On by default; set false to use the legacy engine.
     var attributionV2: Boolean
         get() = state.attributionV2
         set(value) {
@@ -64,7 +64,7 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
         var detectInlineCompletion: Boolean = true,
         var aiTool: String = "auto",
         var debugDetection: Boolean = false,
-        var attributionV2: Boolean = false,
+        var attributionV2: Boolean = true,
     )
 
     private var state = State()
