@@ -154,6 +154,18 @@ class CliDataService(private val project: Project) : Disposable {
 
     fun refresh() {
         if (project.isDisposed) return
+        // Attribution v2 owns the gutter (GutterV2Overlay). Don't clear/replace the
+        // shared BlameMap here — that timer-driven clobber is what made the v2 gutter
+        // load the previous-commit icons then vanish after a few seconds. Still fire
+        // blameUpdated so GutterV2Overlay re-asserts and BlameDecorations re-reads.
+        if (ai.blamely.settings.BlamelySettings.getInstance().attributionV2) {
+            ApplicationManager.getApplication().invokeLater {
+                if (!project.isDisposed) {
+                    project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
+                }
+            }
+            return
+        }
         ApplicationManager.getApplication().executeOnPooledThread {
             if (project.isDisposed) return@executeOnPooledThread
             // Time this refresh began loading data. If an optimistic AI paint

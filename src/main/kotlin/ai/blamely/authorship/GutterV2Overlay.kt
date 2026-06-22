@@ -34,6 +34,7 @@ import java.io.File
 class GutterV2Overlay(private val project: Project) : Disposable {
     private val alarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, this)
     private val gson = Gson()
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, List<LineBlame>>()
 
     fun activate() {
         val conn = project.messageBus.connect(this)
@@ -41,6 +42,15 @@ class GutterV2Overlay(private val project: Project) : Disposable {
             FileEditorManagerListener.FILE_EDITOR_MANAGER,
             object : FileEditorManagerListener {
                 override fun selectionChanged(event: FileEditorManagerEvent) = schedule()
+            },
+        )
+        // After any blame update (incl. the gated v1 refresh), re-assert the cached
+        // v2 entries so nothing can leave the v2 gutter cleared. Calls refresh()
+        // directly (not the topic), so no re-entry.
+        conn.subscribe(
+            ai.blamely.core.BlameUpdateListener.TOPIC,
+            object : ai.blamely.core.BlameUpdateListener {
+                override fun blameUpdated() = reassert()
             },
         )
         EditorFactory.getInstance().eventMulticaster.addDocumentListener(
@@ -80,9 +90,25 @@ class GutterV2Overlay(private val project: Project) : Disposable {
         val entries = toLineBlame(wl)
         if (entries.isEmpty()) return
         val service = project.getService(BlameMapService::class.java) ?: return
+        cache[GitUtils.blameKey(absPath)] = entries
         service.blameMap.setFileBlame(GitUtils.blameKey(absPath), entries)
         ApplicationManager.getApplication().invokeLater {
             if (!project.isDisposed) project.getService(BlameDecorations::class.java)?.refresh()
+        }
+    }
+
+    /** Re-apply the cached v2 entries for the selected editor (no CLI call), so a
+     *  blame update can't leave the v2 gutter cleared. */
+    private fun reassert() {
+        if (project.isDisposed || !BlamelySettings.getInstance().attributionV2 || cache.isEmpty()) return
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) return@invokeLater
+            val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return@invokeLater
+            val vf = FileDocumentManager.getInstance().getFile(editor.document) ?: return@invokeLater
+            val key = GitUtils.blameKey(vf.path)
+            val entries = cache[key] ?: return@invokeLater
+            project.getService(BlameMapService::class.java)?.blameMap?.setFileBlame(key, entries)
+            project.getService(BlameDecorations::class.java)?.refresh()
         }
     }
 

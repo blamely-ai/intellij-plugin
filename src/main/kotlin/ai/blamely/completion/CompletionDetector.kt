@@ -176,6 +176,9 @@ class CompletionDetector(private val project: Project) : Disposable {
         tool: String,
         genType: String,
     ) {
+        // Attribution v2 owns the gutter (GutterV2Overlay paints from the working
+        // log); this v1 optimistic paint would fight it, so skip when v2 is on.
+        if (ai.blamely.settings.BlamelySettings.getInstance().attributionV2) return
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) return@invokeLater
             val blameService = project.getService(BlameMapService::class.java) ?: return@invokeLater
