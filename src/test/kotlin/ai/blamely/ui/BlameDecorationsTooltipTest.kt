@@ -60,6 +60,22 @@ class BlameDecorationsTooltipTest {
     }
 
     @Test
+    fun `blameGutterTooltipText omits Change Date when timestamp is blank`() {
+        val entry = LineBlame(
+            lineNumber = 3,
+            authorType = LineBlame.AuthorType.AI,
+            provider = "copilot",
+            timestamp = "",
+            aiChars = 10,
+            humanChars = 0
+        )
+        val text = BlameDecorations.blameGutterTooltipText(entry, LineBlame.AuthorType.AI)
+        assertTrue(text.contains("Author: AI"), text)
+        assertTrue(!text.contains("Change Date"), text)
+        assertTrue(!text.contains("Unknown"), text)
+    }
+
+    @Test
     fun `toolDisplayName capitalizes raw provider id`() {
         assertEquals("Codex", BlameDecorations.toolDisplayName("codex"))
         assertEquals("Copilot", BlameDecorations.toolDisplayName("copilot"))

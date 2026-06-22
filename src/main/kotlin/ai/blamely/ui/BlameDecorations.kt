@@ -76,11 +76,11 @@ private fun quotePromptHtml(prompt: String): String {
 
 /** Dimmed footer: localized date  &middot;  short commit sha (mirrors VS Code metaFooter). */
 private fun metaFooterHtml(entry: LineBlame, changedEsc: String, dim: String): String {
-    val sb = StringBuilder("<span style='color:$dim;'>").append(changedEsc)
-    entry.commitSha?.takeIf { it.isNotBlank() }?.let {
-        sb.append("&nbsp;&#183;&nbsp;").append(escHtml(it.take(8)))
-    }
-    return sb.append("</span>").toString()
+    val parts = mutableListOf<String>()
+    if (changedEsc.isNotEmpty()) parts.add(changedEsc) // omitted when the date is unknown
+    entry.commitSha?.takeIf { it.isNotBlank() }?.let { parts.add(escHtml(it.take(8))) }
+    if (parts.isEmpty()) return ""
+    return "<span style='color:$dim;'>" + parts.joinToString("&nbsp;&#183;&nbsp;") + "</span>"
 }
 
 /** Subtle product attribution shown at the bottom of every hover. */
@@ -298,23 +298,24 @@ class BlameDecorations(private val project: Project) : Disposable {
             displayAs: LineBlame.AuthorType,
             relativePath: String?
         ): String {
-            val changed = formatBlameChangedDate(entry.timestamp)
-            return when (displayAs) {
-                LineBlame.AuthorType.AI -> buildString {
-                    appendLine("Author: AI")
-                    entry.provider?.takeIf { it.isNotBlank() }?.let {
-                        appendLine("Tool: ${toolDisplayName(it)}")
-                    }
-                    entry.model?.takeIf { it.isNotBlank() }?.let {
-                        appendLine("Model: $it")
-                    }
-                    append("Change Date: $changed")
+            // Only show the change date when present; an empty timestamp would
+            // otherwise render a noisy "Change Date: Unknown" line.
+            val changed = entry.timestamp.trim().takeIf { it.isNotEmpty() }
+                ?.let { formatBlameChangedDate(entry.timestamp) }
+            val lines = mutableListOf<String>()
+            when (displayAs) {
+                LineBlame.AuthorType.AI -> {
+                    lines.add("Author: AI")
+                    entry.provider?.takeIf { it.isNotBlank() }?.let { lines.add("Tool: ${toolDisplayName(it)}") }
+                    entry.model?.takeIf { it.isNotBlank() }?.let { lines.add("Model: $it") }
+                    if (changed != null) lines.add("Change Date: $changed")
                 }
-                LineBlame.AuthorType.HUMAN -> buildString {
-                    appendLine("Author: Human")
-                    append("Change Date: $changed")
+                LineBlame.AuthorType.HUMAN -> {
+                    lines.add("Author: Human")
+                    if (changed != null) lines.add("Change Date: $changed")
                 }
             }
+            return lines.joinToString("\n")
         }
 
         /**
@@ -326,7 +327,8 @@ class BlameDecorations(private val project: Project) : Disposable {
          */
         fun blameGutterTooltipHtml(entry: LineBlame, displayAs: LineBlame.AuthorType): String {
             val dim = dimHex()
-            val changed = escHtml(formatBlameChangedDate(entry.timestamp))
+            val changed = entry.timestamp.trim().takeIf { it.isNotEmpty() }
+                ?.let { escHtml(formatBlameChangedDate(entry.timestamp)) } ?: ""
             val sb = StringBuilder("<html><body style='white-space:normal;font-size:11pt;'>")
             when (displayAs) {
                 LineBlame.AuthorType.AI -> {
