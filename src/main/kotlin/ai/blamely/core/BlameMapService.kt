@@ -92,9 +92,9 @@ class BlameMapService(val project: Project) {
          *  its chat-session log and the daemon's watcher reads it, which can lag the
          *  on-screen edit by tens of seconds — so keep the loading state that whole
          *  window instead of flashing Human first. Re-armed on each streamed chunk.
-         *  10s: Copilot Chat is now recorded in real time (transcript watcher) and
+         *  5s: Copilot Chat is now recorded in real time (transcript watcher) and
          *  Cursor/Copilot-CLI via hooks, so this only bridges the short watcher
          *  latency, not the old lazy-flush lag. */
-        const val PENDING_AI_TTL_MS: Long = 10_000
+        const val PENDING_AI_TTL_MS: Long = 5_000
     }
 }

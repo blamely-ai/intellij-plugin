@@ -33,23 +33,59 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import javax.swing.Icon
 
-/** Plain tooltip lines → HTML so gutter hovers render reliably (newlines + indexing dumb-mode path). */
-private fun gutterTooltipHtml(plain: String): String {
-    if (plain.isEmpty()) return ""
-    val body = buildString(plain.length + plain.count { it == '\n' } * 5) {
-        for (c in plain) {
-            when (c) {
-                '&' -> append("&amp;")
-                '<' -> append("&lt;")
-                '>' -> append("&gt;")
-                '"' -> append("&quot;")
-                '\n' -> append("<br/>")
-                else -> append(c)
-            }
-        }
-    }
-    return "<html><body style='white-space:normal;font-size:11pt;'>$body</body></html>"
+// Per-tool brand colors, matching the VS Code hover (BlameDecorations.ts) and the
+// HTML report. Concrete hex — Swing tooltip HTML has no CSS variables; chosen to
+// read on both light and dark IDE themes (Cursor's near-white brand → legible blue).
+private val TOOL_BRAND_COLORS = mapOf(
+    "claude" to "#d97757",
+    "cursor" to "#7aa2f7",
+    "codex" to "#10a37f",
+    "copilot" to "#a371f7",
+    "gemini" to "#4f9cf0",
+)
+private const val HUMAN_COLOR = "#56a064"
+
+private fun toolBrandColor(provider: String?): String =
+    TOOL_BRAND_COLORS[provider?.trim()?.lowercase()] ?: "#589df6"
+
+/** Theme-aware dim color for secondary text (model chip, footer, branding). */
+private fun dimHex(): String = try {
+    val c = com.intellij.util.ui.UIUtil.getContextHelpForeground()
+    String.format("#%02x%02x%02x", c.red, c.green, c.blue)
+} catch (_: Throwable) {
+    "#808080"
 }
+
+/** Inline-HTML escape (no newline handling — used inside the rich hover spans). */
+private fun escHtml(s: String): String = buildString(s.length) {
+    for (c in s) when (c) {
+        '&' -> append("&amp;")
+        '<' -> append("&lt;")
+        '>' -> append("&gt;")
+        '"' -> append("&quot;")
+        else -> append(c)
+    }
+}
+
+/** Prompt → escaped, trimmed, truncated, curly-quoted body for the hover. */
+private fun quotePromptHtml(prompt: String): String {
+    val clean = escHtml(prompt.trim())
+    val short = if (clean.length > 220) clean.substring(0, 220) + "…" else clean
+    return "&#8220;$short&#8221;"
+}
+
+/** Dimmed footer: localized date  &middot;  short commit sha (mirrors VS Code metaFooter). */
+private fun metaFooterHtml(entry: LineBlame, changedEsc: String, dim: String): String {
+    val sb = StringBuilder("<span style='color:$dim;'>").append(changedEsc)
+    entry.commitSha?.takeIf { it.isNotBlank() }?.let {
+        sb.append("&nbsp;&#183;&nbsp;").append(escHtml(it.take(8)))
+    }
+    return sb.append("</span>").toString()
+}
+
+/** Subtle product attribution shown at the bottom of every hover. */
+private fun brandLineHtml(dim: String): String =
+    "<span style='color:$dim;'>Provided by <b>Blamely</b></span>"
 
 /**
  * Document-line gutter icons for AI/Human blame (**VS Code `BlameDecorations.ts` parity**).
@@ -202,6 +238,7 @@ class BlameDecorations(private val project: Project) : Disposable {
                 )
             }
             val tooltip = blameGutterTooltipText(entry, displayAs, path)
+            val tooltipHtml = blameGutterTooltipHtml(entry, displayAs)
 
             val hl = markup.addRangeHighlighter(
                 start,
@@ -210,7 +247,7 @@ class BlameDecorations(private val project: Project) : Disposable {
                 null,
                 HighlighterTargetArea.LINES_IN_RANGE
             )
-            hl.gutterIconRenderer = BlameLineGutterRenderer(icon, tooltip, entry.lineNumber, displayAs)
+            hl.gutterIconRenderer = BlameLineGutterRenderer(icon, tooltip, tooltipHtml, entry.lineNumber, displayAs)
             created.add(hl)
         }
     }
@@ -229,11 +266,12 @@ class BlameDecorations(private val project: Project) : Disposable {
     private class BlameLineGutterRenderer(
         private val myIcon: Icon,
         private val tooltip: String,
+        private val tooltipHtml: String,
         private val line: Int,
         private val authorType: LineBlame.AuthorType
     ) : GutterIconRenderer(), DumbAware {
         override fun getIcon(): Icon = myIcon
-        override fun getTooltipText(): String = gutterTooltipHtml(tooltip)
+        override fun getTooltipText(): String = tooltipHtml
         override fun getAlignment(): Alignment = Alignment.LEFT
         override fun equals(other: Any?): Boolean {
             if (other !is BlameLineGutterRenderer) return false
@@ -277,6 +315,42 @@ class BlameDecorations(private val project: Project) : Disposable {
                     append("Change Date: $changed")
                 }
             }
+        }
+
+        /**
+         * Rich gutter hover, ported from the VS Code extension (`BlameDecorations.ts`
+         * `blameGutterHoverMessage`): a brand-colored tool title with the model as a
+         * dim secondary chip, the prompt as a quote, a dim date · commit footer, and a
+         * dim "Provided by Blamely" line. Swing tooltip HTML is 3.2 — inline `color`,
+         * `<b>`, `<br>`, and numeric entities only (no CSS variables or codicons).
+         */
+        fun blameGutterTooltipHtml(entry: LineBlame, displayAs: LineBlame.AuthorType): String {
+            val dim = dimHex()
+            val changed = escHtml(formatBlameChangedDate(entry.timestamp))
+            val sb = StringBuilder("<html><body style='white-space:normal;font-size:11pt;'>")
+            when (displayAs) {
+                LineBlame.AuthorType.AI -> {
+                    val color = toolBrandColor(entry.provider)
+                    val tool = entry.provider?.takeIf { it.isNotBlank() }
+                        ?.let { escHtml(toolDisplayName(it)) } ?: "AI"
+                    sb.append("<span style='color:$color;'>&#10022;&nbsp;<b>$tool</b></span>")
+                    entry.model?.takeIf { it.isNotBlank() }?.let {
+                        sb.append("&nbsp;&nbsp;<span style='color:$dim;'>${escHtml(it)}</span>")
+                    }
+                    sb.append("<br/>")
+                    entry.prompt?.takeIf { it.isNotBlank() }?.let {
+                        sb.append("<div style='color:$dim;padding:2px 0;'>${quotePromptHtml(it)}</div>")
+                    }
+                    sb.append(metaFooterHtml(entry, changed, dim)).append("<br/>")
+                    sb.append(brandLineHtml(dim))
+                }
+                LineBlame.AuthorType.HUMAN -> {
+                    sb.append("<span style='color:$HUMAN_COLOR;'>&#9679;&nbsp;<b>Human</b></span><br/>")
+                    sb.append(metaFooterHtml(entry, changed, dim)).append("<br/>")
+                    sb.append(brandLineHtml(dim))
+                }
+            }
+            return sb.append("</body></html>").toString()
         }
 
         /** Raw provider id (e.g. `codex`, `copilot`) → display label for gutter hover (e.g. `Codex`, `Copilot`). */

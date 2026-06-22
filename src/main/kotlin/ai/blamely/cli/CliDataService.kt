@@ -600,13 +600,24 @@ class CliDataService(private val project: Project) : Disposable {
         return null
     }
 
+    /** A drift match plus whether it consumed a real recorded occurrence (budgeted)
+     *  or fell back to the nearest match after the budget was exhausted. The
+     *  copy-paste guard only fires on the latter. */
+    private data class DriftMatch(val row: CliEditRow, val budgeted: Boolean)
+
     /**
      * An AI edit whose content matches this line but at a DIFFERENT position (drift).
      * Prefers an edit that still has an unconsumed occurrence (nearest among those),
      * so identical content distributes across the edits that recorded it; falls back
      * to the nearest match overall when every budget is spent.
+     *
+     * Returns budgeted=true when the match consumed a real, unconsumed recorded
+     * occurrence — the AI genuinely wrote this many copies of the content — and
+     * budgeted=false when every occurrence was already spent and we fell back to
+     * the nearest match (a candidate for the copy-paste guard). Range-only matches
+     * (no content_sha) report budgeted=true: covered by range, not a content budget.
      */
-    private fun pickDriftAiEdit(filePath: String, ln: Int, lineText: String, edits: List<CliEditRow>, b: Budget): CliEditRow? {
+    private fun pickDriftAiEdit(filePath: String, ln: Int, lineText: String, edits: List<CliEditRow>, b: Budget): DriftMatch? {
         val normFile = filePath.replace('\\', '/')
         val text = lineText.removeSuffix("\r")
         val hash = lineSha(text)
@@ -621,7 +632,8 @@ class CliDataService(private val project: Project) : Disposable {
             if (drift < bestDrift) { bestDrift = drift; best = row }
             if (budgetLeft(b, shaKey(row.id, hash)) && drift < budgetedDrift) { budgetedDrift = drift; budgeted = row }
         }
-        (budgeted ?: best)?.let { consumeBudget(b, shaKey(it.id, hash)); return it }
+        budgeted?.let { consumeBudget(b, shaKey(it.id, hash)); return DriftMatch(it, true) }
+        best?.let { consumeBudget(b, shaKey(it.id, hash)); return DriftMatch(it, false) }
 
         val normHash = lineShaNorm(text)
         if (normHash.isNotEmpty()) {
@@ -635,7 +647,8 @@ class CliDataService(private val project: Project) : Disposable {
                 if (drift < bnDrift) { bnDrift = drift; bn = row }
                 if (budgetLeft(b, normKey(row.id, normHash)) && drift < bnBudgetedDrift) { bnBudgetedDrift = drift; bnBudgeted = row }
             }
-            (bnBudgeted ?: bn)?.let { consumeBudget(b, normKey(it.id, normHash)); return it }
+            bnBudgeted?.let { consumeBudget(b, normKey(it.id, normHash)); return DriftMatch(it, true) }
+            bn?.let { consumeBudget(b, normKey(it.id, normHash)); return DriftMatch(it, false) }
         }
 
         // Range-only edits (no content_sha) cover a line by range — no content budget.
@@ -645,7 +658,7 @@ class CliDataService(private val project: Project) : Disposable {
             if (row.contentSha != null) continue
             if (!rowCoversLine(row, ln)) continue
             if (!isIndexableLineRange(row)) continue
-            return row
+            return DriftMatch(row, true)
         }
         return null
     }
@@ -694,6 +707,12 @@ class CliDataService(private val project: Project) : Disposable {
                 continue
             }
             val entries = byFile[norm]?.toMutableList() ?: mutableListOf()
+            // Per-content occurrence budget (mirrors VS Code CliDataService): a shifted
+            // duplicate is a REAL drifted AI line while the recorded copies last; only
+            // copies BEYOND the recorded count are human copies. Without this, a run of
+            // identical AI lines partly shifted by a human insert (e.g. 5 lines pushed
+            // down 2) splits into AI + Human, disagreeing with the commit note.
+            val shaConsumed = mutableMapOf<String, Int>()
             var mutated = false
             for (ln in lines.indices) {
                 val lineNumber = ln + 1
@@ -704,7 +723,10 @@ class CliDataService(private val project: Project) : Disposable {
                 // Pass 1: exact position + content confirmation.
                 val exactRow = byLine[lineNumber]
                 val row: CliEditRow? = when {
-                    exactRow != null && sha == exactRow.contentSha -> exactRow
+                    exactRow != null && sha == exactRow.contentSha -> {
+                        shaConsumed[sha] = (shaConsumed[sha] ?: 0) + 1
+                        exactRow
+                    }
                     exactRow?.contentShaNorm != null &&
                         lineShaNorm(text.removeSuffix("\r")) == exactRow.contentShaNorm -> {
                         // Autoformatter reflowed this line's whitespace (reindent,
@@ -719,14 +741,26 @@ class CliDataService(private val project: Project) : Disposable {
                         // closest one is the most likely origin of the drifted line.
                         val candidates = bySha[sha]
                         val driftRow = candidates?.minByOrNull { kotlin.math.abs(it.startLine - lineNumber) }
-                        if (driftRow != null) {
-                            val drift = kotlin.math.abs(lineNumber - driftRow.startLine)
-                            if (drift <= MAX_CONTENT_SHA_DRIFT) {
+                        if (driftRow != null && kotlin.math.abs(lineNumber - driftRow.startLine) <= MAX_CONTENT_SHA_DRIFT) {
+                            val used = shaConsumed[sha] ?: 0
+                            if (used < (candidates?.size ?: 0)) {
+                                // Genuine recorded occurrence, just shifted — attribute it
+                                // and skip the copy-paste guard (which would wrongly reject
+                                // a real duplicate whose recorded home still holds a copy).
+                                shaConsumed[sha] = used + 1
+                                driftRow
+                            } else {
+                                // Budget exhausted: a copy beyond the recorded count. If the
+                                // recorded position still holds the content, it's a human
+                                // copy, not a drift → leave Human.
                                 val origIdx = driftRow.startLine - 1
                                 val origStillAtHome = origIdx in lines.indices &&
                                     lineSha(lines[origIdx].removeSuffix("\r")) == sha
-                                if (!origStillAtHome) driftRow else null
-                            } else null
+                                if (!origStillAtHome) {
+                                    shaConsumed[sha] = used + 1
+                                    driftRow
+                                } else null
+                            }
                         } else null
                     }
                     else -> null
@@ -779,17 +813,27 @@ class CliDataService(private val project: Project) : Disposable {
             for (ln in lineNums) {
                 if (chosen.containsKey(ln)) continue
                 val text = lines.getOrNull(ln - 1) ?: continue
-                var aiRow = pickDriftAiEdit(filePath, ln, text, edits, budget)
+                val drift = pickDriftAiEdit(filePath, ln, text, edits, budget)
+                var aiRow = drift?.row
 
                 // Copy-paste guard: content found at a different line than recorded.
                 // If the original position still holds that content, this is a human
                 // copy — not the AI line drifting. Clear aiRow so it shows Human.
+                //
+                // Skip the guard when the match was a BUDGETED occurrence: the AI
+                // genuinely recorded this many copies of the content (e.g. it wrote 5
+                // identical lines), so a duplicate that shifted is a real AI line, not
+                // a human copy. Firing the guard there splits a run of identical AI
+                // lines into AI+Human and disagrees with the commit note (which rations
+                // the same drift budget). The guard is only for copies BEYOND the
+                // recorded count — when every occurrence is spent and we fell back to
+                // the nearest match (drift.budgeted == false).
                 // matchedByNorm distinguishes a content_sha_norm drift match (e.g. an
                 // autoformatter-reflowed AI line whose shape was duplicated elsewhere)
                 // from a content_sha exact drift match, so the guard re-checks the
                 // recorded position with the SAME hash that produced the match.
                 val row = aiRow
-                if (row != null && row.startLine != ln) {
+                if (row != null && drift != null && !drift.budgeted && row.startLine != ln) {
                     val lineHash = lineSha(text.removeSuffix("\r"))
                     val lineNormHash = lineShaNorm(text.removeSuffix("\r"))
                     val matchedByNorm = row.contentSha != lineHash && row.contentShaNorm == lineNormHash
