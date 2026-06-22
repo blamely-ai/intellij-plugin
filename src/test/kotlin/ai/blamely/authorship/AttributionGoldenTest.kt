@@ -20,6 +20,7 @@ class AttributionGoldenTest {
         @SerializedName("new") val newContent: String,
         val author: AuthorSpec,
         val expect: List<String>,
+        @SerializedName("expect_overrode") val expectOverrode: List<String?>? = null,
     )
     private data class PriorRange(val start: Int, val end: Int, val author: String)
     private data class AuthorSpec(val author: String, val tool: String?, @SerializedName("gen_type") val genType: String?)
@@ -30,6 +31,19 @@ class AttributionGoldenTest {
             var ln = r.start
             while (ln <= r.end && ln <= n) {
                 out[ln - 1] = r.author.type.wire
+                ln++
+            }
+        }
+        return out
+    }
+
+    private fun overrodeTypesByLine(wl: WorkingLog, n: Int): List<String?> {
+        val out = MutableList<String?>(n) { null }
+        for (r in wl.lines) {
+            val ov = r.overrode ?: continue
+            var ln = r.start
+            while (ln <= r.end && ln <= n) {
+                out[ln - 1] = ov.type.wire
                 ln++
             }
         }
@@ -58,6 +72,9 @@ class AttributionGoldenTest {
                 val wl = attribute(prior, c.baseline, c.newContent, author)
                 val got = typesByLine(wl, c.expect.size)
                 assertEquals(c.expect, got, "case ${c.name}")
+                c.expectOverrode?.let { want ->
+                    assertEquals(want, overrodeTypesByLine(wl, want.size), "case ${c.name} overrode")
+                }
             }
         }
     }

@@ -24,7 +24,9 @@ data class Author(
     val session: String = "",
 )
 
-data class LineAttribution(val start: Int, val end: Int, val author: Author)
+// overrode records the author a changed line replaced (audit marker); null when
+// the line was not an override.
+data class LineAttribution(val start: Int, val end: Int, val author: Author, val overrode: Author? = null)
 
 data class WorkingLog(
     val schema: String = WORKING_LOG_SCHEMA,
@@ -50,12 +52,44 @@ fun attribute(prior: WorkingLog?, baseline: String, newContent: String, author: 
         val j = matched[i]
         perLine.add(if (j >= 0) priorAuthorOr(prior, j + 1) else author)
     }
+    // overrode[i] = the author a CHANGED line replaced, when its type differs from
+    // the new author (audit marker; does not change who owns the line now).
+    val overrode = detectOverrode(prior, matched, oldLines.size, author)
     return WorkingLog(
         schema = WORKING_LOG_SCHEMA,
         file = prior?.file ?: "",
         baseSha = prior?.baseSha ?: "",
-        lines = coalesce(perLine),
+        lines = coalesce(perLine, overrode),
     )
+}
+
+/** detectOverrode finds replace pairs and records the replaced author when its type
+ *  differs from the new author. Walks the LCS alignment gap by gap and pairs
+ *  unmatched old/new lines positionally — identical to the Go and TS ports. */
+private fun detectOverrode(prior: WorkingLog?, matched: IntArray, nOld: Int, author: Author): Array<Author?> {
+    val m = matched.size
+    val overrode = arrayOfNulls<Author>(m)
+    var oldCursor = 0
+    var i = 0
+    while (i < m) {
+        if (matched[i] >= 0) {
+            oldCursor = matched[i] + 1
+            i++
+            continue
+        }
+        var gapNewEnd = i
+        while (gapNewEnd < m && matched[gapNewEnd] < 0) gapNewEnd++
+        val gapOldEnd = if (gapNewEnd < m) matched[gapNewEnd] else nOld
+        var k = 0
+        while (i + k < gapNewEnd && oldCursor + k < gapOldEnd) {
+            val replaced = priorAuthorOr(prior, oldCursor + k + 1)
+            if (replaced.type != author.type) overrode[i + k] = replaced
+            k++
+        }
+        oldCursor = gapOldEnd
+        i = gapNewEnd
+    }
+    return overrode
 }
 
 private fun priorAuthorOr(prior: WorkingLog?, line: Int): Author {
@@ -125,17 +159,18 @@ private fun alignLines(oldLines: List<String>, newLines: List<String>): IntArray
     return matched
 }
 
-private fun coalesce(perLine: List<Author>): List<LineAttribution> {
+private fun coalesce(perLine: List<Author>, overrode: Array<Author?>): List<LineAttribution> {
     val out = ArrayList<LineAttribution>()
     for (idx in perLine.indices) {
         val ln = idx + 1
         val a = perLine[idx]
+        val ov = overrode[idx]
         val last = out.lastOrNull()
-        if (last != null && last.end == ln - 1 && last.author == a) {
+        if (last != null && last.end == ln - 1 && last.author == a && last.overrode == ov) {
             out[out.size - 1] = last.copy(end = ln)
             continue
         }
-        out.add(LineAttribution(ln, ln, a))
+        out.add(LineAttribution(ln, ln, a, ov))
     }
     return out
 }

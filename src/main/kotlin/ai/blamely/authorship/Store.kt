@@ -141,7 +141,8 @@ object WorkingLogStore {
             schema = schema, file = file, baseSha = baseSha,
             lines = lines.map {
                 LineAttribution(it.start, it.end,
-                    Author(AuthorType.fromWire(it.author), it.tool ?: "", it.model ?: "", it.genType ?: "", it.session ?: ""))
+                    Author(AuthorType.fromWire(it.author), it.tool ?: "", it.model ?: "", it.genType ?: "", it.session ?: ""),
+                    it.overrode?.toAuthor())
             },
         )
 
@@ -155,6 +156,7 @@ object WorkingLogStore {
                         la.start, la.end, la.author.type.wire,
                         la.author.tool.ifEmpty { null }, la.author.model.ifEmpty { null },
                         la.author.genType.ifEmpty { null }, la.author.session.ifEmpty { null },
+                        la.overrode?.let { AuthorWire.fromAuthor(it) },
                     )
                 },
             )
@@ -169,5 +171,26 @@ object WorkingLogStore {
         val model: String? = null,
         @SerializedName("gen_type") val genType: String? = null,
         val session: String? = null,
+        val overrode: AuthorWire? = null,
     )
+
+    // AuthorWire is the nested object the `overrode` marker serializes as — the same
+    // flat shape Go's Author uses ({author, tool, model, gen_type, session}).
+    private data class AuthorWire(
+        val author: String,
+        val tool: String? = null,
+        val model: String? = null,
+        @SerializedName("gen_type") val genType: String? = null,
+        val session: String? = null,
+    ) {
+        fun toAuthor(): Author =
+            Author(AuthorType.fromWire(author), tool ?: "", model ?: "", genType ?: "", session ?: "")
+
+        companion object {
+            fun fromAuthor(a: Author): AuthorWire = AuthorWire(
+                a.type.wire, a.tool.ifEmpty { null }, a.model.ifEmpty { null },
+                a.genType.ifEmpty { null }, a.session.ifEmpty { null },
+            )
+        }
+    }
 }
