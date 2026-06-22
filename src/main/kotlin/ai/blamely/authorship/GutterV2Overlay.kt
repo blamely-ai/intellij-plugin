@@ -100,7 +100,6 @@ class GutterV2Overlay(private val project: Project) : Disposable {
         if (!File(bin).exists()) return null
         return try {
             val pb = ProcessBuilder(bin, "authorship", absPath)
-            pb.environment()["BLAMELY_ATTRIBUTION_V2"] = "1"
             val proc = pb.start()
             val out = proc.inputStream.bufferedReader().readText().trim()
             if (proc.waitFor() != 0 || out.isEmpty()) return null

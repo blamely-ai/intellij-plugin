@@ -85,7 +85,6 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
             val pb = ProcessBuilder(args)
                 .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
-            pb.environment()["BLAMELY_ATTRIBUTION_V2"] = "1"
             val p = pb.start()
             p.outputStream.use { it.write(content.toByteArray()); it.flush() }
         } catch (_: Exception) {
