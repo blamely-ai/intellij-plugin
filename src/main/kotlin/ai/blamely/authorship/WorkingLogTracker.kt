@@ -41,6 +41,28 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
         }
     }
 
+    /** Flush every tracked file immediately (e.g. on IDE focus loss, before a commit
+     *  reads the working log). Runs on the worklog executor for map safety. */
+    fun flushAll() {
+        exec.submit {
+            for (path in trackers.keys.toList()) {
+                flushTasks.remove(path)?.cancel(false)
+                flush(path)
+            }
+        }
+    }
+
+    /** A commit moved HEAD: the just-committed edits are now history. Drop the
+     *  in-memory trackers so the next edit re-baselines against the committed content
+     *  instead of accumulating against a stale baseline. */
+    fun onHeadChanged() {
+        exec.submit {
+            flushTasks.values.forEach { it.cancel(false) }
+            flushTasks.clear()
+            trackers.clear()
+        }
+    }
+
     private fun flush(absPath: String) {
         try {
             val ft = trackers[absPath] ?: return
@@ -76,6 +98,8 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
     }
 
     companion object {
-        private const val FLUSH_DEBOUNCE_MS = 1200L
+        // Short, so a Tab-accept immediately followed by a commit is persisted before
+        // the commit reads the working log.
+        private const val FLUSH_DEBOUNCE_MS = 400L
     }
 }

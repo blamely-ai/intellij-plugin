@@ -9,11 +9,13 @@ import ai.blamely.settings.BlamelySettings
 import ai.blamely.ui.BlamelyStatusBarWidget
 import ai.blamely.utils.BlamelyLogger
 import ai.blamely.utils.BlamelyPluginInfo
+import com.intellij.openapi.application.ApplicationActivationListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.openapi.wm.IdeFrame
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.util.Alarm
 
@@ -96,9 +98,16 @@ class BlamelyStartupActivity : ProjectActivity {
                     val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath
                     val head = repoRoot?.let { GitUtils.run(it, "rev-parse", "HEAD") }
                     if (head != null && head != lastHead) {
+                        val wasInitial = lastHead == null
                         lastHead = head
                         project.getService(CliDataService::class.java)?.refresh()
                         refreshUi(project)
+                        // A real commit (not the first observation) → drop the trackers'
+                        // in-memory edits so the next edit re-baselines against the
+                        // committed content rather than a stale baseline.
+                        if (!wasInitial) {
+                            project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.onHeadChanged()
+                        }
                     }
                     pollHead()
                 },
@@ -106,6 +115,19 @@ class BlamelyStartupActivity : ProjectActivity {
             )
         }
         pollHead()
+
+        // Focus-loss flush (Decision B): when the IDE is deactivated (user switches to a
+        // terminal to commit, etc.) persist pending working-log edits NOW, before a
+        // commit reads them.
+        ApplicationManager.getApplication().messageBus.connect(project).subscribe(
+            ApplicationActivationListener.TOPIC,
+            object : ApplicationActivationListener {
+                override fun applicationDeactivated(ideFrame: IdeFrame) {
+                    if (project.isDisposed) return
+                    project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.flushAll()
+                }
+            },
+        )
     }
 
     private fun refreshUi(project: Project) {
