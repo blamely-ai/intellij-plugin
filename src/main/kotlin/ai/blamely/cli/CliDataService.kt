@@ -168,11 +168,43 @@ class CliDataService(private val project: Project) : Disposable {
                         ai.blamely.authorship.workingLogToLineBlame(wl)
                 }
             }
+            // Open editors: seed COMMITTED + uncommitted authorship (single-file
+            // `authorship` seeds from the commit notes when there's no working log),
+            // overriding --all — so a just-committed file keeps its committed history
+            // in the gutter instead of showing only the current change.
+            for (path in openEditorPaths()) {
+                val wl = runAuthorshipSingle(bin, path) ?: continue
+                merged[GitUtils.blameKey(path)] = ai.blamely.authorship.workingLogToLineBlame(wl)
+            }
         }
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) return@invokeLater
             project.getService(BlameMapService::class.java).blameMap.replaceAll(merged)
             project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
+        }
+    }
+
+    private fun openEditorPaths(): List<String> {
+        val out = ArrayList<String>()
+        ApplicationManager.getApplication().invokeAndWait {
+            if (project.isDisposed) return@invokeAndWait
+            for (vf in com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).openFiles) {
+                if (vf.isInLocalFileSystem) out.add(vf.path)
+            }
+        }
+        return out
+    }
+
+    private fun runAuthorshipSingle(bin: String, absPath: String): ai.blamely.authorship.WorkingLogJson? {
+        return try {
+            val pb = ProcessBuilder(bin, "authorship", absPath)
+            pb.environment()["BLAMELY_ATTRIBUTION_V2"] = "1"
+            val proc = pb.start()
+            val out = proc.inputStream.bufferedReader().readText().trim()
+            if (proc.waitFor() != 0 || out.isEmpty()) return null
+            v2Gson.fromJson(out, ai.blamely.authorship.WorkingLogJson::class.java)
+        } catch (_: Exception) {
+            null
         }
     }
 
