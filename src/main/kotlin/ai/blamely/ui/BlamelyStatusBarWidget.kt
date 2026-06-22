@@ -36,8 +36,8 @@ private val COLOR_OFFLINE = JBColor(Color(0xB0000D), Color(0xE06C75))
  * the daemon lamp with the session-wide AI/Human tally and colors the whole thing
  * green when the daemon is reachable, red when it's offline:
  *
- *   ● 🤖 AI: 1 ≡ 20% | 👤 Human: 2 ≡ 80%   (filled lamp + green = daemon up)
- *   ○ 🤖 AI: 1 ≡ 20% | 👤 Human: 2 ≡ 80%   (outline lamp + red  = daemon down)
+ *   ● 🤖 AI: 20% ≡ 1 | 👤 Human: 80% ≡ 2   (filled lamp + green = daemon up)
+ *   ○ 🤖 AI: 20% ≡ 1 | 👤 Human: 80% ≡ 2   (outline lamp + red  = daemon down)
  *
  * Implemented as a CustomStatusBarWidget (a JLabel) so the foreground can be
  * colored — StatusBarWidget.TextPresentation has no color API in the IntelliJ
@@ -47,7 +47,7 @@ private val COLOR_OFFLINE = JBColor(Color(0xB0000D), Color(0xE06C75))
 class BlamelyStatusBarWidget(private val project: Project) : CustomStatusBarWidget {
 
     private val iconLines = "≡"
-    private val emptyTally = "🤖 AI: 0 $iconLines 0% | 👤 Human: 0 $iconLines 0%"
+    private val emptyTally = "🤖 AI: 0% $iconLines 0 | 👤 Human: 0% $iconLines 0"
 
     @Volatile private var tally: String = emptyTally
     @Volatile private var alive: Boolean = false
@@ -111,7 +111,7 @@ class BlamelyStatusBarWidget(private val project: Project) : CustomStatusBarWidg
         if (total == 0) return emptyTally
         val aiPercent = "%.0f".format((summary.aiLines.toDouble() / total) * 100)
         val humanPercent = "%.0f".format((summary.humanLines.toDouble() / total) * 100)
-        return "🤖 AI: ${summary.aiLines} $iconLines $aiPercent% | 👤 Human: ${summary.humanLines} $iconLines $humanPercent%"
+        return "🤖 AI: $aiPercent% $iconLines ${summary.aiLines} | 👤 Human: $humanPercent% $iconLines ${summary.humanLines}"
     }
 
     private fun ping() {

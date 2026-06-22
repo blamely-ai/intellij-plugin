@@ -1,6 +1,7 @@
 package ai.blamely
 
 import ai.blamely.cli.CliDataService
+import ai.blamely.git.GitInitNotifier
 import ai.blamely.git.GitUtils
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
@@ -19,6 +20,9 @@ class BlamelyDeferredStartupActivity : ProjectActivity {
         GitUtils.clearRepoRootCache()
         val cliData = project.getService(CliDataService::class.java) ?: return
         cliData.refresh()
+        // Blamely can't attribute anything without Git. If the project isn't a repo
+        // yet, offer to `git init` it (one-shot, dismissible per project).
+        GitInitNotifier.maybePrompt(project) { cliData.refresh() }
         // Extra pass after indexing — first refresh often runs before git4idea is ready.
         com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
             if (!project.isDisposed) cliData.refresh()

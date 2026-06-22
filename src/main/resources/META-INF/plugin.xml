@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.6.0</version>
+  <version>1.6.3</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
@@ -98,6 +98,15 @@ blamely doctor    # full self-check
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>1.6.3</h3>
+    <ul>
+      <li><b>More accurate when AI and your edits mix</b> — when an assistant rewrites a file you'd just edited by hand, your lines stay yours and only the assistant's lines are credited to it.</li>
+      <li><b>Works across your whole workspace</b> — AI and human changes are now tracked in every Git repository in the workspace, not just the first one found.</li>
+      <li><b>New files show up right away</b> — brand-new files appear in the gutter the moment you start writing, without staging them in Git first.</li>
+      <li><b>A friendly nudge for new projects</b> — open a folder that isn't a Git repository yet and Blamely offers to set it up.</li>
+      <li><b>Clearer status bar</b> — the AI and human summary now leads with the percentage.</li>
+      <li><b>A cleaner, consistent gutter</b> — the AI and human markers share the same crisp sizing across VS Code and JetBrains.</li>
+    </ul>
     <h3>1.6.0</h3>
     <ul>
       <li><b>Status bar count now matches the gutter</b> — the AI/Human status bar widget previously summed every tracked file across the project and counted blank lines, while the gutter shows only the active file and skips blanks. The widget now reports the <b>active file only</b>, resolved exactly like the gutter (repo-relative path + live blank-line check), so the number equals the icons in front of you.</li>

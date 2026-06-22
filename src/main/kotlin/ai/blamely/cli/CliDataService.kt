@@ -385,14 +385,16 @@ class CliDataService(private val project: Project) : Disposable {
         // a new file via a chat panel and the user adds more lines, those human-typed
         // lines are invisible to the diff. For each untracked file that has AI
         // attribution in byFile, add human entries for all non-AI lines.
+        // A brand-new file with no SQLite edits has no byFile entry yet, but it's
+        // still all-human work that must show in the gutter (matching the behavior
+        // once `git add` makes it appear in `git diff HEAD`), so default to empty.
         for (fp in untrackedSet) {
-            if (!byFile.containsKey(fp)) continue
             // Untracked files have no git-diff to narrow WIDE AI ranges, so a
             // wide chat/cli row would otherwise blanket the entire new file as
             // AI. Trust only TIGHT (bounded) AI ranges here; drop wide AI ranges
             // that can't be verified line-by-line. Recent accepts are still
             // re-asserted afterwards via the pending-AI overlay.
-            val existing = byFile[fp]!!.filter { e ->
+            val existing = (byFile[fp] ?: emptyList()).filter { e ->
                 e.effectiveAuthorType() != LineBlame.AuthorType.AI || e.boundedAiRange
             }
             val aiLineSet = existing
