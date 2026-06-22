@@ -34,6 +34,7 @@ class CliDataService(private val project: Project) : Disposable {
         private set
 
     // Separate alarms: VFS save coalescing must NOT cancel startup retry timers.
+    private val v2Gson = com.google.gson.Gson()
     private val startupAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val saveAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val periodicAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
@@ -152,18 +153,52 @@ class CliDataService(private val project: Project) : Disposable {
         return roots.toList()
     }
 
-    fun refresh() {
+    // Attribution v2 repo-wide refresh: rebuild the whole BlameMap from every tracked
+    // file's working log (`blamely authorship --all`) so the gutter, status bar, and
+    // sidebar all derive from the same v2 source. Runs off-EDT; applies on the EDT.
+    private fun refreshV2() {
         if (project.isDisposed) return
-        // Attribution v2 owns the gutter (GutterV2Overlay). Don't clear/replace the
-        // shared BlameMap here — that timer-driven clobber is what made the v2 gutter
-        // load the previous-commit icons then vanish after a few seconds. Still fire
-        // blameUpdated so GutterV2Overlay re-asserts and BlameDecorations re-reads.
-        if (ai.blamely.settings.BlamelySettings.getInstance().attributionV2) {
-            ApplicationManager.getApplication().invokeLater {
-                if (!project.isDisposed) {
-                    project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
+        val bin = ai.blamely.authorship.blamelyBinaryPath()
+        val merged = HashMap<String, List<LineBlame>>()
+        if (java.io.File(bin).exists()) {
+            for (repoRoot in projectRepoRoots()) {
+                for (wl in fetchAllWorkingLogs(bin, repoRoot)) {
+                    val file = wl.file ?: continue
+                    merged[GitUtils.blameKey(java.io.File(repoRoot, file).path)] =
+                        ai.blamely.authorship.workingLogToLineBlame(wl)
                 }
             }
+        }
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) return@invokeLater
+            project.getService(BlameMapService::class.java).blameMap.replaceAll(merged)
+            project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
+        }
+    }
+
+    private fun fetchAllWorkingLogs(bin: String, repoRoot: String): List<ai.blamely.authorship.WorkingLogJson> {
+        return try {
+            val pb = ProcessBuilder(bin, "authorship", repoRoot, "--all")
+            pb.environment()["BLAMELY_ATTRIBUTION_V2"] = "1"
+            val proc = pb.start()
+            val out = proc.inputStream.bufferedReader().readText().trim()
+            if (proc.waitFor() != 0 || out.isEmpty()) return emptyList()
+            v2Gson.fromJson(out, AllWorkingLogs::class.java)?.files ?: emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private data class AllWorkingLogs(val files: List<ai.blamely.authorship.WorkingLogJson>? = null)
+
+    fun refresh() {
+        if (project.isDisposed) return
+        // Attribution v2 owns the gutter/status bar/sidebar — rebuild the map
+        // repo-wide from the working logs (one v2 source, I4) instead of the v1
+        // SQLite scan. Fixes the previous-commit-then-vanish gutter race (no v1
+        // clobber) and keeps the workspace aggregate complete.
+        if (ai.blamely.settings.BlamelySettings.getInstance().attributionV2) {
+            ApplicationManager.getApplication().executeOnPooledThread { refreshV2() }
             return
         }
         ApplicationManager.getApplication().executeOnPooledThread {

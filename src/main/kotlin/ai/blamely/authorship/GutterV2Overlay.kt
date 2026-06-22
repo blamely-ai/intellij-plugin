@@ -16,7 +16,6 @@ import ai.blamely.git.GitUtils
 import ai.blamely.settings.BlamelySettings
 import ai.blamely.ui.BlameDecorations
 import com.google.gson.Gson
-import com.google.gson.annotations.SerializedName
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.EditorFactory
@@ -27,7 +26,6 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.SystemInfo
 import com.intellij.util.Alarm
 import java.io.File
 
@@ -113,7 +111,7 @@ class GutterV2Overlay(private val project: Project) : Disposable {
     }
 
     private fun runAuthorship(absPath: String): WorkingLogJson? {
-        val bin = blamelyBinary()
+        val bin = blamelyBinaryPath()
         if (!File(bin).exists()) return null
         return try {
             val pb = ProcessBuilder(bin, "authorship", absPath)
@@ -127,48 +125,7 @@ class GutterV2Overlay(private val project: Project) : Disposable {
         }
     }
 
-    private fun blamelyBinary(): String {
-        val home = System.getenv("BLAMELY_HOME")?.takeIf { it.isNotBlank() }
-            ?: (System.getProperty("user.home") + File.separator + ".blamely")
-        val name = if (SystemInfo.isWindows) "blamely.exe" else "blamely"
-        return home + File.separator + "bin" + File.separator + name
-    }
-
-    private fun toLineBlame(wl: WorkingLogJson): List<LineBlame> {
-        val out = ArrayList<LineBlame>()
-        for (r in wl.lines ?: emptyList()) {
-            val ai = r.author == "ai"
-            var ln = r.start
-            while (ln <= r.end) {
-                out.add(
-                    LineBlame(
-                        lineNumber = ln,
-                        authorType = if (ai) LineBlame.AuthorType.AI else LineBlame.AuthorType.HUMAN,
-                        timestamp = "",
-                        provider = if (ai) r.tool else null,
-                        model = if (ai) r.model else null,
-                        interactionType = if (ai) r.genType else null,
-                        aiChars = if (ai) 1 else 0,
-                        humanChars = if (ai) 0 else 1,
-                        changeType = LineBlame.ChangeType.ADD,
-                        codingType = LineBlame.CodingType.TYPING,
-                    ),
-                )
-                ln++
-            }
-        }
-        return out
-    }
+    private fun toLineBlame(wl: WorkingLogJson): List<LineBlame> = workingLogToLineBlame(wl)
 
     override fun dispose() {}
-
-    private data class WorkingLogJson(val file: String? = null, val lines: List<WlLine>? = null)
-    private data class WlLine(
-        val start: Int = 0,
-        val end: Int = 0,
-        val author: String = "human",
-        val tool: String? = null,
-        val model: String? = null,
-        @SerializedName("gen_type") val genType: String? = null,
-    )
 }
