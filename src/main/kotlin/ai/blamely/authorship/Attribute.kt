@@ -78,17 +78,34 @@ private fun splitLines(s: String): List<String> {
 
 /** For each NEW line, the OLD line index it is unchanged from (LCS match) or -1.
  *  Standard LCS DP + backtrack; identical to the Go/TS implementations. */
+// normalizeLineForMatch collapses a line to its whitespace-insensitive form: trim
+// ends + collapse internal whitespace runs to a single space. MUST match the Go and
+// TypeScript ports exactly (the golden vectors enforce it) so reflow is detected the
+// same way everywhere.
+private val WHITESPACE_RUN = Regex("\\s+")
+
+private fun normalizeLineForMatch(s: String): String {
+    val trimmed = s.trim()
+    if (trimmed.isEmpty()) return ""
+    return trimmed.split(WHITESPACE_RUN).joinToString(" ")
+}
+
+// alignLines compares lines WHITESPACE-NORMALIZED (Phase 4 reflow): a line that
+// changed only in indentation / trailing or collapsed whitespace counts as
+// unchanged and keeps its prior author. A genuine content change still mismatches.
 private fun alignLines(oldLines: List<String>, newLines: List<String>): IntArray {
     val n = oldLines.size
     val m = newLines.size
     val matched = IntArray(m) { -1 }
     if (n == 0 || m == 0) return matched
 
+    val oldN = oldLines.map { normalizeLineForMatch(it) }
+    val newN = newLines.map { normalizeLineForMatch(it) }
     val dp = Array(n + 1) { IntArray(m + 1) }
     for (i in n - 1 downTo 0) {
         for (j in m - 1 downTo 0) {
             dp[i][j] = when {
-                oldLines[i] == newLines[j] -> dp[i + 1][j + 1] + 1
+                oldN[i] == newN[j] -> dp[i + 1][j + 1] + 1
                 dp[i + 1][j] >= dp[i][j + 1] -> dp[i + 1][j]
                 else -> dp[i][j + 1]
             }
@@ -98,7 +115,7 @@ private fun alignLines(oldLines: List<String>, newLines: List<String>): IntArray
     var j = 0
     while (i < n && j < m) {
         when {
-            oldLines[i] == newLines[j] -> {
+            oldN[i] == newN[j] -> {
                 matched[j] = i; i++; j++
             }
             dp[i + 1][j] >= dp[i][j + 1] -> i++
