@@ -33,6 +33,13 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
             try {
                 val ft = trackers.getOrPut(absPath) { FileTracker(prevText, null) }
                 ft.applyEdit(newText, author)
+                // An AI edit that REMOVED lines: the working log only describes surviving
+                // content, so committed deletions would default to Human. Record the
+                // deleted baseline lines (via the CLI, reusing the engine) so they
+                // attribute to the tool. Gated to AI edits that shrink the file.
+                if (author.type == AuthorType.AI && lineCount(newText) < lineCount(prevText)) {
+                    recordDeletion(absPath, newText, author)
+                }
                 flushTasks.remove(absPath)?.cancel(false)
                 flushTasks[absPath] = exec.schedule({ flush(absPath) }, FLUSH_DEBOUNCE_MS, TimeUnit.MILLISECONDS)
             } catch (_: Exception) {
@@ -60,6 +67,28 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
             flushTasks.values.forEach { it.cancel(false) }
             flushTasks.clear()
             trackers.clear()
+        }
+    }
+
+    private fun lineCount(s: String): Int = if (s.isEmpty()) 0 else s.count { it == '\n' } + 1
+
+    /** Record AI-deleted baseline lines via `blamely record-deletion` (current content
+     *  piped on stdin, since the buffer may be unsaved). Fire-and-forget; output
+     *  discarded so it never blocks the worklog thread. */
+    private fun recordDeletion(absPath: String, content: String, author: Author) {
+        try {
+            val bin = blamelyBinaryPath()
+            if (!java.io.File(bin).exists()) return
+            val args = mutableListOf(bin, "record-deletion", absPath, "--gen-type", author.genType.ifEmpty { "completion" })
+            if (author.tool.isNotEmpty()) { args.add("--tool"); args.add(author.tool) }
+            if (author.model.isNotEmpty()) { args.add("--model"); args.add(author.model) }
+            val pb = ProcessBuilder(args)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+            pb.environment()["BLAMELY_ATTRIBUTION_V2"] = "1"
+            val p = pb.start()
+            p.outputStream.use { it.write(content.toByteArray()); it.flush() }
+        } catch (_: Exception) {
         }
     }
 
