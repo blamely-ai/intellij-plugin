@@ -9,7 +9,6 @@ import com.intellij.openapi.wm.CustomStatusBarWidget
 import com.intellij.openapi.wm.StatusBar
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
-import java.awt.Color
 import java.awt.Cursor
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -25,19 +24,15 @@ import javax.swing.SwingUtilities
 
 private const val HEARTBEAT_INTERVAL_SEC = 5L
 
-// JBColor picks the first value on light themes, the second on dark themes —
-// mirroring VS Code's ThemeColor('charts.green') / ThemeColor('charts.red').
-private val COLOR_RUNNING = JBColor(Color(0x3A7D2C), Color(0x6CCB5F))
-private val COLOR_OFFLINE = JBColor(Color(0xB0000D), Color(0xE06C75))
-
 /**
  * Blamely status bar widget — the IntelliJ counterpart of the VS Code StatusBar
  * (vscode-plugin/src/ui/StatusBar.ts). A SINGLE, right-aligned item that combines
- * the daemon lamp with the session-wide AI/Human tally and colors the whole thing
- * green when the daemon is reachable, red when it's offline:
+ * the daemon lamp with the session-wide AI/Human tally. The lamp is a colored
+ * emoji (🟢 up / 🔴 down) while the tally itself stays in the default label
+ * foreground, so it's legible on both light and dark themes:
  *
- *   ● 🤖 AI: 20% ≡ 1 | 👤 Human: 80% ≡ 2   (filled lamp + green = daemon up)
- *   ○ 🤖 AI: 20% ≡ 1 | 👤 Human: 80% ≡ 2   (outline lamp + red  = daemon down)
+ *   🟢 🤖 AI: 20% ≡ 1 | 👤 Human: 80% ≡ 2   (daemon up)
+ *   🔴 🤖 AI: 20% ≡ 1 | 👤 Human: 80% ≡ 2   (daemon down)
  *
  * Implemented as a CustomStatusBarWidget (a JLabel) so the foreground can be
  * colored — StatusBarWidget.TextPresentation has no color API in the IntelliJ
@@ -47,7 +42,10 @@ private val COLOR_OFFLINE = JBColor(Color(0xB0000D), Color(0xE06C75))
 class BlamelyStatusBarWidget(private val project: Project) : CustomStatusBarWidget {
 
     private val iconLines = "≡"
-    private val emptyTally = "🤖 AI: 0% $iconLines 0 | 👤 Human: 0% $iconLines 0"
+    private val emptyTally = "🤖 AI: 0% ${lineLabel(0)} | 👤 Human: 0% ${lineLabel(0)}"
+
+    /** "≡ 1 line" / "≡ 2 lines" — a readable label next to the count. */
+    private fun lineLabel(n: Int): String = "$iconLines $n ${if (n == 1) "line" else "lines"}"
 
     @Volatile private var tally: String = emptyTally
     @Volatile private var alive: Boolean = false
@@ -111,7 +109,7 @@ class BlamelyStatusBarWidget(private val project: Project) : CustomStatusBarWidg
         if (total == 0) return emptyTally
         val aiPercent = "%.0f".format((summary.aiLines.toDouble() / total) * 100)
         val humanPercent = "%.0f".format((summary.humanLines.toDouble() / total) * 100)
-        return "🤖 AI: $aiPercent% $iconLines ${summary.aiLines} | 👤 Human: $humanPercent% $iconLines ${summary.humanLines}"
+        return "🤖 AI: $aiPercent% ${lineLabel(summary.aiLines)} | 👤 Human: $humanPercent% ${lineLabel(summary.humanLines)}"
     }
 
     private fun ping() {
@@ -127,9 +125,12 @@ class BlamelyStatusBarWidget(private val project: Project) : CustomStatusBarWidg
     private fun repaintLabel() {
         SwingUtilities.invokeLater {
             if (project.isDisposed) return@invokeLater
-            val lamp = if (alive) "●" else "○"
+            // Colored emoji lamp keeps its own color, so the tally can use the
+            // default label foreground and stay readable on light themes (a green
+            // foreground washed the whole widget out).
+            val lamp = if (alive) "🟢" else "🔴"
             label.text = "$lamp $tally"
-            label.foreground = if (alive) COLOR_RUNNING else COLOR_OFFLINE
+            label.foreground = JBColor.foreground()
             label.toolTipText = if (alive)
                 "Blamely daemon running — click for Changes"
             else
