@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.6.3</version>
+  <version>1.6.4</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
@@ -98,6 +98,14 @@ blamely doctor    # full self-check
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>1.6.4</h3>
+    <ul>
+      <li><b>AI work no longer slips to "Human"</b> — brand-new files an assistant creates (for example a generated <code>package.json</code>) are now credited to the assistant instead of falling back to Human.</li>
+      <li><b>Attribution survives history changes</b> — amending, rebasing, or re-committing a change keeps its AI/human credit instead of resetting it to Human.</li>
+      <li><b>Lighter and faster with the editor open</b> — background refreshes now run one at a time, so Blamely no longer piles up dozens of helper processes that competed for resources and slowed things down.</li>
+      <li><b>Just one background helper</b> — only a single Blamely daemon runs at a time; duplicates exit instead of accumulating.</li>
+      <li><b>Quicker gutter on large repositories</b> — per-file attribution now reads commit history in fewer steps, so the gutter fills in faster.</li>
+    </ul>
     <h3>1.6.3</h3>
     <ul>
       <li><b>More accurate when AI and your edits mix</b> — when an assistant rewrites a file you'd just edited by hand, your lines stay yours and only the assistant's lines are credited to it.</li>

@@ -38,6 +38,12 @@ class CliDataService(private val project: Project) : Disposable {
     private val startupAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val saveAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
     private val periodicAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+    // Serializes refresh(): true while one refresh runs, so overlapping triggers
+    // (periodic tick + editor/file events) don't each spawn their own `blamely
+    // authorship` child processes. Without this the CLI processes pile up — one
+    // refresh can outlast the tick — and all contend, slowing each other.
+    private val refreshing = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var refreshPending = false
 
     private fun normalizedGenType(genType: String?): String = genType?.trim()?.lowercase() ?: ""
     private fun isInlineCompletionType(genType: String?): Boolean = normalizedGenType(genType) == "completion"
@@ -228,7 +234,23 @@ class CliDataService(private val project: Project) : Disposable {
         // SQLite scan. Fixes the previous-commit-then-vanish gutter race (no v1
         // clobber) and keeps the workspace aggregate complete.
         if (ai.blamely.settings.BlamelySettings.getInstance().attributionV2) {
-            ApplicationManager.getApplication().executeOnPooledThread { refreshV2() }
+            // Serialize the v2 refresh (the default path): run one at a time so
+            // overlapping ticks don't pile up `blamely authorship` child processes.
+            // If more are requested while running, do one more pass for the latest.
+            if (!refreshing.compareAndSet(false, true)) {
+                refreshPending = true
+                return
+            }
+            ApplicationManager.getApplication().executeOnPooledThread {
+                try {
+                    do {
+                        refreshPending = false
+                        refreshV2()
+                    } while (refreshPending && !project.isDisposed)
+                } finally {
+                    refreshing.set(false)
+                }
+            }
             return
         }
         ApplicationManager.getApplication().executeOnPooledThread {
