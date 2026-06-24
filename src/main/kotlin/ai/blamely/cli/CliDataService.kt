@@ -63,7 +63,10 @@ class CliDataService(private val project: Project) : Disposable {
     fun start() {
         // Initial load when the project opens (daemon/SQLite/git index may not be ready).
         refresh()
-        for (delayMs in listOf(500L, 1500L, 4000L, 8000L, 15000L)) {
+        // Short ladder only to cover the daemon coming up AFTER the project opens;
+        // steady-state freshness is event-driven (VFS save + document change + the
+        // HEAD poll), not a long blind-poll tail.
+        for (delayMs in listOf(800L, 3000L)) {
             startupAlarm.addRequest({ if (!project.isDisposed) refresh() }, delayMs.toInt())
         }
         // Refresh on file saves (manual or autosave) via VFS content-change.
@@ -90,13 +93,26 @@ class CliDataService(private val project: Project) : Disposable {
                 }
             }
         )
+        // Unsaved edits (an AI chat apply writes the document without saving) must
+        // refresh the gutter too. This used to be GutterV2Overlay's DocumentListener;
+        // routing it through the single CliDataService refresh keeps one authorship
+        // source (BlameDecorations paints the result) instead of a second fetcher.
+        com.intellij.openapi.editor.EditorFactory.getInstance().eventMulticaster.addDocumentListener(
+            object : com.intellij.openapi.editor.event.DocumentListener {
+                override fun documentChanged(event: com.intellij.openapi.editor.event.DocumentEvent) {
+                    if (project.isDisposed) return
+                    val editors = com.intellij.openapi.editor.EditorFactory.getInstance().getEditors(event.document)
+                    if (editors.any { it.project == project }) scheduleRefreshOnSave()
+                }
+            },
+            this,
+        )
         schedulePeriodic()
     }
 
-    // Safety-net poll: new files (and edits whose daemon write lands after the
-    // scheduleRefreshOnSave retry ladder) surface within 5s even when no VFS
-    // event fires — without this the UI waits for the next user action. Alarm is
-    // one-shot, so it re-schedules itself.
+    // Safety-net poll: a coarse backstop for anything the VFS save / document-change
+    // / file-open triggers miss (it is no longer the primary mechanism, so 15s, not
+    // 5s). Alarm is one-shot, so it re-schedules itself.
     private fun schedulePeriodic() {
         if (project.isDisposed) return
         periodicAlarm.addRequest(
@@ -106,7 +122,7 @@ class CliDataService(private val project: Project) : Disposable {
                     schedulePeriodic()
                 }
             },
-            5000,
+            15000,
         )
     }
 

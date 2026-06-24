@@ -67,10 +67,10 @@ class BlamelyStartupActivity : ProjectActivity {
         CliHealthNotifier(project).start()
         project.getService(ai.blamely.ui.BlameDecorations::class.java)?.refresh()
 
-        // Attribution v2 gutter overlay (flag-gated by blamely.attributionV2; inert
-        // when off). Paints the active editor from `blamely authorship` — the same
-        // working log the commit note flips to (I4).
-        project.getService(ai.blamely.authorship.GutterV2Overlay::class.java)?.activate()
+        // (The Attribution v2 gutter is painted by BlameDecorations from the BlameMap,
+        // which CliDataService.refreshV2 fills via `blamely authorship`. The former
+        // GutterV2Overlay re-fetched the same active-editor authorship and re-painted
+        // on every keystroke/blame-update — pure duplication — so it was removed.)
 
         if (BlamelySettings.getInstance().detectInlineCompletion) {
             val detector = project.getService(CompletionDetector::class.java)

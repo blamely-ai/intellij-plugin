@@ -1,7 +1,6 @@
 // Shared shape + converter for Attribution v2 working logs (`blamely authorship`
-// output), used by both GutterV2Overlay (active editor) and CliDataService
-// (repo-wide), so they paint the gutter from one source. Mirrors the VS Code
-// workingLogBlame.ts.
+// output), consumed by CliDataService to fill the BlameMap (which BlameDecorations
+// paints). Mirrors the VS Code workingLogBlame.ts.
 package ai.blamely.authorship
 
 import ai.blamely.core.LineBlame

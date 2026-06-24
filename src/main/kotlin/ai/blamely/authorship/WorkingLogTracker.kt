@@ -31,7 +31,7 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
         if (newText == prevText || !BlamelySettings.getInstance().attributionV2) return
         exec.submit {
             try {
-                val ft = trackers.getOrPut(absPath) { FileTracker(prevText, null) }
+                val ft = trackers.getOrPut(absPath) { seedTracker(absPath, prevText) }
                 ft.applyEdit(newText, author)
                 // An AI edit that REMOVED lines: the working log only describes surviving
                 // content, so committed deletions would default to Human. Record the
@@ -68,6 +68,31 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
             flushTasks.clear()
             trackers.clear()
         }
+    }
+
+    /** Build a file's FileTracker on first edit, SEEDING from the on-disk working log +
+     *  baseline so attribution authored outside this editor session (an agent Write the
+     *  keystroke tracker never saw — e.g. Claude Code creating the file) is preserved.
+     *  Without this the first in-editor edit rebuilds from null, defaults every untouched
+     *  AI line to Human, and the flush clobbers it. Runs on the worklog thread (resolveCtx
+     *  spawns git, never the EDT). Falls back to a fresh seed from firstPrev on any miss. */
+    private fun seedTracker(absPath: String, firstPrev: String): FileTracker {
+        try {
+            val ctx = resolveCtx(absPath)
+            if (ctx != null) {
+                val prior = WorkingLogStore.loadWorkingLog(ctx.repoRoot, ctx.branch, ctx.baseSha, ctx.rel)
+                val baseFile = WorkingLogStore.baselinePath(ctx.repoRoot, ctx.branch, ctx.baseSha, ctx.rel)
+                val stored = if (baseFile.exists()) baseFile.readText() else null
+                // The prior log's line numbers describe the STORED baseline; only adopt
+                // the log when that baseline is present, so the diff aligns.
+                if (prior != null && stored != null) {
+                    return FileTracker(stored, prior)
+                }
+            }
+        } catch (_: Exception) {
+            // best-effort: fall back to a fresh seed below
+        }
+        return FileTracker(firstPrev, null)
     }
 
     private fun lineCount(s: String): Int = if (s.isEmpty()) 0 else s.count { it == '\n' } + 1

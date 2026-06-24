@@ -176,8 +176,9 @@ class CompletionDetector(private val project: Project) : Disposable {
         tool: String,
         genType: String,
     ) {
-        // Attribution v2 owns the gutter (GutterV2Overlay paints from the working
-        // log); this v1 optimistic paint would fight it, so skip when v2 is on.
+        // Attribution v2 owns the gutter (BlameDecorations paints from the working
+        // log via the BlameMap); this v1 optimistic paint would fight it, so skip
+        // when v2 is on.
         if (ai.blamely.settings.BlamelySettings.getInstance().attributionV2) return
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) return@invokeLater
@@ -280,11 +281,20 @@ class CompletionDetector(private val project: Project) : Disposable {
         }
 
         // STRICT RULE: only a command/action signal makes an edit AI. No signal
-        // → the human author is typing/pasting/refactoring → record nothing.
+        // → the human author is typing/pasting/refactoring. We record nothing for
+        // typing/refactoring, but a clipboard paste IS a human action worth
+        // recording explicitly (tool=copypaste) so commit attribution can pin
+        // those exact lines as Human — even when the pasted text duplicates
+        // AI-generated content elsewhere (content-hash matching alone can't
+        // disambiguate the paste from the AI original). Mirrors VS Code's
+        // CompletionDetector.maybeRecordPaste.
         val genType = when {
             chatApply -> "chat"
             inlineAccept -> "completion"
-            else -> return
+            else -> {
+                maybeRecordPaste(event)
+                return
+            }
         }
 
         val doc = event.document
@@ -439,6 +449,76 @@ class CompletionDetector(private val project: Project) : Disposable {
         val startLine = doc.getLineNumber(changedStart.coerceIn(0, doc.textLength)) + 1
         val endLine = doc.getLineNumber((changedEndExclusive - 1).coerceIn(0, doc.textLength)) + 1
         return startLine to maxOf(endLine, startLine)
+    }
+
+    // Record a clipboard paste as an explicit human edit (tool=copypaste) with
+    // the pasted line positions. Commit attribution uses this to pin exactly
+    // those lines as Human even when the pasted text duplicates AI-generated
+    // content elsewhere — a case content-hash matching alone gets wrong (it can't
+    // tell the paste from the AI original, so it scatters the Human label onto the
+    // wrong occurrence). Mirrors VS Code's CompletionDetector.maybeRecordPaste.
+    // Cheap-gated on a substantial single-event insert so plain typing never reads
+    // the clipboard. Called on the EDT (document access valid); the clipboard read
+    // and daemon send are offloaded to a pooled thread.
+    private fun maybeRecordPaste(event: DocumentEvent) {
+        val newFragment = event.newFragment.toString()
+        // Typing arrives one char per event; only a substantial single-event
+        // insert can be a paste. This gate keeps the clipboard read off the
+        // typing path.
+        if (newFragment.length < MIN_COMPLETION_CHARS) return
+
+        val doc = event.document
+        val vFile = FileDocumentManager.getInstance().getFile(doc) ?: return
+        if (!vFile.isInLocalFileSystem) return
+        val absPath = vFile.path
+        val repoRoot = GitUtils.getRepoRoot(absPath) ?: return
+
+        // Pause during cherry-pick/merge/revert/rebase: edits applied by replaying
+        // history aren't fresh authorship. content_sha re-attributes them after.
+        if (GitUtils.inProgressGitOp(repoRoot)) return
+
+        // Only handle files under THIS project's content roots — otherwise every
+        // open project's detector records the same paste (duplicate daemon rows).
+        val inProject = try {
+            ApplicationManager.getApplication().runReadAction<Boolean> {
+                !project.isDisposed &&
+                    com.intellij.openapi.roots.ProjectFileIndex.getInstance(project).isInContent(vFile)
+            }
+        } catch (_: Exception) {
+            false
+        }
+        if (!inProject) return
+
+        val relPath = GitUtils.toRepoRelativePath(repoRoot, absPath) ?: return
+
+        // Compute the changed band + per-line content_sha on the EDT (document
+        // access is valid here; the post-change document already holds the pasted
+        // lines). See buildLineRangesWithSha for why the hashes matter.
+        val band = narrowedBand(doc, event.offset, event.oldFragment.toString(), newFragment)
+        val lineRanges = buildLineRangesWithSha(doc, band.first, band.second)
+        val repoId = CliRepoId.get(repoRoot) ?: repoRoot
+        val branch = GitUtils.getBranchName(repoRoot)
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            if (project.isDisposed) return@executeOnPooledThread
+            refreshClipboardCache()
+            if (!isLikelyPaste(newFragment)) return@executeOnPooledThread
+
+            val payload = EditPayload(
+                tool = "copypaste",
+                confidence = "high",
+                genType = "human",
+                repoPath = repoId,
+                filePath = relPath,
+                lines = lineRanges,
+                rawMeta = """{"source":"intellij_plugin","signal":"clipboard_paste"}""",
+                branch = branch,
+            )
+            if (debugEnabled()) {
+                BlamelyLogger.info("record paste (human): $relPath L${band.first}-${band.second}")
+            }
+            daemon.send(payload)
+        }
     }
 
     private fun refreshClipboardCache() {
