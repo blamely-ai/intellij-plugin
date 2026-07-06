@@ -207,8 +207,13 @@ class BlameDecorations(private val project: Project) : Disposable {
         val created = mutableListOf<RangeHighlighter>()
         highlighters[editor] = created
 
-        for (entry in byLine.values.sortedBy { it.lineNumber }) {
-            val lineIdx = entry.lineNumber - 1
+        // Neutral "detecting" lines (an AI-likely edit awaiting attribution) render the
+        // amber ring UNLESS already resolved to AI — mirrors VS Code BlameDecorations.
+        val detectingLines = blameService.detectingLinesFor(path)
+        val candidateLines = (byLine.keys + detectingLines).sorted()
+
+        for (line in candidateLines) {
+            val lineIdx = line - 1
             if (lineIdx < 0 || lineIdx >= doc.lineCount) continue
             val start = doc.getLineStartOffset(lineIdx)
             var end = doc.getLineEndOffset(lineIdx)
@@ -217,28 +222,44 @@ class BlameDecorations(private val project: Project) : Disposable {
             }
             if (end <= start) end = (start + 1).coerceAtMost(doc.textLength)
 
-            val displayAs = effectiveAuthorType(entry)
-            val icon = when (displayAs) {
-                LineBlame.AuthorType.AI -> BlamelyIcons.GutterBrain
-                LineBlame.AuthorType.HUMAN -> BlamelyIcons.GutterHuman
-            }
-            if (debug) {
-                val reason = if (LineBlame.isAiInteractionType(entry.interactionType)) {
-                    "interactionType='${entry.interactionType}' is an AI gen_type"
-                } else {
-                    "no AI gen_type; aiChars=${entry.aiChars} vs humanChars=${entry.humanChars}"
+            val entry = byLine[line]
+            val resolvedAi = entry != null && effectiveAuthorType(entry) == LineBlame.AuthorType.AI
+
+            val icon: Icon
+            val authorType: LineBlame.AuthorType?
+            val tooltip: String
+            val tooltipHtml: String
+            when {
+                resolvedAi -> {
+                    // Resolved to AI — clear any detecting state and show the AI icon.
+                    blameService.clearDetectingLine(path, line)
+                    icon = BlamelyIcons.GutterBrain
+                    authorType = LineBlame.AuthorType.AI
+                    tooltip = blameGutterTooltipText(entry!!, LineBlame.AuthorType.AI, path)
+                    tooltipHtml = blameGutterTooltipHtml(entry, LineBlame.AuthorType.AI)
                 }
+                line in detectingLines -> {
+                    icon = BlamelyIcons.GutterDetecting
+                    authorType = null
+                    tooltip = "Detecting authorship…"
+                    tooltipHtml = DETECTING_TOOLTIP_HTML
+                }
+                entry != null -> {
+                    icon = BlamelyIcons.GutterHuman
+                    authorType = LineBlame.AuthorType.HUMAN
+                    tooltip = blameGutterTooltipText(entry, LineBlame.AuthorType.HUMAN, path)
+                    tooltipHtml = blameGutterTooltipHtml(entry, LineBlame.AuthorType.HUMAN)
+                }
+                else -> continue
+            }
+            if (debug && entry != null) {
                 ai.blamely.utils.BlamelyLogger.debug(
-                    "gutter: line=${entry.lineNumber} icon=$displayAs" +
-                        " (reason: $reason)" +
+                    "gutter: line=$line icon=${authorType ?: "DETECTING"}" +
                         " provider=${entry.provider} model=${entry.model}" +
                         " interactionType=${entry.interactionType}" +
-                        " aiChars=${entry.aiChars} humanChars=${entry.humanChars}" +
-                        " boundedAiRange=${entry.boundedAiRange} ts=${entry.timestamp}"
+                        " aiChars=${entry.aiChars} humanChars=${entry.humanChars}"
                 )
             }
-            val tooltip = blameGutterTooltipText(entry, displayAs, path)
-            val tooltipHtml = blameGutterTooltipHtml(entry, displayAs)
 
             val hl = markup.addRangeHighlighter(
                 start,
@@ -247,7 +268,7 @@ class BlameDecorations(private val project: Project) : Disposable {
                 null,
                 HighlighterTargetArea.LINES_IN_RANGE
             )
-            hl.gutterIconRenderer = BlameLineGutterRenderer(icon, tooltip, tooltipHtml, entry.lineNumber, displayAs)
+            hl.gutterIconRenderer = BlameLineGutterRenderer(icon, tooltip, tooltipHtml, line, authorType)
             created.add(hl)
         }
     }
@@ -268,7 +289,7 @@ class BlameDecorations(private val project: Project) : Disposable {
         private val tooltip: String,
         private val tooltipHtml: String,
         private val line: Int,
-        private val authorType: LineBlame.AuthorType
+        private val authorType: LineBlame.AuthorType?
     ) : GutterIconRenderer(), DumbAware {
         override fun getIcon(): Icon = myIcon
         override fun getTooltipText(): String = tooltipHtml
@@ -277,10 +298,16 @@ class BlameDecorations(private val project: Project) : Disposable {
             if (other !is BlameLineGutterRenderer) return false
             return line == other.line && authorType == other.authorType && tooltip == other.tooltip
         }
-        override fun hashCode(): Int = 31 * (31 * line + authorType.hashCode()) + tooltip.hashCode()
+        override fun hashCode(): Int = 31 * (31 * line + (authorType?.hashCode() ?: 0)) + tooltip.hashCode()
     }
 
     companion object {
+
+        /** Hover for the neutral "detecting" gutter icon (parity with VS Code DETECTING_HOVER). */
+        private val DETECTING_TOOLTIP_HTML: String =
+            "<html><body style='white-space:normal;font-size:11pt;'>" +
+                "<span style='color:#e0a23d;'>&#8635;&nbsp;<b>Detecting authorship…</b></span><br/>" +
+                "<span style='color:${dimHex()};'>Resolving AI vs human</span></body></html>"
 
         /** Matches BlameMap line dominance: AI gutter iff `aiChars >= humanChars` when there is typed content. */
         fun effectiveAuthorType(entry: LineBlame): LineBlame.AuthorType {

@@ -15,6 +15,9 @@ import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.newvfs.BulkFileListener
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.openapi.wm.IdeFrame
 import com.intellij.openapi.wm.WindowManager
 import com.intellij.util.Alarm
@@ -97,6 +100,9 @@ class BlamelyStartupActivity : ProjectActivity {
                 {
                     if (project.isDisposed) return@addRequest
                     val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath
+                    // Refresh the cached git-op / stash-window state the working-log
+                    // tracker consults synchronously on every change (see GitOpState).
+                    repoRoot?.let { project.getService(ai.blamely.git.GitOpState::class.java)?.poll(it) }
                     val head = repoRoot?.let { GitUtils.run(it, "rev-parse", "HEAD") }
                     val branch = repoRoot?.let { GitUtils.getBranchName(it) } ?: "DETACHED"
                     if (head != null && head != lastHead) {
@@ -137,6 +143,58 @@ class BlamelyStartupActivity : ProjectActivity {
                 override fun applicationDeactivated(ideFrame: IdeFrame) {
                     if (project.isDisposed) return
                     project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.flushAll()
+                }
+            },
+        )
+
+        // Save-flush + close-evict for the working-log tracker (parity with the VS Code
+        // plugin's onDidSaveTextDocument / onDidCloseTextDocument): persist the latest
+        // state before a commit reads it, and drop a file's tracker when its editor closes
+        // so it doesn't linger in memory.
+        @Suppress("DEPRECATION")
+        ApplicationManager.getApplication().messageBus.connect(project).subscribe(
+            com.intellij.AppTopics.FILE_DOCUMENT_SYNC,
+            object : com.intellij.openapi.fileEditor.FileDocumentManagerListener {
+                override fun beforeDocumentSaving(document: com.intellij.openapi.editor.Document) {
+                    if (project.isDisposed) return
+                    val path = com.intellij.openapi.fileEditor.FileDocumentManager.getInstance()
+                        .getFile(document)?.takeIf { it.isInLocalFileSystem }?.path ?: return
+                    project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.flushFile(path)
+                }
+            },
+        )
+        project.messageBus.connect(project).subscribe(
+            FileEditorManagerListener.FILE_EDITOR_MANAGER,
+            object : FileEditorManagerListener {
+                override fun fileClosed(
+                    source: com.intellij.openapi.fileEditor.FileEditorManager,
+                    file: com.intellij.openapi.vfs.VirtualFile,
+                ) {
+                    if (project.isDisposed) return
+                    project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.dropFile(file.path)
+                }
+            },
+        )
+
+        // Working-log dir watcher (parity with the VS Code plugin's FileSystemWatcher on
+        // .git/blamely/working_logs): refresh promptly when attribution files change,
+        // complementing the periodic poll. Best-effort — IntelliJ's VFS may not observe
+        // every external write under .git, so this augments rather than replaces the poll.
+        val wlRefreshAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
+        ApplicationManager.getApplication().messageBus.connect(project).subscribe(
+            VirtualFileManager.VFS_CHANGES,
+            object : BulkFileListener {
+                override fun after(events: List<VFileEvent>) {
+                    if (project.isDisposed) return
+                    val hit = events.any {
+                        it.path.replace('\\', '/').contains("/.git/blamely/working_logs/")
+                    }
+                    if (hit) {
+                        wlRefreshAlarm.cancelAllRequests()
+                        wlRefreshAlarm.addRequest({
+                            if (!project.isDisposed) project.getService(CliDataService::class.java)?.refresh()
+                        }, 200)
+                    }
                 }
             },
         )

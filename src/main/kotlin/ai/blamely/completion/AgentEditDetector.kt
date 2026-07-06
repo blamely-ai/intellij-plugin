@@ -18,6 +18,7 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import java.io.File
 import java.io.RandomAccessFile
@@ -80,6 +81,12 @@ class AgentEditDetector(private val project: Project) : Disposable {
     // This is the IntelliJ analogue of the VS Code plugin's putSnapshot baseline.
     private val preWriteBaseline = ConcurrentHashMap<String, String>()
 
+    // Pre-delete content snapshots, keyed by absolute path: captured in the VFS
+    // `before` pass (the file is gone by `after`) so an agent file deletion can be
+    // attributed to AI. The IntelliJ analogue of the VS Code plugin's
+    // onWillDeleteFiles/pendingDeleteContent (CompletionDetector.ts).
+    private val pendingDeleteContent = ConcurrentHashMap<String, String>()
+
     private fun debugEnabled(): Boolean = try {
         ai.blamely.settings.BlamelySettings.getInstance().debugDetection
     } catch (_: Throwable) {
@@ -110,6 +117,11 @@ class AgentEditDetector(private val project: Project) : Disposable {
         ApplicationManager.getApplication().messageBus.connect(this).subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
+                override fun before(events: List<VFileEvent>) {
+                    // Snapshot files about to be DELETED while they still exist.
+                    snapshotDeletingFiles(events)
+                }
+
                 override fun after(events: List<VFileEvent>) {
                     handleVfsEvents(events)
                 }
@@ -171,6 +183,9 @@ class AgentEditDetector(private val project: Project) : Disposable {
 
     private fun handleVfsEvents(events: List<VFileEvent>) {
         if (project.isDisposed) return
+        // Undo/redo replays history — a VFS write from undo is not fresh authorship.
+        val undo = com.intellij.openapi.command.undo.UndoManager.getInstance(project)
+        if (undo.isUndoInProgress || undo.isRedoInProgress) return
         // Gate: only consider writes that happened while Copilot was active.
         if (System.currentTimeMillis() - lastCopilotChatMs > COPILOT_WINDOW_MS) return
 
@@ -188,7 +203,15 @@ class AgentEditDetector(private val project: Project) : Disposable {
             if (isExcludedPath(absPath)) continue
             candidates.add(absPath to isCreate)
         }
-        if (candidates.isEmpty()) return
+        // Deleted files: consume the pre-delete snapshot captured in before(). Each
+        // (path, content) pair is recorded as an AI deletion below.
+        val deletes = ArrayList<Pair<String, String>>()
+        for (ev in events) {
+            if (ev !is VFileDeleteEvent) continue
+            val content = pendingDeleteContent.remove(ev.path) ?: continue
+            deletes.add(ev.path to content)
+        }
+        if (candidates.isEmpty() && deletes.isEmpty()) return
 
         ApplicationManager.getApplication().executeOnPooledThread {
             if (project.isDisposed) return@executeOnPooledThread
@@ -199,6 +222,76 @@ class AgentEditDetector(private val project: Project) : Disposable {
                     // best-effort; never let one file abort the batch
                 }
             }
+            for ((absPath, content) in deletes) {
+                try {
+                    recordDeletedFile(projectRoot, absPath, content)
+                } catch (_: Exception) {
+                    // best-effort; never let one file abort the batch
+                }
+            }
+        }
+    }
+
+    /** VFS `before`: snapshot each file about to be DELETED while it still exists, so
+     *  the deletion can be attributed to AI once it lands. Gated on recent Copilot
+     *  activity so an ordinary human delete isn't captured. Mirrors the VS Code
+     *  plugin's onWillDeleteFiles/snapshotDeletingFiles. */
+    private fun snapshotDeletingFiles(events: List<VFileEvent>) {
+        if (project.isDisposed) return
+        if (System.currentTimeMillis() - lastCopilotChatMs > COPILOT_WINDOW_MS) return
+        for (ev in events) {
+            if (ev !is VFileDeleteEvent) continue
+            val vFile = ev.file
+            if (vFile.isDirectory || !vFile.isInLocalFileSystem) continue
+            val absPath = vFile.path
+            if (isExcludedPath(absPath)) continue
+            if (vFile.length > MAX_FILE_BYTES) continue
+            try {
+                pendingDeleteContent[absPath] = String(vFile.contentsToByteArray(), Charsets.UTF_8)
+            } catch (_: Exception) {
+                // unreadable / binary — only readable file deletions are attributed
+            }
+        }
+    }
+
+    /** Record an AI file deletion: hash the removed (pre-delete) lines and POST them as
+     *  removed_lines so commit-time attribution credits the AI tool instead of Human.
+     *  Mirrors the VS Code plugin's recordDeletedFile (CompletionDetector.ts:665). */
+    private fun recordDeletedFile(projectRoot: String, absPath: String, content: String) {
+        if (GitUtils.getRepoRoot(absPath) != projectRoot) return
+        if (GitUtils.inProgressGitOp(projectRoot)) return
+        val relPath = GitUtils.toRepoRelativePath(projectRoot, absPath) ?: return
+
+        // Hash each non-blank line exactly as the daemon hashes a diff "-" line
+        // (sha256 of the line sans trailing \r; blank lines are never hashed).
+        val removed = ArrayList<RemovedLineHash>()
+        for (raw in content.split('\n')) {
+            val text = raw.removeSuffix("\r")
+            if (text.isBlank()) continue
+            removed.add(RemovedLineHash(sha256Hex(text), sha256HexNorm(text)))
+        }
+        if (removed.isEmpty()) return
+
+        val repoId = CliRepoId.get(projectRoot) ?: projectRoot
+        val tool = resolveTool()
+        val rawMeta = """{"source":"intellij_plugin_agent","gen_type_signal":"copilot_agent_delete"}"""
+        val payload = EditPayload(
+            tool = tool,
+            confidence = "high",
+            genType = "chat",
+            repoPath = repoId,
+            filePath = relPath,
+            suggestedLines = removed.size.toLong(),
+            lines = emptyList(),
+            removedLines = removed,
+            rawMeta = rawMeta,
+            branch = GitUtils.getBranchName(projectRoot),
+        )
+        if (debugEnabled()) {
+            BlamelyLogger.info("agent delete: tool=$tool $relPath removed=${removed.size}")
+        }
+        if (daemon.send(payload)) {
+            project.getService(CliDataService::class.java)?.refresh()
         }
     }
 
@@ -227,9 +320,15 @@ class AgentEditDetector(private val project: Project) : Disposable {
         //   • FALLBACK (no baseline — e.g. agent created a file with no open editor):
         //     tracked file → lines that differ from HEAD; new/untracked → every line.
         val baseline = preWriteBaseline.remove(absPath)
-        val baselineChanged: List<Int>? = baseline?.let {
-            changedNewLines(it.split('\n').map { l -> l.removeSuffix("\r") }, lines)
-        }
+        val oldLines: List<String>? = baseline?.split('\n')?.map { it.removeSuffix("\r") }
+        val baselineChanged: List<Int>? = oldLines?.let { changedNewLines(it, lines) }
+        // Lines the rewrite DELETED (in the baseline, gone from the new content). Sent as
+        // removed_lines so the daemon credits the deletion to the AI at commit time —
+        // without this, an AI "replace line X with line Y" showed only the added line Y as
+        // AI and left the deletion of X as Human. Parity with the VS Code plugin.
+        val removedHashes: List<RemovedLineHash> = oldLines?.let { removedOldLines(it, lines) }
+            ?.mapNotNull { t -> if (t.isBlank()) null else RemovedLineHash(sha256Hex(t), sha256HexNorm(t)) }
+            ?: emptyList()
         // Stash the baseline in the daemon too (parity with the VS Code plugin) so
         // any CLI-side narrowing that compares against a "before" snapshot agrees.
         if (baseline != null) {
@@ -268,6 +367,7 @@ class AgentEditDetector(private val project: Project) : Disposable {
             filePath = relPath,
             suggestedLines = ranges.size.toLong(),
             lines = ranges,
+            removedLines = removedHashes,
             rawMeta = rawMeta,
             branch = GitUtils.getBranchName(projectRoot),
         )
@@ -320,6 +420,37 @@ class AgentEditDetector(private val project: Project) : Disposable {
         }
         while (j < m) { changed.add(j + 1); j++ }
         return changed
+    }
+
+    // removedOldLines returns the CONTENTS of the [old] lines NOT part of the longest
+    // common subsequence with [new] — the lines this rewrite deleted. The symmetric
+    // counterpart of changedNewLines (same LCS DP; collects on the delete branch).
+    // Returns null when the inputs are too large to diff cheaply.
+    private fun removedOldLines(old: List<String>, new: List<String>): List<String>? {
+        val n = old.size
+        val m = new.size
+        if (m == 0) return old.toList()
+        if (n.toLong() * m > 6_000_000L) return null // guard the O(n*m) DP
+        val dp = Array(n + 1) { IntArray(m + 1) }
+        for (i in n - 1 downTo 0) {
+            val oi = old[i]
+            for (j in m - 1 downTo 0) {
+                dp[i][j] = if (oi == new[j]) dp[i + 1][j + 1] + 1
+                else maxOf(dp[i + 1][j], dp[i][j + 1])
+            }
+        }
+        val removed = ArrayList<String>()
+        var i = 0
+        var j = 0
+        while (i < n && j < m) {
+            when {
+                old[i] == new[j] -> { i++; j++ }
+                dp[i + 1][j] >= dp[i][j + 1] -> { removed.add(old[i]); i++ }
+                else -> j++
+            }
+        }
+        while (i < n) { removed.add(old[i]); i++ }
+        return removed
     }
 
     // git diff --unified=0 HEAD -- <file> → 1-based new-side changed line numbers.

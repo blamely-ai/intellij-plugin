@@ -18,7 +18,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
-class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disposable {
+class WorkingLogTracker(private val project: Project) : Disposable {
     private val exec: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "blamely-worklog").apply { isDaemon = true } }
     private val trackers = ConcurrentHashMap<String, FileTracker>()
@@ -28,7 +28,17 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
      *  the EDT via the executor. prevText is the file content BEFORE this change —
      *  the baseline when the file is first seen this session. */
     fun onEdit(absPath: String, prevText: String, newText: String, author: Author) {
-        if (newText == prevText || !BlamelySettings.getInstance().attributionV2) return
+        if (absPath.isBlank() || newText == prevText || !BlamelySettings.getInstance().attributionV2) return
+        // Replayed content (cherry-pick/rebase/merge/revert in progress, or a
+        // stash apply/pop within the stash window) is NOT fresh authorship —
+        // folding it would poison the working log as Human typing. Skip the fold
+        // AND discard the file's in-memory tracker so the next real edit
+        // re-seeds from the on-disk working log + baseline (the pre-op truth).
+        // The CLI's commit-time reconcile recovers anything mis-folded anyway.
+        if (project.getService(ai.blamely.git.GitOpState::class.java)?.isActive() == true) {
+            discardFile(absPath)
+            return
+        }
         exec.submit {
             try {
                 val ft = trackers.getOrPut(absPath) { seedTracker(absPath, prevText) }
@@ -58,6 +68,38 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
                 flushTasks.remove(path)?.cancel(false)
                 flush(path, force)
             }
+        }
+    }
+
+    /** Flush a single file's tracker now (e.g. on document save) so a commit that reads
+     *  the working log right after sees the latest state. Mirrors the VS Code plugin's
+     *  onDidSaveTextDocument flush. */
+    fun flushFile(absPath: String) {
+        exec.submit {
+            flushTasks.remove(absPath)?.cancel(false)
+            flush(absPath)
+        }
+    }
+
+    /** Flush then evict a file's tracker (e.g. on editor close) so it doesn't linger in
+     *  memory. Mirrors the VS Code plugin's onDidCloseTextDocument map eviction. */
+    fun dropFile(absPath: String) {
+        exec.submit {
+            flushTasks.remove(absPath)?.cancel(false)
+            flush(absPath)
+            trackers.remove(absPath)
+        }
+    }
+
+    /** Evict a file's tracker WITHOUT flushing — used when a replay (git op /
+     *  stash pop / external reload) rewrote the buffer: the in-flight state may
+     *  already be poisoned, so it is discarded and the next real edit re-seeds
+     *  from the on-disk working log + baseline. Mirrors the VS Code plugin's
+     *  resetDocument. */
+    fun discardFile(absPath: String) {
+        exec.submit {
+            flushTasks.remove(absPath)?.cancel(false)
+            trackers.remove(absPath)
         }
     }
 

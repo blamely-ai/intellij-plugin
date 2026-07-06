@@ -39,6 +39,9 @@ fun workingLogToLineBlame(wl: WorkingLogJson): List<LineBlame> {
                     humanChars = if (ai) 0 else 1,
                     changeType = LineBlame.ChangeType.ADD,
                     codingType = LineBlame.CodingType.TYPING,
+                    // Working-log ranges are exact (diff-derived), not whole-file guesses —
+                    // parity with the VS Code toLineBlame (workingLogBlame.ts).
+                    boundedAiRange = true,
                 ),
             )
             ln++

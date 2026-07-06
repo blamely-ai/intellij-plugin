@@ -30,4 +30,9 @@ object BlamelyIcons {
     /** Human gutter — same SVG as VS Code (person outline, #56a064). */
     @JvmField
     val GutterHuman = load("/icons/gutter-human.svg", Human)
+
+    /** Neutral "detecting authorship…" gutter — three-quarter amber ring, same as
+     *  VS Code's GUTTER_PENDING_SVG. Shown on AI-likely lines awaiting attribution. */
+    @JvmField
+    val GutterDetecting = load("/icons/gutter-detecting.svg", AllIcons.General.BalloonInformation)
 }

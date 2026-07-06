@@ -203,11 +203,11 @@ class CliDataService(private val project: Project) : Disposable {
                     merged[GitUtils.blameKey(java.io.File(repoRoot, rel).path)] = entries
                 }
             }
-            // Open editors: seed COMMITTED + uncommitted authorship (single-file
+            // Visible editors: seed COMMITTED + uncommitted authorship (single-file
             // `authorship` seeds from the commit notes when there's no working log),
             // overriding --all — so a just-committed file keeps its committed history
             // in the gutter instead of showing only the current change.
-            for (path in openEditorPaths()) {
+            for (path in visibleEditorPaths()) {
                 val wl = runAuthorshipSingle(bin, path) ?: continue
                 merged[GitUtils.blameKey(path)] =
                     scopeVisibleEditor(path, wl, repoRoots, repoStates)
@@ -259,15 +259,18 @@ class CliDataService(private val project: Project) : Disposable {
         return byFile[rel] ?: emptyList()
     }
 
-    private fun openEditorPaths(): List<String> {
+    private fun visibleEditorPaths(): List<String> {
         val out = ArrayList<String>()
         ApplicationManager.getApplication().invokeAndWait {
             if (project.isDisposed) return@invokeAndWait
-            for (vf in com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).openFiles) {
+            // Visible editors only — the editor selected in each split — matching the VS
+            // Code plugin's window.visibleTextEditors, not every background tab.
+            for (fe in com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedEditors) {
+                val vf = fe.file ?: continue
                 if (vf.isInLocalFileSystem) out.add(vf.path)
             }
         }
-        return out
+        return out.distinct()
     }
 
     private fun runAuthorshipSingle(bin: String, absPath: String): ai.blamely.authorship.WorkingLogJson? {

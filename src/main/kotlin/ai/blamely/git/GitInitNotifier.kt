@@ -24,6 +24,8 @@ object GitInitNotifier {
     fun maybePrompt(project: Project, onInitialized: () -> Unit) {
         ApplicationManager.getApplication().executeOnPooledThread {
             if (project.isDisposed || project.isDefault) return@executeOnPooledThread
+            // Honor the "never prompt" setting (parity with VS Code's blamely.promptGitInit).
+            if (!ai.blamely.settings.BlamelySettings.getInstance().promptGitInit) return@executeOnPooledThread
             val basePath = project.basePath ?: return@executeOnPooledThread
             if (PropertiesComponent.getInstance(project).getBoolean(DISMISS_KEY, false)) {
                 return@executeOnPooledThread

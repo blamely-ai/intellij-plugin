@@ -14,6 +14,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.AnActionResult
 import com.intellij.openapi.actionSystem.ex.AnActionListener
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.event.DocumentEvent
@@ -238,6 +239,11 @@ class CompletionDetector(private val project: Project) : Disposable {
     }
 
     private fun handle(event: DocumentEvent) {
+        // Undo/redo replays history — not fresh authorship, so never attribute it.
+        // (VS Code bails on TextDocumentChangeReason.Undo|Redo; IntelliJ exposes no
+        // per-event reason, so we consult the UndoManager.)
+        val undo = UndoManager.getInstance(project)
+        if (undo.isUndoInProgress || undo.isRedoInProgress) return
         val newFragment = event.newFragment.toString()
         if (newFragment.isEmpty()) return
 
@@ -262,6 +268,24 @@ class CompletionDetector(private val project: Project) : Disposable {
             val vf = FileDocumentManager.getInstance().getFile(event.document)
             if (vf != null && vf.isInLocalFileSystem) {
                 try {
+                    // External from-disk reload (git checkout / stash pop / revert
+                    // rewrote the file): typing always leaves the document modified
+                    // vs its saved file; a bulk update or an unmodified document
+                    // right after a change means the editor RELOADED it. Replayed
+                    // content must not fold into the working log — discard the
+                    // file's tracker so the next real edit re-seeds. Mirrors the
+                    // VS Code plugin's !doc.isDirty suppression.
+                    val fdm = FileDocumentManager.getInstance()
+                    val externalReload = try {
+                        event.document.isInBulkUpdate || !fdm.isDocumentUnsaved(event.document)
+                    } catch (_: Throwable) {
+                        false
+                    }
+                    if (externalReload) {
+                        project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)
+                            ?.discardFile(vf.path)
+                        return@let
+                    }
                     val newFull = event.document.text
                     val off = event.offset
                     val nfLen = event.newFragment.length
@@ -663,14 +687,15 @@ internal fun sha256HexNorm(s: String): String {
 // neither depends on the other.
 //
 // "auto" infers from registered Copilot actions (GitHub Copilot plugin) when present;
-// otherwise cursor. Users can pin copilot/cursor in Settings → Blamely.
+// otherwise cursor. Users can pin copilot/cursor/gemini in Settings → Blamely
+// (gemini has no auto-detection on IntelliJ — it's a manual pin only).
 internal fun resolveTool(): String {
     val configured = try {
         ai.blamely.settings.BlamelySettings.getInstance().aiTool
     } catch (_: Throwable) {
         "auto"
     }
-    if (configured == "copilot" || configured == "cursor") return configured
+    if (configured == "copilot" || configured == "cursor" || configured == "gemini") return configured
 
     if (isCopilotIdePluginActive()) return "copilot"
     return "cursor"

@@ -17,6 +17,15 @@ data class EditRange(
     val contentShaNorm: String? = null,
 )
 
+// RemovedLineHash is the content hash of a line an edit DELETED. Deleted lines have
+// no surviving position, so commit-time attribution matches the commit diff's "-"
+// lines BY CONTENT to credit the deletion to the AI. Mirrors daemon.RemovedLineHash
+// and the VS Code plugin's RemovedLineHash.
+data class RemovedLineHash(
+    val contentSha: String,
+    val contentShaNorm: String,
+)
+
 data class EditPayload(
     val tool: String,
     val confidence: String? = null,
@@ -26,6 +35,10 @@ data class EditPayload(
     val model: String? = null,
     val suggestedLines: Long = 0,
     val lines: List<EditRange>,
+    // Hashes of lines this edit REMOVED (an AI rewrite that replaced/deleted baseline
+    // content). Without these, a commit's "-" lines default to Human even when the AI
+    // did the deletion. Parity with the VS Code plugin + daemon.EditPayload.
+    val removedLines: List<RemovedLineHash> = emptyList(),
     val rawMeta: String? = null,
     // Branch the editor was on when the edit was made. The daemon scopes
     // attribution by branch-based work session; if empty it resolves from repo.
@@ -44,6 +57,12 @@ class DaemonClient {
     private var lastWarnAtMillis: Long = 0
 
     fun send(payload: EditPayload): Boolean {
+        if (debugConnectionEnabled()) {
+            BlamelyLogger.info(
+                "daemon POST /edit tool=${payload.tool} gen=${payload.genType} " +
+                    "${payload.filePath} lines=${payload.lines.size} removed=${payload.removedLines.size}"
+            )
+        }
         val sock = CliPaths.readDaemonSocket()
         return if (sock != null) {
             try {
@@ -196,6 +215,13 @@ class DaemonClient {
         lastWarnAtMillis = now
         BlamelyLogger.warn("DaemonClient: $msg")
     }
+
+    // Gate for daemon↔plugin traffic logging (parity with VS Code's blamely.debugConnection).
+    private fun debugConnectionEnabled(): Boolean = try {
+        ai.blamely.settings.BlamelySettings.getInstance().debugConnection
+    } catch (_: Throwable) {
+        false
+    }
 }
 
 // encodeJson hand-rolls the JSON envelope so the plugin doesn't grow a
@@ -224,6 +250,17 @@ private fun encodeJson(p: EditPayload): String {
         sb.append('}')
     }
     sb.append(']')
+    if (p.removedLines.isNotEmpty()) {
+        sb.append(",\"removed_lines\":[")
+        p.removedLines.forEachIndexed { i, r ->
+            if (i > 0) sb.append(',')
+            sb.append('{')
+            sb.append("\"content_sha\":").append(quote(r.contentSha))
+            sb.append(",\"content_sha_norm\":").append(quote(r.contentShaNorm))
+            sb.append('}')
+        }
+        sb.append(']')
+    }
     p.rawMeta?.let { sb.append(",\"raw_meta\":").append(quote(it)) }
     p.branch?.takeIf { it.isNotEmpty() }?.let { sb.append(",\"branch\":").append(quote(it)) }
     sb.append('}')

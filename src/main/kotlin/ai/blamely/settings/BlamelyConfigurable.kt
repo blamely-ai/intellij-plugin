@@ -16,6 +16,8 @@ class BlamelyConfigurable : Configurable {
     private var showLineIconsCheckBox: JBCheckBox? = null
     private var aiToolCombo: ComboBox<String>? = null
     private var debugDetectionCheckBox: JBCheckBox? = null
+    private var promptGitInitCheckBox: JBCheckBox? = null
+    private var debugConnectionCheckBox: JBCheckBox? = null
 
     override fun getDisplayName(): String = "Blamely"
 
@@ -27,7 +29,7 @@ class BlamelyConfigurable : Configurable {
         )
         showLineIconsCheckBox = lineIconsCb
 
-        val combo = ComboBox(arrayOf("auto", "copilot", "cursor"))
+        val combo = ComboBox(arrayOf("auto", "copilot", "cursor", "gemini"))
         combo.selectedItem = settings.aiTool.ifEmpty { "auto" }
         aiToolCombo = combo
 
@@ -37,8 +39,21 @@ class BlamelyConfigurable : Configurable {
         )
         debugDetectionCheckBox = debugCb
 
+        val promptGitInitCb = JBCheckBox(
+            "Prompt to run 'git init' when a folder isn't a git repository",
+            settings.promptGitInit
+        )
+        promptGitInitCheckBox = promptGitInitCb
+
+        val debugConnectionCb = JBCheckBox(
+            "Debug connection (log daemon↔plugin traffic to the Blamely log)",
+            settings.debugConnection
+        )
+        debugConnectionCheckBox = debugConnectionCb
+
         panel = FormBuilder.createFormBuilder()
             .addComponent(lineIconsCb)
+            .addComponent(promptGitInitCb)
             .addLabeledComponent("AI tool for detected edits:", combo)
             .addComponent(
                 JBLabel(
@@ -49,6 +64,7 @@ class BlamelyConfigurable : Configurable {
                 )
             )
             .addComponent(debugCb)
+            .addComponent(debugConnectionCb)
             .addComponentFillVertically(JPanel(), 0)
             .panel
             .apply { border = JBUI.Borders.empty(10, 20) }
@@ -62,6 +78,8 @@ class BlamelyConfigurable : Configurable {
         if (lineIcons != null && lineIcons.isSelected != s.showGutterLineIcons) return true
         if (combo != null && (combo.selectedItem as? String ?: "auto") != s.aiTool) return true
         if (debugDetectionCheckBox?.isSelected != null && debugDetectionCheckBox!!.isSelected != s.debugDetection) return true
+        if (promptGitInitCheckBox?.isSelected != null && promptGitInitCheckBox!!.isSelected != s.promptGitInit) return true
+        if (debugConnectionCheckBox?.isSelected != null && debugConnectionCheckBox!!.isSelected != s.debugConnection) return true
         return false
     }
 
@@ -70,6 +88,8 @@ class BlamelyConfigurable : Configurable {
         showLineIconsCheckBox?.let { s.showGutterLineIcons = it.isSelected }
         aiToolCombo?.let { s.aiTool = (it.selectedItem as? String) ?: "auto" }
         debugDetectionCheckBox?.let { s.debugDetection = it.isSelected }
+        promptGitInitCheckBox?.let { s.promptGitInit = it.isSelected }
+        debugConnectionCheckBox?.let { s.debugConnection = it.isSelected }
         for (project in ProjectManager.getInstance().openProjects) {
             if (project.isDisposed) continue
             project.getService(ai.blamely.ui.BlameDecorations::class.java)?.refresh()
@@ -81,5 +101,7 @@ class BlamelyConfigurable : Configurable {
         showLineIconsCheckBox?.isSelected = s.showGutterLineIcons
         aiToolCombo?.selectedItem = s.aiTool.ifEmpty { "auto" }
         debugDetectionCheckBox?.isSelected = s.debugDetection
+        promptGitInitCheckBox?.isSelected = s.promptGitInit
+        debugConnectionCheckBox?.isSelected = s.debugConnection
     }
 }
