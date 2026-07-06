@@ -183,11 +183,24 @@ class CliDataService(private val project: Project) : Disposable {
         val bin = ai.blamely.authorship.blamelyBinaryPath()
         val merged = HashMap<String, List<LineBlame>>()
         if (java.io.File(bin).exists()) {
-            for (repoRoot in projectRepoRoots()) {
+            val repoRoots = projectRepoRoots()
+            val repoStates = HashMap<String, WorkingTreeState>()
+            for (repoRoot in repoRoots) {
+                // Scope each repo's working logs to its uncommitted-vs-HEAD changes
+                // BEFORE key conversion — a log orphaned under an old branch/base (e.g.
+                // after `checkout -b` + commit on another branch) describes lines now
+                // identical to HEAD, so it must not paint. Mirrors the v1 refreshRepo
+                // safety net that refreshV2 previously lacked.
+                val state = collectWorkingTreeState(repoRoot)
+                repoStates[File(repoRoot).path] = state
+                val byFile = HashMap<String, List<LineBlame>>()
                 for (wl in fetchAllWorkingLogs(bin, repoRoot)) {
-                    val file = wl.file ?: continue
-                    merged[GitUtils.blameKey(java.io.File(repoRoot, file).path)] =
-                        ai.blamely.authorship.workingLogToLineBlame(wl)
+                    val file = (wl.file ?: continue).replace('\\', '/')
+                    byFile[file] = ai.blamely.authorship.workingLogToLineBlame(wl)
+                }
+                scopeToUncommittedWorkingTree(byFile, state.changedSets, state.untrackedFiles)
+                for ((rel, entries) in byFile) {
+                    merged[GitUtils.blameKey(java.io.File(repoRoot, rel).path)] = entries
                 }
             }
             // Open editors: seed COMMITTED + uncommitted authorship (single-file
@@ -196,7 +209,8 @@ class CliDataService(private val project: Project) : Disposable {
             // in the gutter instead of showing only the current change.
             for (path in openEditorPaths()) {
                 val wl = runAuthorshipSingle(bin, path) ?: continue
-                merged[GitUtils.blameKey(path)] = ai.blamely.authorship.workingLogToLineBlame(wl)
+                merged[GitUtils.blameKey(path)] =
+                    scopeVisibleEditor(path, wl, repoRoots, repoStates)
             }
         }
         ApplicationManager.getApplication().invokeLater {
@@ -204,6 +218,45 @@ class CliDataService(private val project: Project) : Disposable {
             project.getService(BlameMapService::class.java).blameMap.replaceAll(merged)
             project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
         }
+    }
+
+    private data class WorkingTreeState(
+        val changedSets: Map<String, Set<Int>>,
+        val untrackedFiles: Set<String>,
+    )
+
+    /** Resolve a repo's uncommitted-vs-HEAD state (changed lines per file + untracked
+     *  files). Shared by the v1 refreshRepo scan and the v2 refreshV2 scan so both
+     *  scope identically. Unborn HEAD → empty changed sets; new files are untracked. */
+    private fun collectWorkingTreeState(repoRoot: String): WorkingTreeState {
+        val changedSets = getWorkingTreeHumanLines(repoRoot).mapValues { it.value.toHashSet() }
+        val untrackedSet = HashSet<String>()
+        GitUtils.run(repoRoot, "ls-files", "--others", "--exclude-standard")?.lines()?.forEach {
+            val fp = it.trim().replace('\\', '/')
+            if (fp.isNotEmpty()) untrackedSet.add(fp)
+        }
+        return WorkingTreeState(changedSets, untrackedSet)
+    }
+
+    /** Scope one open editor's authorship to its repo's uncommitted-vs-HEAD state, so a
+     *  file clean vs HEAD paints nothing even if the CLI returned a log. Falls back to
+     *  the unscoped conversion when the file's repo wasn't discovered. */
+    private fun scopeVisibleEditor(
+        absPath: String,
+        wl: ai.blamely.authorship.WorkingLogJson,
+        repoRoots: List<String>,
+        repoStates: Map<String, WorkingTreeState>,
+    ): List<LineBlame> {
+        val entries = ai.blamely.authorship.workingLogToLineBlame(wl)
+        val bestRoot = repoRoots
+            .filter { absPath == it || absPath.startsWith(it + File.separator) }
+            .maxByOrNull { it.length }
+            ?: return entries
+        val state = repoStates[File(bestRoot).path] ?: return entries
+        val rel = GitUtils.toRepoRelativePath(bestRoot, absPath) ?: return entries
+        val byFile = hashMapOf(rel to entries)
+        scopeToUncommittedWorkingTree(byFile, state.changedSets, state.untrackedFiles)
+        return byFile[rel] ?: emptyList()
     }
 
     private fun openEditorPaths(): List<String> {

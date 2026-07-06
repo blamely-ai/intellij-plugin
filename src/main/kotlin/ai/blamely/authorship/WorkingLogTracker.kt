@@ -49,12 +49,14 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
     }
 
     /** Flush every tracked file immediately (e.g. on IDE focus loss, before a commit
-     *  reads the working log). Runs on the worklog executor for map safety. */
-    fun flushAll() {
+     *  reads the working log). Runs on the worklog executor for map safety. With
+     *  force=true, re-persist even non-dirty trackers — used on a same-SHA branch
+     *  switch so each file's working log exists under the NEW branch's dir. */
+    fun flushAll(force: Boolean = false) {
         exec.submit {
             for (path in trackers.keys.toList()) {
                 flushTasks.remove(path)?.cancel(false)
-                flush(path)
+                flush(path, force)
             }
         }
     }
@@ -68,6 +70,15 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
             flushTasks.clear()
             trackers.clear()
         }
+    }
+
+    /** A same-SHA branch switch (`git checkout -b feature`): the in-memory edits are
+     *  still uncommitted work, but their on-disk log currently lives only under the OLD
+     *  branch's dir. flush() re-resolves ctx per call, so a forced flush re-writes each
+     *  file's log under the new branch/base before a commit there reads it. Keeps the
+     *  trackers (unlike onHeadChanged) since nothing was committed. */
+    fun onBranchChanged() {
+        flushAll(force = true)
     }
 
     /** Build a file's FileTracker on first edit, SEEDING from the on-disk working log +
@@ -116,10 +127,11 @@ class WorkingLogTracker(@Suppress("unused") private val project: Project) : Disp
         }
     }
 
-    private fun flush(absPath: String) {
+    private fun flush(absPath: String, force: Boolean = false) {
         try {
             val ft = trackers[absPath] ?: return
-            if (!ft.isDirty()) return
+            // force re-persists a clean tracker under a (possibly new) branch/base dir.
+            if (!force && !ft.isDirty()) return
             val ctx = resolveCtx(absPath) ?: return
             val wl = ft.current() ?: return
             WorkingLogStore.save(ctx.repoRoot, ctx.branch, ctx.baseSha, ctx.rel, wl, ft.content())

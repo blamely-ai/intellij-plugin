@@ -89,6 +89,7 @@ class BlamelyStartupActivity : ProjectActivity {
 
         // Refresh history when HEAD changes (blamely writes git notes on commit).
         var lastHead: String? = null
+        var lastBranch: String? = null
         val headAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
         fun pollHead() {
             if (project.isDisposed) return
@@ -97,9 +98,11 @@ class BlamelyStartupActivity : ProjectActivity {
                     if (project.isDisposed) return@addRequest
                     val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath
                     val head = repoRoot?.let { GitUtils.run(it, "rev-parse", "HEAD") }
+                    val branch = repoRoot?.let { GitUtils.getBranchName(it) } ?: "DETACHED"
                     if (head != null && head != lastHead) {
                         val wasInitial = lastHead == null
                         lastHead = head
+                        lastBranch = branch
                         project.getService(CliDataService::class.java)?.refresh()
                         refreshUi(project)
                         // A real commit (not the first observation) → drop the trackers'
@@ -108,6 +111,15 @@ class BlamelyStartupActivity : ProjectActivity {
                         if (!wasInitial) {
                             project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.onHeadChanged()
                         }
+                    } else if (head != null && lastBranch != null && branch != lastBranch) {
+                        // Same HEAD SHA, different branch — `git checkout -b feature` (or
+                        // switching to an existing branch at the same tip). No commit
+                        // happened, so the in-memory edits are still live; re-persist them
+                        // under the NEW branch's working-log dir before a commit there
+                        // reads it, and refresh so the gutter re-scopes to the branch.
+                        lastBranch = branch
+                        project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.onBranchChanged()
+                        project.getService(CliDataService::class.java)?.refresh()
                     }
                     pollHead()
                 },
