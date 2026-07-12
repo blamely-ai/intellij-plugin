@@ -193,9 +193,14 @@ class AgentEditDetector(private val project: Project) : Disposable {
 
         // Collect candidate (absPath, isCreate) on the calling (EDT/write) thread
         // — cheap filtering only — then offload git + disk + hashing + POST.
+        // Creates inside CompletionDetector's chat-apply window are skipped: the
+        // action-signal path is higher-confidence and records the same lines.
+        val chatCreateActive =
+            project.getService(CompletionDetector::class.java)?.inChatCreateWindow() == true
         val candidates = ArrayList<Pair<String, Boolean>>()
         for (ev in events) {
             val isCreate = ev is VFileCreateEvent
+            if (isCreate && chatCreateActive) continue
             if (!isCreate && ev !is VFileContentChangeEvent) continue
             val vFile = ev.file ?: continue
             if (vFile.isDirectory || !vFile.isInLocalFileSystem) continue
@@ -481,10 +486,7 @@ class AgentEditDetector(private val project: Project) : Disposable {
         return GitUtils.run(repoRoot, "cat-file", "-e", "HEAD:$relPath") == null
     }
 
-    private fun isExcludedPath(absPath: String): Boolean {
-        val p = absPath.replace('\\', '/')
-        return EXCLUDED_DIRS.any { p.contains("/$it/") }
-    }
+    private fun isExcludedPath(absPath: String): Boolean = DetectorPaths.isExcluded(absPath)
 
     override fun dispose() {
         stopped = true
@@ -499,10 +501,6 @@ class AgentEditDetector(private val project: Project) : Disposable {
 
         // Skip pathologically large files — hashing every line would be wasteful
         // and agent edits to such files are rare.
-        private const val MAX_FILE_BYTES = 2L * 1024 * 1024
-
-        private val EXCLUDED_DIRS = setOf(
-            ".git", ".idea", "build", "out", "target", "dist", "node_modules", ".gradle",
-        )
+        private const val MAX_FILE_BYTES = DetectorPaths.MAX_FILE_BYTES
     }
 }

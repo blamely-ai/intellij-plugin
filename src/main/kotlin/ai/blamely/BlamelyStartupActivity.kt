@@ -4,7 +4,6 @@ import ai.blamely.cli.CliDataService
 import ai.blamely.cli.CliHealthNotifier
 import ai.blamely.completion.CompletionDetector
 import ai.blamely.core.BlameUpdateListener
-import ai.blamely.git.GitUtils
 import ai.blamely.settings.BlamelySettings
 import ai.blamely.ui.BlamelyStatusBarWidget
 import ai.blamely.utils.BlamelyLogger
@@ -15,12 +14,8 @@ import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
-import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.openapi.vfs.newvfs.BulkFileListener
-import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.openapi.wm.IdeFrame
 import com.intellij.openapi.wm.WindowManager
-import com.intellij.util.Alarm
 
 /**
  * Starts read-only blamely CLI data polling and wires UI refresh on blame updates.
@@ -53,10 +48,10 @@ class BlamelyStartupActivity : ProjectActivity {
             }
         )
 
-        // The status bar count is scoped to the ACTIVE FILE, so refresh it when the
-        // user switches editors — mirrors the gutter's own selectionChanged listener
-        // and VS Code's onDidChangeActiveTextEditor. Without this the bar would keep
-        // showing the previous file's numbers until the next blame update.
+        // The status bar shows the session-wide AI%/Human% summary (BlameMap
+        // getSummary — same as VS Code); refresh it when the user switches editors
+        // so its daemon lamp and counts stay current, mirroring the gutter's own
+        // selectionChanged listener and VS Code's onDidChangeActiveTextEditor.
         project.messageBus.connect(project).subscribe(
             FileEditorManagerListener.FILE_EDITOR_MANAGER,
             object : FileEditorManagerListener {
@@ -91,48 +86,14 @@ class BlamelyStartupActivity : ProjectActivity {
         }
 
         // Refresh history when HEAD changes (blamely writes git notes on commit).
-        var lastHead: String? = null
-        var lastBranch: String? = null
-        val headAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
-        fun pollHead() {
-            if (project.isDisposed) return
-            headAlarm.addRequest(
-                {
-                    if (project.isDisposed) return@addRequest
-                    val repoRoot = GitUtils.getRepoRoot(project) ?: project.basePath
-                    // Refresh the cached git-op / stash-window state the working-log
-                    // tracker consults synchronously on every change (see GitOpState).
-                    repoRoot?.let { project.getService(ai.blamely.git.GitOpState::class.java)?.poll(it) }
-                    val head = repoRoot?.let { GitUtils.run(it, "rev-parse", "HEAD") }
-                    val branch = repoRoot?.let { GitUtils.getBranchName(it) } ?: "DETACHED"
-                    if (head != null && head != lastHead) {
-                        val wasInitial = lastHead == null
-                        lastHead = head
-                        lastBranch = branch
-                        project.getService(CliDataService::class.java)?.refresh()
-                        refreshUi(project)
-                        // A real commit (not the first observation) → drop the trackers'
-                        // in-memory edits so the next edit re-baselines against the
-                        // committed content rather than a stale baseline.
-                        if (!wasInitial) {
-                            project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.onHeadChanged()
-                        }
-                    } else if (head != null && lastBranch != null && branch != lastBranch) {
-                        // Same HEAD SHA, different branch — `git checkout -b feature` (or
-                        // switching to an existing branch at the same tip). No commit
-                        // happened, so the in-memory edits are still live; re-persist them
-                        // under the NEW branch's working-log dir before a commit there
-                        // reads it, and refresh so the gutter re-scopes to the branch.
-                        lastBranch = branch
-                        project.getService(ai.blamely.authorship.WorkingLogTracker::class.java)?.onBranchChanged()
-                        project.getService(CliDataService::class.java)?.refresh()
-                    }
-                    pollHead()
-                },
-                3000
-            )
-        }
-        pollHead()
+        // HeadStateWatcher runs the 3s poll (and also feeds GitOpState); the
+        // native `.git/HEAD` watch below fires the same check instantly.
+        project.getService(ai.blamely.git.HeadStateWatcher::class.java)?.start()
+        // Native file watching (parity with the VS Code plugin's FileSystemWatchers
+        // on .git/blamely/working_logs/** and .git/HEAD): an external tool writing
+        // an attribution while the IDE is open repaints the gutter within ~200ms
+        // instead of waiting for a save or the 30s poll.
+        project.getService(ai.blamely.cli.CliDataWatchService::class.java)?.start()
 
         // Focus-loss flush (Decision B): when the IDE is deactivated (user switches to a
         // terminal to commit, etc.) persist pending working-log edits NOW, before a
@@ -176,28 +137,9 @@ class BlamelyStartupActivity : ProjectActivity {
             },
         )
 
-        // Working-log dir watcher (parity with the VS Code plugin's FileSystemWatcher on
-        // .git/blamely/working_logs): refresh promptly when attribution files change,
-        // complementing the periodic poll. Best-effort — IntelliJ's VFS may not observe
-        // every external write under .git, so this augments rather than replaces the poll.
-        val wlRefreshAlarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, project)
-        ApplicationManager.getApplication().messageBus.connect(project).subscribe(
-            VirtualFileManager.VFS_CHANGES,
-            object : BulkFileListener {
-                override fun after(events: List<VFileEvent>) {
-                    if (project.isDisposed) return
-                    val hit = events.any {
-                        it.path.replace('\\', '/').contains("/.git/blamely/working_logs/")
-                    }
-                    if (hit) {
-                        wlRefreshAlarm.cancelAllRequests()
-                        wlRefreshAlarm.addRequest({
-                            if (!project.isDisposed) project.getService(CliDataService::class.java)?.refresh()
-                        }, 200)
-                    }
-                }
-            },
-        )
+        // (The former VFS-only working-log listener lived here; it missed external
+        // writes under .git because the subtree was never a watch root nor loaded
+        // into the VFS snapshot. Replaced by CliDataWatchService above.)
     }
 
     private fun refreshUi(project: Project) {

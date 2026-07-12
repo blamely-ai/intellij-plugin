@@ -37,8 +37,14 @@ data class CliNoteGenType(
 
 data class CliNoteFile(
     val path: String = "",
-    val added: Int = 0,
-    val deleted: Int = 0,
+    val type: String? = null,
+    @SerializedName(value = "added_lines", alternate = ["added"]) val added: Int = 0,
+    @SerializedName(value = "deleted_lines", alternate = ["deleted"]) val deleted: Int = 0,
+    // Per-file AI/Human split of added_lines/deleted_lines (same keys as totals); 0 when omitted.
+    @SerializedName("ai_added_lines") val aiAddedLines: Int = 0,
+    @SerializedName("human_added_lines") val humanAddedLines: Int = 0,
+    @SerializedName("ai_deleted_lines") val aiDeletedLines: Int = 0,
+    @SerializedName("human_deleted_lines") val humanDeletedLines: Int = 0,
     val lines: List<CliNoteLine>? = null,
 )
 

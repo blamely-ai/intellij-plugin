@@ -184,7 +184,11 @@ class BlameDecorations(private val project: Project) : Disposable {
 
         val blameService = project.getService(BlameMapService::class.java) ?: return
         val raw = blameService.blameMap.getBlame(path).filter { it.changeType != LineBlame.ChangeType.DELETE }
-        if (raw.isEmpty()) {
+        // Neutral "detecting" lines (an AI-likely edit awaiting attribution) must
+        // paint even when the file has no blame entries yet — e.g. an agent apply
+        // on a freshly opened or clean file.
+        val detectingLines = blameService.detectingLinesFor(path)
+        if (raw.isEmpty() && detectingLines.isEmpty()) {
             if (ai.blamely.utils.BlamelyLogger.isDebugEnabled()) {
                 ai.blamely.utils.BlamelyLogger.debug("gutter: file=$path -> NO blame entries (no icons)")
             }
@@ -207,9 +211,8 @@ class BlameDecorations(private val project: Project) : Disposable {
         val created = mutableListOf<RangeHighlighter>()
         highlighters[editor] = created
 
-        // Neutral "detecting" lines (an AI-likely edit awaiting attribution) render the
-        // amber ring UNLESS already resolved to AI — mirrors VS Code BlameDecorations.
-        val detectingLines = blameService.detectingLinesFor(path)
+        // Detecting lines render the amber ring UNLESS already resolved to AI —
+        // mirrors VS Code BlameDecorations.
         val candidateLines = (byLine.keys + detectingLines).sorted()
 
         for (line in candidateLines) {

@@ -32,17 +32,15 @@ object GitUtils {
     }
 
     private fun runWithGit(cwd: String, gitExe: String, vararg args: String): String? {
-        return try {
-            val pb = ProcessBuilder(gitExe, *args)
-                .directory(File(cwd))
-                .redirectErrorStream(true)
-            val p = pb.start()
-            val out = p.inputStream.bufferedReader().readText().trim()
-            if (p.waitFor() != 0) return null
-            out.ifBlank { null }
-        } catch (_: Exception) {
-            null
-        }
+        // Proc.run bounds the child (git runs on the 3s poll loop — a hung git
+        // would otherwise pin an alarm thread forever) and discards stderr, so
+        // a git warning can no longer corrupt the parsed stdout.
+        val out = ai.blamely.utils.Proc.run(
+            listOf(gitExe, *args),
+            dir = File(cwd),
+            timeoutMs = 10_000, maxBytes = 32 * 1024 * 1024,
+        )
+        return out?.ifBlank { null }
     }
 
     data class DiffShortStat(val insertions: Int, val deletions: Int, val filesChanged: Int = 0)

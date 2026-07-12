@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.6.7</version>
+  <version>1.6.8</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
@@ -132,6 +132,8 @@ blamely doctor    # full self-check
     <notificationGroup id="Blamely" displayType="BALLOON"/>
     <projectService serviceImplementation="ai.blamely.core.BlameMapService"/>
     <projectService serviceImplementation="ai.blamely.cli.CliDataService"/>
+    <projectService serviceImplementation="ai.blamely.cli.CliDataWatchService"/>
+    <projectService serviceImplementation="ai.blamely.git.HeadStateWatcher"/>
     <projectService serviceImplementation="ai.blamely.ui.BlameDecorations"/>
     <projectService serviceImplementation="ai.blamely.completion.CompletionDetector"/>
     <projectService serviceImplementation="ai.blamely.authorship.WorkingLogTracker"/>

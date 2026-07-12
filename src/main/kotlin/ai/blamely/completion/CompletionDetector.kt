@@ -31,6 +31,11 @@ import java.util.concurrent.TimeUnit
 // keystrokes on the heuristic (medium-confidence) path only.
 private const val MIN_COMPLETION_CHARS = 8
 
+// How long after a chat-apply command a NEWLY CREATED file is still credited
+// to the chat (files created by chat panels land on disk slightly after the
+// command, with no DocumentEvent). Mirrors VS Code's CHAT_CREATE_WINDOW_MS.
+private const val CHAT_CREATE_WINDOW_MS = 10_000L
+
 // CompletionDetector attributes AI edits using DETERMINISTIC action signals,
 // mirroring VS Code's CompletionDetector approach.
 //
@@ -65,10 +70,23 @@ class CompletionDetector(private val project: Project) : Disposable {
 
     // Pending-signal state: set by the action listener when the relevant action
     // fires; consumed on the next documentChanged. Exactly one drives gen_type.
+    // pendingSignalTool remembers WHICH assistant's action armed the flag
+    // ("copilot"/"gemini" derived from the action id, null for unknown sources)
+    // so attribution labels by the actual source instead of a static guess.
     @Volatile private var pendingInlineAccept = false
     private var pendingInlineTimer: ScheduledFuture<*>? = null
     @Volatile private var pendingChatApply = false
     private var pendingChatTimer: ScheduledFuture<*>? = null
+    @Volatile private var pendingSignalTool: String? = null
+
+    // Chat panels create NEW files slightly after the apply command fires (no
+    // DocumentEvent — the file lands on disk). Track when the last chat-apply
+    // command ran so a file created within this window is attributed to the
+    // chat, mirroring VS Code's onFilesCreated / CHAT_CREATE_WINDOW_MS.
+    @Volatile private var lastChatApplyCommandMs = 0L
+
+    internal fun inChatCreateWindow(): Boolean =
+        pendingChatApply || System.currentTimeMillis() - lastChatApplyCommandMs < CHAT_CREATE_WINDOW_MS
     private val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "blamely-signal-reset").also { it.isDaemon = true }
     }
@@ -113,6 +131,8 @@ class CompletionDetector(private val project: Project) : Disposable {
                     // would otherwise claim.
                     if (isChatApplyAction(id)) {
                         pendingChatApply = true
+                        pendingSignalTool = sourceToolFromActionId(id)
+                        lastChatApplyCommandMs = System.currentTimeMillis()
                         pendingChatTimer?.cancel(false)
                         pendingChatTimer = scheduler.schedule({
                             pendingChatApply = false
@@ -120,6 +140,7 @@ class CompletionDetector(private val project: Project) : Disposable {
                         if (debugEnabled()) BlamelyLogger.info("chat-apply pre-signal: $id")
                     } else if (isInlineCompletionAcceptAction(id)) {
                         pendingInlineAccept = true
+                        pendingSignalTool = sourceToolFromActionId(id)
                         pendingInlineTimer?.cancel(false)
                         pendingInlineTimer = scheduler.schedule({
                             pendingInlineAccept = false
@@ -145,6 +166,8 @@ class CompletionDetector(private val project: Project) : Disposable {
                     if (debugEnabled()) BlamelyLogger.info("action: $id")
                     if (isChatApplyAction(id)) {
                         pendingChatApply = true
+                        pendingSignalTool = sourceToolFromActionId(id)
+                        lastChatApplyCommandMs = System.currentTimeMillis()
                         pendingChatTimer?.cancel(false)
                         pendingChatTimer = scheduler.schedule({
                             pendingChatApply = false
@@ -163,7 +186,106 @@ class CompletionDetector(private val project: Project) : Disposable {
             },
             this
         )
+
+        // NEW files created by a chat apply land on disk with no DocumentEvent —
+        // only a VFS create. Attribute them to the chat when they appear inside
+        // the chat-apply window. Mirrors VS Code's onDidCreateFiles handler.
+        ApplicationManager.getApplication().messageBus.connect(this).subscribe(
+            com.intellij.openapi.vfs.VirtualFileManager.VFS_CHANGES,
+            object : com.intellij.openapi.vfs.newvfs.BulkFileListener {
+                override fun after(events: List<com.intellij.openapi.vfs.newvfs.events.VFileEvent>) {
+                    if (project.isDisposed || !inChatCreateWindow()) return
+                    val created = events
+                        .filterIsInstance<com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent>()
+                        .mapNotNull { ev ->
+                            val vf = ev.file ?: return@mapNotNull null
+                            if (vf.isDirectory || !vf.isInLocalFileSystem) return@mapNotNull null
+                            vf.path.takeUnless { DetectorPaths.isExcluded(it) }
+                        }
+                    if (created.isNotEmpty()) onFilesCreated(created, pendingSignalTool)
+                }
+            },
+        )
         BlamelyLogger.info("CompletionDetector: registered for project ${project.name}")
+    }
+
+    // Records every non-blank line of a file the chat panel just CREATED as an
+    // AI chat edit (per-line content_sha ranges, gen_type=chat). Runs the git and
+    // disk work off the EDT. Mirrors VS Code CompletionDetector.onFilesCreated.
+    private fun onFilesCreated(paths: List<String>, signalTool: String?) {
+        ApplicationManager.getApplication().executeOnPooledThread {
+            if (project.isDisposed) return@executeOnPooledThread
+            for (absPath in paths) {
+                try {
+                    recordCreatedFile(absPath, signalTool)
+                } catch (_: Exception) {
+                    // best-effort; never let one file abort the batch
+                }
+            }
+        }
+    }
+
+    private fun recordCreatedFile(absPath: String, signalTool: String?) {
+        val repoRoot = GitUtils.getRepoRoot(absPath) ?: return
+        if (GitUtils.inProgressGitOp(repoRoot)) return
+        // Same in-project guard as handle(): other open projects' detectors see
+        // the same application-level VFS event.
+        val inProject = try {
+            ApplicationManager.getApplication().runReadAction<Boolean> {
+                if (project.isDisposed) return@runReadAction false
+                val vf = com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(absPath)
+                vf != null && com.intellij.openapi.roots.ProjectFileIndex.getInstance(project).isInContent(vf)
+            }
+        } catch (_: Exception) {
+            false
+        }
+        if (!inProject) return
+        val relPath = GitUtils.toRepoRelativePath(repoRoot, absPath) ?: return
+
+        val file = java.io.File(absPath)
+        if (!file.isFile || file.length() > DetectorPaths.MAX_FILE_BYTES) return
+        val content = try {
+            file.readText()
+        } catch (_: Exception) {
+            return
+        }
+        if (content.isBlank()) return
+
+        val rawLines = content.split("\n")
+        val lineRanges = ArrayList<EditRange>()
+        for ((i, raw) in rawLines.withIndex()) {
+            val text = raw.removeSuffix("\r")
+            if (text.isBlank()) continue
+            lineRanges.add(EditRange(i + 1, i + 1, sha256Hex(text), sha256HexNorm(text)))
+        }
+        if (lineRanges.isEmpty()) return
+
+        val tool = resolveTool(signalTool)
+        val lineCount = rawLines.size - if (rawLines.lastOrNull() == "") 1 else 0
+        val payload = EditPayload(
+            tool = tool,
+            confidence = "high",
+            genType = "chat",
+            repoPath = CliRepoId.get(repoRoot) ?: repoRoot,
+            filePath = relPath,
+            suggestedLines = lineCount.toLong(),
+            lines = lineRanges,
+            rawMeta = """{"source":"intellij_plugin","signal":"chat_create_file"}""",
+            branch = GitUtils.getBranchName(repoRoot),
+        )
+        if (debugEnabled()) {
+            BlamelyLogger.info("record: tool=$tool gen_type=chat $relPath (created file, $lineCount lines)")
+        }
+        pushImmediateBlame(GitUtils.blameKey(absPath), 1, lineCount, tool, "chat")
+        // v2 gutter: seed the working log attributing the whole new file to AI —
+        // without this the default (v2) gutter would not paint until commit.
+        onEditObserved?.invoke(
+            absPath, "", content,
+            ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.AI, tool = tool, genType = "chat"),
+        )
+        if (daemon.send(payload)) {
+            project.getService(ai.blamely.cli.CliDataService::class.java)?.refresh()
+        }
     }
 
     // Immediately inserts an AI LineBlame entry for the accepted completion lines
@@ -248,7 +370,9 @@ class CompletionDetector(private val project: Project) : Disposable {
         if (newFragment.isEmpty()) return
 
         // Consume the pending flags before any early return. Chat-apply wins
-        // over inline if both somehow fired.
+        // over inline if both somehow fired. The signal's source tool is
+        // consumed alongside the flags so it can't leak onto a later edit.
+        val signalTool = pendingSignalTool
         val chatApply = pendingChatApply
         if (chatApply) {
             pendingChatApply = false
@@ -258,6 +382,22 @@ class CompletionDetector(private val project: Project) : Disposable {
         if (inlineAccept) {
             pendingInlineAccept = false
             pendingInlineTimer?.cancel(false)
+        }
+        if (chatApply || inlineAccept) pendingSignalTool = null
+
+        // Pre-change text, reconstructed from the post-change document. Feeds
+        // both the v2 tracker hook below and — for a chat apply — the daemon's
+        // /snapshot baseline (so a wide apply can be narrowed to the truly-new
+        // lines, mirroring VS Code's post-send putSnapshot).
+        val prevFull: String? = try {
+            val newFull = event.document.text
+            val off = event.offset
+            val nfLen = event.newFragment.length
+            if (off in 0..newFull.length && off + nfLen <= newFull.length) {
+                newFull.substring(0, off) + event.oldFragment.toString() + newFull.substring(off + nfLen)
+            } else null
+        } catch (_: Exception) {
+            null
         }
 
         // Attribution v2 (flag-gated in the tracker): hand every classified change
@@ -286,18 +426,13 @@ class CompletionDetector(private val project: Project) : Disposable {
                             ?.discardFile(vf.path)
                         return@let
                     }
-                    val newFull = event.document.text
-                    val off = event.offset
-                    val nfLen = event.newFragment.length
-                    if (off in 0..newFull.length && off + nfLen <= newFull.length) {
-                        val prevFull = newFull.substring(0, off) + event.oldFragment.toString() +
-                            newFull.substring(off + nfLen)
+                    if (prevFull != null) {
                         val author = when {
-                            chatApply -> ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.AI, tool = resolveTool(), genType = "chat")
-                            inlineAccept -> ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.AI, tool = resolveTool(), genType = "completion")
+                            chatApply -> ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.AI, tool = resolveTool(signalTool), genType = "chat")
+                            inlineAccept -> ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.AI, tool = resolveTool(signalTool), genType = "completion")
                             else -> ai.blamely.authorship.Author(ai.blamely.authorship.AuthorType.HUMAN, genType = "human")
                         }
-                        hook(vf.path, prevFull, newFull, author)
+                        hook(vf.path, prevFull, event.document.text, author)
                     }
                 } catch (_: Exception) {
                 }
@@ -317,6 +452,7 @@ class CompletionDetector(private val project: Project) : Disposable {
             inlineAccept -> "completion"
             else -> {
                 maybeRecordPaste(event)
+                maybeMarkDetecting(event)
                 return
             }
         }
@@ -375,7 +511,7 @@ class CompletionDetector(private val project: Project) : Disposable {
                 ?: return@executeOnPooledThread
             val repoId = CliRepoId.get(repoRoot) ?: repoRoot
 
-            val tool = resolveTool()
+            val tool = resolveTool(signalTool)
             val signal = if (chatApply) "chat_apply_action" else "inline_accept_action"
             val rawMeta = """{"source":"intellij_plugin","chars":${newFragment.length},"gen_type_signal":"$signal"}"""
             val payload = EditPayload(
@@ -400,6 +536,12 @@ class CompletionDetector(private val project: Project) : Disposable {
             pushImmediateBlame(GitUtils.blameKey(absPath), band.first, band.second, tool, genType)
 
             if (daemon.send(payload)) {
+                // Chat applies: hand the daemon the PRE-apply file content as the
+                // diff baseline, so the chat watcher can narrow a wide apply to the
+                // genuinely-new lines. Mirrors VS Code's post-send putSnapshot.
+                if (chatApply && prevFull != null && prevFull.length <= DetectorPaths.MAX_FILE_BYTES) {
+                    daemon.putSnapshot(repoId, relPath, prevFull)
+                }
                 // Save THIS document, then refresh — in that order. The authoritative
                 // CliDataService.refresh() runs `git diff HEAD` (disk) to constrain a
                 // wide chat apply to the lines that truly changed. If the buffer is
@@ -545,6 +687,75 @@ class CompletionDetector(private val project: Project) : Disposable {
         }
     }
 
+    /** Show the neutral "detecting authorship…" gutter on an AI-likely agent apply.
+     *  Agent mode (Copilot agent / JetBrains AI) applies a region or whole-file
+     *  rewrite programmatically with no recognized apply action, so handle() sees
+     *  it as human and records nothing — AgentEditDetector attributes it later
+     *  (Copilot log tail + VFS). A multi-line range-REPLACE that isn't a paste is
+     *  the signature of such a rewrite: paint those lines as "detecting" while
+     *  attribution is in flight, instead of defaulting to Human and flipping to
+     *  AI. Resolves to AI when recorded, or prunes back to Human after
+     *  DETECTING_TTL_MS. Mirrors the VS Code plugin's maybeStashAgentApplyBaseline
+     *  (which additionally stashes a pre-apply snapshot for the daemon's chat
+     *  watcher — not needed here: no daemon watcher covers JetBrains chat, and
+     *  AgentEditDetector keeps its own pre-write baseline). A false positive
+     *  (e.g. typing over a multi-line selection) is harmless: nothing records it,
+     *  so it prunes back to the resolved author when the TTL lapses. */
+    private fun maybeMarkDetecting(event: DocumentEvent) {
+        // Only a range-REPLACING edit spanning multiple lines (the agent-apply
+        // signature — VS Code's range.end.line > range.start.line). Pure inserts
+        // and single-line edits are ordinary typing.
+        if (!event.oldFragment.contains('\n')) return
+        val newFragment = event.newFragment.toString()
+
+        val doc = event.document
+        val vFile = FileDocumentManager.getInstance().getFile(doc) ?: return
+        if (!vFile.isInLocalFileSystem) return
+        val absPath = vFile.path
+        val repoRoot = GitUtils.getRepoRoot(absPath) ?: return
+
+        // Replayed content (cherry-pick/merge/revert/rebase) is not fresh authorship.
+        if (GitUtils.inProgressGitOp(repoRoot)) return
+
+        // Only files under THIS project's content roots (same guard as handle()).
+        val inProject = try {
+            ApplicationManager.getApplication().runReadAction<Boolean> {
+                !project.isDisposed &&
+                    com.intellij.openapi.roots.ProjectFileIndex.getInstance(project).isInContent(vFile)
+            }
+        } catch (_: Exception) {
+            false
+        }
+        if (!inProject) return
+        if (GitUtils.toRepoRelativePath(repoRoot, absPath) == null) return
+
+        // Band on the EDT (document access is valid here); clipboard check on a
+        // pooled thread, same split as maybeRecordPaste.
+        val band = narrowedBand(doc, event.offset, event.oldFragment.toString(), newFragment)
+        val pathKey = GitUtils.blameKey(absPath)
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            if (project.isDisposed) return@executeOnPooledThread
+            refreshClipboardCache()
+            if (isLikelyPaste(newFragment)) return@executeOnPooledThread
+            val blameService = project.getService(BlameMapService::class.java)
+                ?: return@executeOnPooledThread
+            blameService.markDetecting(pathKey, band.first..band.second)
+            if (debugEnabled()) {
+                BlamelyLogger.info("detecting: $pathKey L${band.first}-${band.second}")
+            }
+            // Paint now, and once more just after the TTL so an unresolved band
+            // prunes back to the resolved author without waiting for the next
+            // natural refresh (parity with VS Code CliDataService.markDetecting).
+            project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
+            scheduler.schedule({
+                if (!project.isDisposed) {
+                    project.messageBus.syncPublisher(BlameUpdateListener.TOPIC).blameUpdated()
+                }
+            }, BlameMapService.DETECTING_TTL_MS + 200, TimeUnit.MILLISECONDS)
+        }
+    }
+
     private fun refreshClipboardCache() {
         // Always read fresh — only called when a completion candidate exists,
         // so frequency is naturally low. A TTL cache causes paste-after-copy
@@ -682,14 +893,20 @@ internal fun sha256HexNorm(s: String): String {
     return if (norm.isEmpty()) "" else sha256Hex(norm)
 }
 
-// resolveTool maps the host IDE / installed inline-completion plugin onto the
-// store's fixed Tool taxonomy. Copilot and Cursor are independent tools —
-// neither depends on the other.
+// resolveTool maps the detection signal / installed plugins onto the store's
+// fixed Tool taxonomy (claude/cursor/codex/copilot/gemini — no new values).
 //
-// "auto" infers from registered Copilot actions (GitHub Copilot plugin) when present;
-// otherwise cursor. Users can pin copilot/cursor/gemini in Settings → Blamely
-// (gemini has no auto-detection on IntelliJ — it's a manual pin only).
-internal fun resolveTool(): String {
+// Resolution order:
+//   1. A pinned setting (copilot/cursor/gemini) is authoritative.
+//   2. The SOURCE of the action that fired (signalTool, derived from the
+//      action id — "copilot.*" → copilot, gemini ids → gemini): the action
+//      that armed the pending flag tells the truth about which assistant made
+//      the edit, so per-signal attribution beats any static inference.
+//   3. The installed Copilot plugin.
+//   4. Default "copilot" — the most common assistant on JetBrains IDEs.
+//      NEVER "cursor": Cursor is a VS Code fork and cannot host this plugin,
+//      so the old cursor fallback mislabeled every JetBrains AI edit.
+internal fun resolveTool(signalTool: String? = null): String {
     val configured = try {
         ai.blamely.settings.BlamelySettings.getInstance().aiTool
     } catch (_: Throwable) {
@@ -697,8 +914,24 @@ internal fun resolveTool(): String {
     }
     if (configured == "copilot" || configured == "cursor" || configured == "gemini") return configured
 
+    if (signalTool != null) return signalTool
     if (isCopilotIdePluginActive()) return "copilot"
-    return "cursor"
+    return "copilot"
+}
+
+/**
+ * Derives the tool family from the id of the action that armed a pending
+ * signal. Null when the id names no known tool (e.g. JetBrains AI Assistant /
+ * generic InlineCompletion actions) — resolveTool then falls through to its
+ * plugin-presence/default steps.
+ */
+internal fun sourceToolFromActionId(id: String): String? {
+    val l = id.lowercase()
+    return when {
+        l.contains("copilot") -> "copilot"
+        l.contains("gemini") -> "gemini"
+        else -> null
+    }
 }
 
 /** Copilot registers this action when its JetBrains plugin is loaded — no PluginManager API. */

@@ -111,7 +111,7 @@ class CliDataService(private val project: Project) : Disposable {
     }
 
     // Safety-net poll: a coarse backstop for anything the VFS save / document-change
-    // / file-open triggers miss (it is no longer the primary mechanism, so 15s, not
+    // / file-open triggers miss (it is no longer the primary mechanism, so 30s, not
     // 5s). Alarm is one-shot, so it re-schedules itself.
     private fun schedulePeriodic() {
         if (project.isDisposed) return
@@ -122,7 +122,9 @@ class CliDataService(private val project: Project) : Disposable {
                     schedulePeriodic()
                 }
             },
-            15000,
+            // Safety backstop only — saves/VFS/HEAD changes drive the real refresh
+            // cadence. Same interval as the VS Code plugin's periodic poll.
+            30000,
         )
     }
 
@@ -156,7 +158,7 @@ class CliDataService(private val project: Project) : Disposable {
      * The project base dir is often NOT a git repo in the multi-repo case, so a
      * `.git` presence check filters out non-repo roots (the basePath fallback).
      */
-    private fun projectRepoRoots(): List<String> {
+    internal fun projectRepoRoots(): List<String> {
         val roots = LinkedHashSet<String>()
         fun consider(path: String?) {
             val p = path ?: return
@@ -273,12 +275,16 @@ class CliDataService(private val project: Project) : Disposable {
         return out.distinct()
     }
 
+    // Timeouts/output caps mirror the VS Code plugin (CliDataService.ts): a hung
+    // or runaway `blamely authorship` must not block the serialized refresh loop
+    // forever — kill it and paint on the next cycle.
     private fun runAuthorshipSingle(bin: String, absPath: String): ai.blamely.authorship.WorkingLogJson? {
+        val out = ai.blamely.utils.Proc.run(
+            listOf(bin, "authorship", absPath),
+            timeoutMs = 20_000, maxBytes = 8 * 1024 * 1024,
+        )
+        if (out.isNullOrEmpty()) return null
         return try {
-            val pb = ProcessBuilder(bin, "authorship", absPath)
-            val proc = pb.start()
-            val out = proc.inputStream.bufferedReader().readText().trim()
-            if (proc.waitFor() != 0 || out.isEmpty()) return null
             v2Gson.fromJson(out, ai.blamely.authorship.WorkingLogJson::class.java)
         } catch (_: Exception) {
             null
@@ -286,11 +292,12 @@ class CliDataService(private val project: Project) : Disposable {
     }
 
     private fun fetchAllWorkingLogs(bin: String, repoRoot: String): List<ai.blamely.authorship.WorkingLogJson> {
+        val out = ai.blamely.utils.Proc.run(
+            listOf(bin, "authorship", repoRoot, "--all"),
+            timeoutMs = 15_000, maxBytes = 32 * 1024 * 1024,
+        )
+        if (out.isNullOrEmpty()) return emptyList()
         return try {
-            val pb = ProcessBuilder(bin, "authorship", repoRoot, "--all")
-            val proc = pb.start()
-            val out = proc.inputStream.bufferedReader().readText().trim()
-            if (proc.waitFor() != 0 || out.isEmpty()) return emptyList()
             v2Gson.fromJson(out, AllWorkingLogs::class.java)?.files ?: emptyList()
         } catch (_: Exception) {
             emptyList()
@@ -1089,18 +1096,24 @@ class CliDataService(private val project: Project) : Disposable {
             }
             val byLine = assigned.getOrPut(row.filePath) { mutableMapOf() }
             val hardMax = 50_000
+            // Guard against huge ranges — same value as the VS Code plugin's
+            // MAX_LINES_PER_EDIT.
+            val maxLinesPerEdit = 10_000
             // Inline completions: trust narrowedBand's exact line range — do NOT cap by
             // file line count. The file may not be saved yet when refresh() reads it, so
             // readLines().size would return the pre-completion count and cappedEnd would
             // be below startLine, making the loop body unreachable → no AI entry → Human.
             // narrowedBand already yields a tight range (1–3 lines), so no over-attribution risk.
-            val cappedEnd = if (isInlineCompletionType(row.genType)) {
+            var cappedEnd = if (isInlineCompletionType(row.genType)) {
                 minOf(row.endLine, hardMax)
             } else {
                 val fileLines = fileLineCounts.getOrPut(row.filePath) {
                     try { File(repoRoot, row.filePath).readLines().size } catch (_: Exception) { null }
                 }
                 minOf(row.endLine, fileLines ?: hardMax, hardMax)
+            }
+            if (cappedEnd - row.startLine + 1 > maxLinesPerEdit) {
+                cappedEnd = row.startLine + maxLinesPerEdit - 1
             }
             for (ln in row.startLine..cappedEnd) {
                 if (!byLine.containsKey(ln)) byLine[ln] = row

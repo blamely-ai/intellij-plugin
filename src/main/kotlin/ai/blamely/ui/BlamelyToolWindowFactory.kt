@@ -787,6 +787,22 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
             timeWaitingForAiMs = 0,
             firstStartCodingTime = "",
             codingTimeMs = ai.blamely.cli.CliNoteParser.codingTimeMs(cli),
+            files = (cli.files ?: emptyList()).map { f ->
+                // Notes written before the per-file split carry only the totals:
+                // fall back to ai=0 / human=total so the row still renders.
+                val aiAdded = f.aiAddedLines.coerceAtMost(f.added)
+                val aiDeleted = f.aiDeletedLines.coerceAtMost(f.deleted)
+                FileLineSplit(
+                    path = f.path,
+                    changeType = f.type ?: "",
+                    added = f.added,
+                    deleted = f.deleted,
+                    aiAdded = aiAdded,
+                    humanAdded = if (f.humanAddedLines > 0) f.humanAddedLines else f.added - aiAdded,
+                    aiDeleted = aiDeleted,
+                    humanDeleted = if (f.humanDeletedLines > 0) f.humanDeletedLines else f.deleted - aiDeleted,
+                )
+            },
         )
     }
 
@@ -978,6 +994,47 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
                 if (rw > 0) {
                     g2.color = colDelete
                     g2.fillRoundRect(x, 0, rw, h, h / 2, h / 2)
+                }
+            }
+        }
+    }
+
+    /**
+     * Four-segment bar for one file's changed lines: AI-added (blue), human-added
+     * (green), AI-deleted (faded blue), human-deleted (red). Widths are shares of
+     * the file's added+deleted total.
+     */
+    private fun fileSplitBar(aiAdded: Int, humanAdded: Int, aiDeleted: Int, humanDeleted: Int, barHeight: Int = 4): JPanel {
+        return object : JPanel() {
+            init {
+                alignmentX = LEFT_ALIGNMENT
+                preferredSize = java.awt.Dimension(200, barHeight)
+                maximumSize = java.awt.Dimension(Short.MAX_VALUE.toInt(), barHeight)
+                isOpaque = false
+            }
+            override fun paintComponent(g: java.awt.Graphics) {
+                val g2 = g as java.awt.Graphics2D
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+                val h = height
+                val w = width
+                g2.color = colBgElevated
+                g2.fillRoundRect(0, 0, w, h, h, h)
+                val total = aiAdded + humanAdded + aiDeleted + humanDeleted
+                if (total <= 0) return
+                val fadedAi = java.awt.Color(colAi.red, colAi.green, colAi.blue, 115)
+                var x = 0
+                for ((count, color) in listOf(
+                    aiAdded to colAi,
+                    humanAdded to colHuman,
+                    aiDeleted to fadedAi,
+                    humanDeleted to colDelete,
+                )) {
+                    if (count <= 0) continue
+                    val segW = ((w.toLong() * count) / total).toInt().coerceIn(0, w - x)
+                    if (segW <= 0) continue
+                    g2.color = color
+                    g2.fillRoundRect(x, 0, segW, h, h / 2, h / 2)
+                    x += segW
                 }
             }
         }
@@ -1335,6 +1392,47 @@ private class OverallChangesPanel(private val project: Project) : JPanel(BorderL
         }
         contentPanel.add(spacer(14))
 
+        // ── Files (latest commit): per-file AI/Human split from the note ──
+        if (latest.files.isNotEmpty()) {
+            contentPanel.add(sectionLabel("Files (latest commit)"))
+            contentPanel.add(spacer(7))
+            val maxFileRows = 8
+            // Most-changed files first so the interesting rows survive the cap.
+            val sortedFiles = latest.files.sortedByDescending { it.added + it.deleted }
+            val filesInner = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS); isOpaque = false }
+            for ((idx, f) in sortedFiles.take(maxFileRows).withIndex()) {
+                val row = JPanel(BorderLayout(8, 0)).apply {
+                    isOpaque = false; alignmentX = LEFT_ALIGNMENT
+                    maximumSize = java.awt.Dimension(Short.MAX_VALUE.toInt(), 20)
+                }
+                val name = JLabel(f.path.substringAfterLast('/')).apply {
+                    foreground = colTextPrimary
+                    font = font.deriveFont(11.5f)
+                    toolTipText = f.path + (if (f.changeType.isNotBlank()) " · ${f.changeType.lowercase()}" else "")
+                }
+                row.add(name, BorderLayout.WEST)
+                val counts = StringBuilder("${f.aiAdded} AI · ${f.humanAdded} Human")
+                if (f.deleted > 0) counts.append(" · −${f.deleted}")
+                row.add(JLabel(counts.toString()).apply {
+                    foreground = colTextSecondary
+                    font = font.deriveFont(10.5f)
+                    toolTipText = "Added: AI ${f.aiAdded} · Human ${f.humanAdded} — Deleted: AI ${f.aiDeleted} · Human ${f.humanDeleted}"
+                }, BorderLayout.EAST)
+                filesInner.add(row)
+                filesInner.add(spacer(4))
+                filesInner.add(fileSplitBar(f.aiAdded, f.humanAdded, f.aiDeleted, f.humanDeleted))
+                if (idx < minOf(sortedFiles.size, maxFileRows) - 1) filesInner.add(spacer(9))
+            }
+            if (sortedFiles.size > maxFileRows) {
+                filesInner.add(spacer(7))
+                filesInner.add(JLabel("+${sortedFiles.size - maxFileRows} more files").apply {
+                    foreground = colTextMuted; font = font.deriveFont(10f)
+                })
+            }
+            contentPanel.add(roundedCard(filesInner))
+            contentPanel.add(spacer(14))
+        }
+
         // ── Commits table: fixed column header (scroll sync) + scrollable rows ──
         contentPanel.add(sectionLabel("Commits (${data.commits.size})"))
         contentPanel.add(spacer(7))
@@ -1593,6 +1691,19 @@ private data class CommitReport(
     val interactionTypes: List<String>,
     val timeWaitingForAiMs: Long,
     val firstStartCodingTime: String = "",
-    val codingTimeMs: Long = 0
+    val codingTimeMs: Long = 0,
+    val files: List<FileLineSplit> = emptyList()
+)
+
+/** Per-file AI/Human line split from a note's files[] entry. */
+private data class FileLineSplit(
+    val path: String,
+    val changeType: String,
+    val added: Int,
+    val deleted: Int,
+    val aiAdded: Int,
+    val humanAdded: Int,
+    val aiDeleted: Int,
+    val humanDeleted: Int,
 )
 

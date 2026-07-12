@@ -123,19 +123,16 @@ class BlameMapService(val project: Project) {
     }
 
     companion object {
-        /** Backstop lifetime for a pending ("detecting") AI line if SQLite never
-         *  confirms it. A chat/agent apply is recorded only after the editor writes
-         *  its chat-session log and the daemon's watcher reads it, which can lag the
-         *  on-screen edit by tens of seconds — so keep the loading state that whole
-         *  window instead of flashing Human first. Re-armed on each streamed chunk.
-         *  5s: Copilot Chat is now recorded in real time (transcript watcher) and
-         *  Cursor/Copilot-CLI via hooks, so this only bridges the short watcher
-         *  latency, not the old lazy-flush lag. */
-        const val PENDING_AI_TTL_MS: Long = 5_000
+        /** Lifetime of an optimistic pending-AI paint: a just-recorded AI edit shows
+         *  as AI immediately and stays painted until the real attribution refresh
+         *  (SQLite/working-log) confirms or replaces it. Long enough to bridge the
+         *  record→refresh round trip without the icon flickering back to Human.
+         *  Matches the VS Code plugin's PENDING_AI_TTL_MS. */
+        const val PENDING_AI_TTL_MS: Long = 12_000
 
         /** Lifetime of the neutral "detecting" gutter state before it prunes back to
          *  the resolved author. Re-armed while an agent apply is in flight; matches the
-         *  VS Code plugin's DETECTING_TTL. */
+         *  VS Code plugin's DETECTING_TTL_MS. */
         const val DETECTING_TTL_MS: Long = 8_000
     }
 }
