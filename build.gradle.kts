@@ -1,23 +1,15 @@
-buildscript {
-    repositories { mavenCentral() }
-    dependencies { classpath("com.guardsquare:proguard-gradle:7.4.2") }
-}
-
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "1.9.22"
     id("org.jetbrains.intellij.platform") version "2.11.0"
 }
 
-import org.gradle.api.plugins.JavaPluginExtension
-import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.api.tasks.Sync
 import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import proguard.gradle.ProGuardTask
 
 group = "ai.blamely"
-version = "1.6.9"
+version = "1.7.0"
 
 java {
     toolchain { languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(17)) }
@@ -158,69 +150,7 @@ tasks.named("runIde") {
     )
 }
 
-val blamelyObfuscate = project.findProperty("blamely.obfuscate") == "true"
-
-val composedJarTask = tasks.named<Jar>("composedJar")
-val compileClasspath = configurations.named("compileClasspath")
-
-val jdkHomeForObfuscation = extensions.getByType(JavaToolchainService::class.java)
-    .launcherFor(extensions.getByType(JavaPluginExtension::class.java).toolchain)
-    .get()
-    .metadata
-    .installationPath
-    .asFile
-
-val obfuscateComposedJar = tasks.register<ProGuardTask>("obfuscateComposedJar") {
-    group = "intellij platform"
-    description = "Obfuscate the composed plugin JAR (enable with -Pblamely.obfuscate=true)."
-    dependsOn(composedJarTask)
-
-    onlyIf { blamelyObfuscate }
-
-    val rules = layout.projectDirectory.file("proguard/blamely-release.pro")
-    configuration(rules.asFile)
-
-    injars(composedJarTask.get().archiveFile.get().asFile)
-    outjars(layout.buildDirectory.file("tmp/blamely-obf/composed.jar").get().asFile)
-
-    val cp = compileClasspath.get()
-    val appJar = cp.files.firstOrNull {
-        it.name == "app.jar" && (it.path.contains("ideaIC") || it.path.contains("ideaIU"))
-    } ?: cp.files.firstOrNull { it.name == "app.jar" }
-        ?: error("Could not locate extracted IntelliJ app.jar on compile classpath (needed for ProGuard).")
-    val ideRoot = appJar.parentFile.parentFile
-    libraryjars(fileTree(ideRoot.resolve("lib")) { include("*.jar") })
-    libraryjars(fileTree(ideRoot.resolve("plugins/vcs-git/lib")) { include("*.jar") })
-    val externalJars = cp.files.filter { f -> !f.path.contains("ideaIC") && f.extension == "jar" }
-    libraryjars(files(externalJars))
-    val jmods = jdkHomeForObfuscation.resolve("jmods")
-    if (jmods.isDirectory) {
-        jmods.listFiles { f -> f.isFile && f.extension == "jmod" }?.sortedBy { it.name }?.forEach { jmod ->
-            libraryjars(jmod)
-        }
-    }
-}
-
-tasks.register("installObfuscatedComposedJar") {
-    group = "intellij platform"
-    description = "Replace the composed JAR with the obfuscated output (requires -Pblamely.obfuscate=true)."
-    dependsOn(obfuscateComposedJar)
-    onlyIf { blamelyObfuscate }
-
-    doLast {
-        val cj = composedJarTask.get()
-        val obf = layout.buildDirectory.file("tmp/blamely-obf/composed.jar").get().asFile
-        val target = cj.archiveFile.get().asFile
-        obf.copyTo(target, overwrite = true)
-    }
-}
-
-if (blamelyObfuscate) {
-    // Ensure the ZIP from buildPlugin contains the obfuscated composed JAR (not only sandbox prepareSandbox).
-    tasks.named("buildPlugin") {
-        dependsOn("installObfuscatedComposedJar")
-    }
-    tasks.named("prepareSandbox") {
-        dependsOn("installObfuscatedComposedJar")
-    }
-}
+// NOTE: this project deliberately ships UNOBFUSCATED. Blamely is MIT-licensed
+// open source; the ProGuard machinery that used to live here (opt-in via
+// -Pblamely.obfuscate=true, never used by release-build.sh) was removed so no
+// build path can produce an obfuscated artifact.

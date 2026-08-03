@@ -66,6 +66,15 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
             state.debugConnection = value
         }
 
+    // Timeout (ms) for the `blamely authorship` CLI calls that feed the gutter
+    // and sidebar. The BLAMELY_AUTHORSHIP_TIMEOUT_MS env var overrides this
+    // (parity with VS Code's blamely.authorshipTimeoutMs).
+    var authorshipTimeoutMs: Int
+        get() = state.authorshipTimeoutMs
+        set(value) {
+            state.authorshipTimeoutMs = value
+        }
+
     override fun getState(): State = state
 
     override fun loadState(loaded: State) {
@@ -76,6 +85,7 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
         state.attributionV2 = loaded.attributionV2
         state.promptGitInit = loaded.promptGitInit
         state.debugConnection = loaded.debugConnection
+        state.authorshipTimeoutMs = loaded.authorshipTimeoutMs
     }
 
     data class State(
@@ -86,6 +96,7 @@ class BlamelySettings : PersistentStateComponent<BlamelySettings.State> {
         var attributionV2: Boolean = true,
         var promptGitInit: Boolean = true,
         var debugConnection: Boolean = false,
+        var authorshipTimeoutMs: Int = 60_000,
     )
 
     private var state = State()

@@ -5,6 +5,7 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.fields.IntegerField
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
 import javax.swing.JComponent
@@ -18,6 +19,7 @@ class BlamelyConfigurable : Configurable {
     private var debugDetectionCheckBox: JBCheckBox? = null
     private var promptGitInitCheckBox: JBCheckBox? = null
     private var debugConnectionCheckBox: JBCheckBox? = null
+    private var authorshipTimeoutField: IntegerField? = null
 
     override fun getDisplayName(): String = "Blamely"
 
@@ -51,6 +53,11 @@ class BlamelyConfigurable : Configurable {
         )
         debugConnectionCheckBox = debugConnectionCb
 
+        val timeoutField = IntegerField(null, 1_000, Int.MAX_VALUE)
+        timeoutField.value = settings.authorshipTimeoutMs
+        timeoutField.columns = 8
+        authorshipTimeoutField = timeoutField
+
         panel = FormBuilder.createFormBuilder()
             .addComponent(lineIconsCb)
             .addComponent(promptGitInitCb)
@@ -61,6 +68,15 @@ class BlamelyConfigurable : Configurable {
                         "plugin detects. <b>auto</b> infers from the installed plugin (GitHub " +
                         "Copilot → copilot). Set explicitly when using GitHub Copilot so edits " +
                         "aren't mislabelled. Copilot and Cursor are tracked independently.</html>"
+                )
+            )
+            .addLabeledComponent("Authorship CLI timeout (ms):", timeoutField)
+            .addComponent(
+                JBLabel(
+                    "<html>Timeout for the <code>blamely authorship</code> calls that feed the " +
+                        "gutter and sidebar. Raise it if large repos or slow disks log timeouts. " +
+                        "The <code>BLAMELY_AUTHORSHIP_TIMEOUT_MS</code> environment variable " +
+                        "overrides this setting.</html>"
                 )
             )
             .addComponent(debugCb)
@@ -80,6 +96,7 @@ class BlamelyConfigurable : Configurable {
         if (debugDetectionCheckBox?.isSelected != null && debugDetectionCheckBox!!.isSelected != s.debugDetection) return true
         if (promptGitInitCheckBox?.isSelected != null && promptGitInitCheckBox!!.isSelected != s.promptGitInit) return true
         if (debugConnectionCheckBox?.isSelected != null && debugConnectionCheckBox!!.isSelected != s.debugConnection) return true
+        if (authorshipTimeoutField != null && authorshipTimeoutField!!.value != s.authorshipTimeoutMs) return true
         return false
     }
 
@@ -90,6 +107,7 @@ class BlamelyConfigurable : Configurable {
         debugDetectionCheckBox?.let { s.debugDetection = it.isSelected }
         promptGitInitCheckBox?.let { s.promptGitInit = it.isSelected }
         debugConnectionCheckBox?.let { s.debugConnection = it.isSelected }
+        authorshipTimeoutField?.let { s.authorshipTimeoutMs = it.value }
         for (project in ProjectManager.getInstance().openProjects) {
             if (project.isDisposed) continue
             project.getService(ai.blamely.ui.BlameDecorations::class.java)?.refresh()
@@ -103,5 +121,6 @@ class BlamelyConfigurable : Configurable {
         debugDetectionCheckBox?.isSelected = s.debugDetection
         promptGitInitCheckBox?.isSelected = s.promptGitInit
         debugConnectionCheckBox?.isSelected = s.debugConnection
+        authorshipTimeoutField?.value = s.authorshipTimeoutMs
     }
 }

@@ -277,11 +277,19 @@ class CliDataService(private val project: Project) : Disposable {
 
     // Timeouts/output caps mirror the VS Code plugin (CliDataService.ts): a hung
     // or runaway `blamely authorship` must not block the serialized refresh loop
-    // forever — kill it and paint on the next cycle.
+    // forever — kill it and paint on the next cycle. The timeout is configurable
+    // (large repos / slow disks exceeded the old 15–20s caps): the
+    // BLAMELY_AUTHORSHIP_TIMEOUT_MS env var overrides the setting; default 60s.
+    private fun authorshipTimeoutMs(): Long {
+        System.getenv("BLAMELY_AUTHORSHIP_TIMEOUT_MS")?.toLongOrNull()?.let { if (it > 0) return it }
+        val cfg = ai.blamely.settings.BlamelySettings.getInstance().authorshipTimeoutMs
+        return if (cfg > 0) cfg.toLong() else 60_000L
+    }
+
     private fun runAuthorshipSingle(bin: String, absPath: String): ai.blamely.authorship.WorkingLogJson? {
         val out = ai.blamely.utils.Proc.run(
             listOf(bin, "authorship", absPath),
-            timeoutMs = 20_000, maxBytes = 8 * 1024 * 1024,
+            timeoutMs = authorshipTimeoutMs(), maxBytes = 8 * 1024 * 1024,
         )
         if (out.isNullOrEmpty()) return null
         return try {
@@ -294,7 +302,7 @@ class CliDataService(private val project: Project) : Disposable {
     private fun fetchAllWorkingLogs(bin: String, repoRoot: String): List<ai.blamely.authorship.WorkingLogJson> {
         val out = ai.blamely.utils.Proc.run(
             listOf(bin, "authorship", repoRoot, "--all"),
-            timeoutMs = 15_000, maxBytes = 32 * 1024 * 1024,
+            timeoutMs = authorshipTimeoutMs(), maxBytes = 32 * 1024 * 1024,
         )
         if (out.isNullOrEmpty()) return emptyList()
         return try {

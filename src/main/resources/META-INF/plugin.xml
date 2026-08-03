@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.6.9</version>
+  <version>1.7.0</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
@@ -98,6 +98,17 @@ blamely doctor    # full self-check
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>1.7.0</h3>
+    <ul>
+      <li><b>A setting for when the AI/Human breakdown doesn't show up</b> — on very large projects, or slow and company-managed machines, Blamely could give up reading your history before it finished and leave the gutter and tool window empty. It now waits up to a minute instead of a few seconds, and you can raise that further under <b>Settings → Tools → Blamely → Authorship CLI timeout</b>.</li>
+      <li><b>The plugin ships fully readable</b> — all code-scrambling was removed, so the published plugin is exactly the public source and your security team can verify what runs in your IDE.</li>
+    </ul>
+    <h3>1.6.9</h3>
+    <ul>
+      <li><b>Attribution survives cherry-pick, squash, and stash</b> — reorganizing your history keeps the AI-vs-human credit on each line instead of resetting it to Human.</li>
+      <li><b>The gutter and tool window keep up with your work</b> — Blamely now notices file and branch changes as they happen, so the AI/Human view refreshes on its own instead of lagging behind.</li>
+      <li><b>Same behaviour as the VS Code extension</b> — attribution, the status bar, and the Changes and History views now match what the VS Code extension shows for the same project.</li>
+    </ul>
     <h3>1.6.4</h3>
     <ul>
       <li><b>AI work no longer slips to "Human"</b> — brand-new files an assistant creates (for example a generated <code>package.json</code>) are now credited to the assistant instead of falling back to Human.</li>
