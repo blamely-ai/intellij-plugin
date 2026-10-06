@@ -156,10 +156,22 @@ private fun splitLines(s: String): List<String> {
 // MUST match the Go and TypeScript ports exactly (the golden vectors enforce it).
 private fun normalizeLineForMatch(s: String): String = s.filterNot { it.isWhitespace() }
 
+/** Caps the LCS table alignLines allocates for the region between the common prefix
+ *  and suffix (IntArray: 64 MB). Above it the middle is left unmatched and
+ *  detectMoves pairs identical lines back to their prior authors. Identical to the
+ *  Go and TS ports. */
+private const val MAX_ALIGN_CELLS = 16_000_000L
+
 // alignLines compares lines WHITESPACE-NORMALIZED (Phase 4 reflow): a line that
 // changed only in indentation / trailing or collapsed whitespace counts as
 // unchanged and keeps its prior author. A genuine content change still mismatches.
-private fun alignLines(oldLines: List<String>, newLines: List<String>): IntArray {
+//
+// The DP only covers the lines between the common prefix and the common suffix, yet
+// the result is identical to running it over the whole file (see the Go port for the
+// proof): the prefix matches in place, and the suffix replay reproduces the
+// whole-file backtrack in linear time. A whole-file table was (n+1)×(m+1) cells —
+// gigabytes for a large file on every edit.
+internal fun alignLines(oldLines: List<String>, newLines: List<String>): IntArray {
     val n = oldLines.size
     val m = newLines.size
     val matched = IntArray(m) { -1 }
@@ -167,25 +179,66 @@ private fun alignLines(oldLines: List<String>, newLines: List<String>): IntArray
 
     val oldN = oldLines.map { normalizeLineForMatch(it) }
     val newN = newLines.map { normalizeLineForMatch(it) }
-    val dp = Array(n + 1) { IntArray(m + 1) }
-    for (i in n - 1 downTo 0) {
-        for (j in m - 1 downTo 0) {
-            dp[i][j] = when {
-                oldN[i] == newN[j] -> dp[i + 1][j + 1] + 1
-                dp[i + 1][j] >= dp[i][j + 1] -> dp[i + 1][j]
-                else -> dp[i][j + 1]
+
+    var p = 0
+    while (p < n && p < m && oldN[p] == newN[p]) {
+        matched[p] = p
+        p++
+    }
+    var s = 0
+    while (s < n - p && s < m - p && oldN[n - 1 - s] == newN[m - 1 - s]) s++
+    val oldEnd = n - s
+    val newEnd = m - s
+
+    var i = p
+    var j = p
+    val rows = oldEnd - p
+    val cols = newEnd - p
+    if (rows > 0 && cols > 0) {
+        if ((rows + 1).toLong() * (cols + 1) > MAX_ALIGN_CELLS) {
+            i = oldEnd // too large: leave the middle unmatched
+            j = newEnd
+        } else {
+            // dp[(a-p)*w + (b-p)] = LCS length of oldN[a:oldEnd] and newN[b:newEnd].
+            val w = cols + 1
+            val dp = IntArray((rows + 1) * w)
+            for (a in rows - 1 downTo 0) {
+                for (b in cols - 1 downTo 0) {
+                    dp[a * w + b] = when {
+                        oldN[p + a] == newN[p + b] -> dp[(a + 1) * w + b + 1] + 1
+                        dp[(a + 1) * w + b] >= dp[a * w + b + 1] -> dp[(a + 1) * w + b]
+                        else -> dp[a * w + b + 1]
+                    }
+                }
+            }
+            while (i < oldEnd && j < newEnd) {
+                val a = i - p
+                val b = j - p
+                when {
+                    oldN[i] == newN[j] -> {
+                        matched[j] = i; i++; j++
+                    }
+                    dp[(a + 1) * w + b] >= dp[a * w + b + 1] -> i++
+                    else -> j++
+                }
             }
         }
     }
-    var i = 0
-    var j = 0
-    while (i < n && j < m) {
-        when {
-            oldN[i] == newN[j] -> {
-                matched[j] = i; i++; j++
-            }
-            dp[i + 1][j] >= dp[i][j + 1] -> i++
-            else -> j++
+    // Replay the common suffix: one side is exhausted here.
+    for (k in 0 until s) {
+        val oi = oldEnd + k
+        val nj = newEnd + k
+        val x = oldN[oi]
+        if (i == oi) {
+            while (newN[j] != x) j++
+            matched[j] = oi
+            i = oi + 1
+            j++
+        } else {
+            while (oldN[i] != x) i++
+            matched[nj] = i
+            i++
+            j = nj + 1
         }
     }
     return matched
