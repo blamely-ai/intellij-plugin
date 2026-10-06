@@ -156,11 +156,12 @@ private fun splitLines(s: String): List<String> {
 // MUST match the Go and TypeScript ports exactly (the golden vectors enforce it).
 private fun normalizeLineForMatch(s: String): String = s.filterNot { it.isWhitespace() }
 
-/** Caps the LCS table alignLines allocates for the region between the common prefix
- *  and suffix (IntArray: 64 MB). Above it the middle is left unmatched and
- *  detectMoves pairs identical lines back to their prior authors. Identical to the
- *  Go and TS ports. */
-private const val MAX_ALIGN_CELLS = 16_000_000L
+/** The largest middle region (between the common prefix and suffix) whose LCS
+ *  table alignLines keeps whole: IntArray, 64 MB. Larger middles go through
+ *  alignMiddleCheckpointed — the same result in O(sqrt(rows)·cols) memory.
+ *  Identical to the Go and TS ports. A var only so tests can force the
+ *  checkpointed path. */
+internal var maxAlignCells = 16_000_000L
 
 // alignLines compares lines WHITESPACE-NORMALIZED (Phase 4 reflow): a line that
 // changed only in indentation / trailing or collapsed whitespace counts as
@@ -195,21 +196,17 @@ internal fun alignLines(oldLines: List<String>, newLines: List<String>): IntArra
     val rows = oldEnd - p
     val cols = newEnd - p
     if (rows > 0 && cols > 0) {
-        if ((rows + 1).toLong() * (cols + 1) > MAX_ALIGN_CELLS) {
-            i = oldEnd // too large: leave the middle unmatched
-            j = newEnd
+        if ((rows + 1).toLong() * (cols + 1) > maxAlignCells) {
+            val end = alignMiddleCheckpointed(oldN, newN, p, oldEnd, newEnd, matched)
+            i = end.first
+            j = end.second
         } else {
             // dp[(a-p)*w + (b-p)] = LCS length of oldN[a:oldEnd] and newN[b:newEnd].
             val w = cols + 1
             val dp = IntArray((rows + 1) * w)
+            val newMid = newN.subList(p, newEnd)
             for (a in rows - 1 downTo 0) {
-                for (b in cols - 1 downTo 0) {
-                    dp[a * w + b] = when {
-                        oldN[p + a] == newN[p + b] -> dp[(a + 1) * w + b + 1] + 1
-                        dp[(a + 1) * w + b] >= dp[a * w + b + 1] -> dp[(a + 1) * w + b]
-                        else -> dp[a * w + b + 1]
-                    }
-                }
+                fillLcsRow(oldN[p + a], newMid, dp, a * w, dp, (a + 1) * w, 0)
             }
             while (i < oldEnd && j < newEnd) {
                 val a = i - p
@@ -242,6 +239,75 @@ internal fun alignLines(oldLines: List<String>, newLines: List<String>): IntArra
         }
     }
     return matched
+}
+
+// fillLcsRow computes one row of the suffix-LCS table, stored in row from offset
+// rowOff: the LCS length of (oldLine + the old lines below) and newMid from column
+// b on, for b >= from, given the row below stored in next from offset nextOff.
+private fun fillLcsRow(
+    oldLine: String, newMid: List<String>,
+    row: IntArray, rowOff: Int, next: IntArray, nextOff: Int, from: Int,
+) {
+    val cols = newMid.size
+    row[rowOff + cols] = 0
+    for (b in cols - 1 downTo from) {
+        row[rowOff + b] = when {
+            oldLine == newMid[b] -> next[nextOff + b + 1] + 1
+            next[nextOff + b] >= row[rowOff + b + 1] -> next[nextOff + b]
+            else -> row[rowOff + b + 1]
+        }
+    }
+}
+
+/** alignLines' DP + backtrack over the middle without holding the whole table:
+ *  keeps every step-th row (step ≈ sqrt(rows)), then walks the backtrack block by
+ *  block, rebuilding each block from the checkpoint below it, only from the
+ *  current column rightward. Same values, so identical matches. Identical to the
+ *  Go and TS ports. Returns where the backtrack stopped. */
+private fun alignMiddleCheckpointed(
+    oldN: List<String>, newN: List<String>, p: Int, oldEnd: Int, newEnd: Int, matched: IntArray,
+): Pair<Int, Int> {
+    val rows = oldEnd - p
+    val cols = newEnd - p
+    val newMid = newN.subList(p, newEnd)
+    val w = cols + 1
+    val step = Math.ceil(Math.sqrt(rows.toDouble())).toInt()
+
+    val checkpoint = arrayOfNulls<IntArray>(rows / step + 1)
+    var cur = IntArray(w)
+    var below = IntArray(w)
+    for (a in rows - 1 downTo 0) {
+        fillLcsRow(oldN[p + a], newMid, cur, 0, below, 0, 0)
+        if (a % step == 0) checkpoint[a / step] = cur.copyOf()
+        val t = cur; cur = below; below = t
+    }
+    val zero = IntArray(w)
+    fun rowAt(a: Int): IntArray = if (a == rows) zero else checkpoint[a / step]!!
+
+    val block = Array(step + 1) { IntArray(w) }
+    var i = p
+    var j = p
+    while (i < oldEnd && j < newEnd) {
+        val top = (i - p) / step * step
+        val bottom = minOf(top + step, rows)
+        val from = j - p
+        rowAt(bottom).copyInto(block[bottom - top], from, from, w)
+        for (a in bottom - 1 downTo top) {
+            fillLcsRow(oldN[p + a], newMid, block[a - top], 0, block[a - top + 1], 0, from)
+        }
+        while (i - p < bottom && j < newEnd) {
+            val a = i - p
+            val b = j - p
+            when {
+                oldN[i] == newN[j] -> {
+                    matched[j] = i; i++; j++
+                }
+                block[a + 1 - top][b] >= block[a - top][b + 1] -> i++
+                else -> j++
+            }
+        }
+    }
+    return Pair(i, j)
 }
 
 private fun coalesce(perLine: List<Author>, overrode: Array<Author?>): List<LineAttribution> {

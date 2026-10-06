@@ -38,7 +38,57 @@ class AlignLinesTest {
     }
 
     @Test
-    fun matchesWholeFileDpOnRandomInputs() {
+    fun matchesWholeFileDpOnRandomInputs() = checkMatchesFullDp()
+
+    // Above the cap the middle goes through the checkpointed table; a tiny cap
+    // forces that path on every input, and the matches must not change.
+    @Test
+    fun checkpointedMatchesWholeFileDp() {
+        val prev = maxAlignCells
+        maxAlignCells = 1
+        try {
+            checkMatchesFullDp()
+            val rng = java.util.Random(2)
+            val alphabet = listOf("a", "b", " a", "c", "")
+            repeat(200) {
+                val oldLines = List(50 + rng.nextInt(150)) { alphabet[rng.nextInt(alphabet.size)] }
+                val newLines = oldLines.toMutableList()
+                repeat(rng.nextInt(20)) {
+                    val k = rng.nextInt(newLines.size)
+                    when (rng.nextInt(3)) {
+                        0 -> newLines.removeAt(k)
+                        1 -> newLines.add(k, alphabet[rng.nextInt(alphabet.size)])
+                        else -> newLines[k] = alphabet[rng.nextInt(alphabet.size)]
+                    }
+                }
+                assertArrayEquals(alignLinesFullDP(oldLines, newLines), alignLines(oldLines, newLines),
+                    "old=$oldLines new=$newLines")
+            }
+        } finally {
+            maxAlignCells = prev
+        }
+    }
+
+    @Test
+    fun keepsDuplicateOwnersAboveCap() {
+        val n = 4500
+        val old = List(n) { k -> if (k % 10 == 0) "}" else "stmt$k" }
+        val copilot = Author(AuthorType.AI, tool = "copilot", genType = "chat")
+        val prior = WorkingLog(lines = listOf(
+            LineAttribution(1, 2000, humanAuthor()),
+            LineAttribution(2001, 2001, copilot),
+            LineAttribution(2002, n, humanAuthor()),
+        ))
+        val cur = old.toMutableList()
+        cur[1] = "edited"
+        cur[n - 2] = "edited too"
+        cur.removeAt(500) // old[500] is a "}" above the Copilot line
+        val wl = attribute(prior, old.joinToString("\n") + "\n", cur.joinToString("\n") + "\n", humanAuthor())
+        val ai = wl.lines.filter { it.author.type == AuthorType.AI }.flatMap { (it.start..it.end).toList() }
+        assertEquals(listOf(2000), ai, "only the unchanged Copilot line (old 2001, now 2000) is AI")
+    }
+
+    private fun checkMatchesFullDp() {
         val rng = java.util.Random(1)
         val alphabet = listOf("a", "b", " a", "c", "")
         fun gen(k: Int) = List(k) { alphabet[rng.nextInt(alphabet.size)] }
