@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.8.4</version>
+  <version>1.8.5</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
@@ -98,6 +98,15 @@ blamely doctor    # full self-check
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>1.8.5</h3>
+    <ul>
+      <li><b>Editing very large files no longer freezes the IDE</b> — a small change to a very large file could make the plugin use a huge amount of memory and bring the IDE to a halt. It now stays light however large the file is, and very large changes are attributed more accurately too.</li>
+      <li><b>Git worktrees are fully supported</b> — if you work on several branches side by side in separate worktrees, each one now shows its own correct record of who wrote what.</li>
+      <li><b>Blamely now works with OpenCode</b> — code written by OpenCode (V1 and V2) is now tracked and credited to it.</li>
+      <li><b><code>git push</code> no longer waits for Blamely</b> — sharing attribution with your team now happens in the background, and a push that fails no longer loses your in-progress attribution.</li>
+      <li><b>Commits are fast again in long-used repositories</b> — tidying up old records could add tens of seconds to every commit, especially on Windows. It now takes a moment.</li>
+      <li><b>A new look</b> — Blamely has a new logo.</li>
+    </ul>
     <h3>1.8.2</h3>
     <ul>
       <li><b>Pasting no longer freezes the IDE</b> — every paste of more than a few characters made Blamely run several <code>git</code> commands before the editor was allowed to respond, and a multi-cursor paste, or the automatic reformat that follows one, multiplied that by every insertion point. Blamely now gets the same information without running anything at all, and does the rest out of your way. Typing is lighter too: the plugin was copying the whole file three times on every keystroke, even when nothing needed those copies.</li>

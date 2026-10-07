@@ -9,7 +9,7 @@ import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "ai.blamely"
-version = "1.8.4"
+version = "1.8.5"
 
 java {
     toolchain { languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(17)) }
