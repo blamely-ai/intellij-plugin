@@ -297,6 +297,7 @@ class AgentEditDetector(private val project: Project) : Disposable {
             confidence = "high",
             genType = "chat",
             repoPath = repoId,
+            worktreePath = projectRoot,
             filePath = relPath,
             suggestedLines = removed.size.toLong(),
             lines = emptyList(),
@@ -349,7 +350,7 @@ class AgentEditDetector(private val project: Project) : Disposable {
         // Stash the baseline in the daemon too (parity with the VS Code plugin) so
         // any CLI-side narrowing that compares against a "before" snapshot agrees.
         if (baseline != null) {
-            daemon.putSnapshot(CliRepoId.get(projectRoot) ?: projectRoot, relPath, baseline)
+            daemon.putSnapshot(projectRoot, relPath, baseline)
         }
         val changed: List<Int> = baselineChanged ?: changedLinesVsHead(projectRoot, relPath).ifEmpty {
             if (hasNoHeadVersion(projectRoot, relPath)) (1..lines.size).toList() else emptyList()
@@ -381,6 +382,7 @@ class AgentEditDetector(private val project: Project) : Disposable {
             confidence = "high",
             genType = "chat",
             repoPath = repoId,
+            worktreePath = projectRoot,
             filePath = relPath,
             suggestedLines = ranges.size.toLong(),
             lines = ranges,

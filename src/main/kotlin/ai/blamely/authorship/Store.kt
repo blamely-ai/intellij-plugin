@@ -1,5 +1,5 @@
 // Working-log + baseline storage — Kotlin port of internal/authorship/store.go and
-// the TS store. Plain files under .git/blamely so the IDE and the CLI share one
+// the TS store. Plain files under the checkout-local Git directory so IDE and CLI share one
 // working log with no daemon/DB. Same layout, sanitization, atomic temp+rename, and
 // portable O_EXCL lockfile. Cross-platform (java.nio + path joins).
 //
@@ -8,6 +8,7 @@
 // DTOs below, not the domain data classes directly.
 package ai.blamely.authorship
 
+import ai.blamely.git.GitUtils
 import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
 import java.io.File
@@ -41,7 +42,7 @@ object WorkingLogStore {
         rel.replace('\\', '/').removePrefix("./").trimStart('/')
 
     private fun workingLogDir(repoRoot: String, branch: String, baseSha: String): File =
-        File(File(File(File(repoRoot, ".git"), "blamely"), "working_logs"),
+        File(File(GitUtils.gitDir(repoRoot) ?: File(repoRoot, ".git").path, "blamely/working_logs"),
             sanitizeComponent(branch) + File.separator + sanitizeComponent(baseSha))
 
     fun workingLogPath(repoRoot: String, branch: String, baseSha: String, relPath: String): File =
