@@ -68,11 +68,11 @@ You can open a project in VS Code or IntelliJ with Blamely and keep a single sou
   ./gradlew buildPlugin
   ```
   Output: **`build/distributions/*.zip`** — install via **Settings → Plugins → ⚙️ → Install Plugin from Disk**.
-- **Release / Marketplace ZIP** (clean build + Kotlin release flags + **ProGuard obfuscation**):
+- **Release / Marketplace ZIP** (clean build + Kotlin release flags — unobfuscated, Blamely is open source):
   ```bash
   ./release-build.sh
   ```
-  See **[RELEASING.md](RELEASING.md)** for tags, GitHub Releases, and what `-Pblamely.obfuscate=true` keeps (extension points in **`proguard/blamely-release.pro`**).
+  See **[RELEASING.md](RELEASING.md)** for tags and GitHub Releases.
 - **Run IDE with plugin (recommended)**:
   ```bash
   ./run-sandbox.sh              # Blamely + Git only (fast sandbox)
@@ -85,8 +85,8 @@ You can open a project in VS Code or IntelliJ with Blamely and keep a single sou
 
 ## CI & Release (GitHub Actions)
 
-- **CI** (on push/PR to `main` or `master`): runs `./gradlew build`, `test`, and **`buildPlugin`** (no obfuscation — faster PR feedback).
-- **Release** (when you push a tag **`v*`**): runs **`buildPlugin`** with **`-Pblamely.release=true -Pblamely.obfuscate=true`**, then attaches the ZIP to a GitHub Release.
+- **CI** (on push/PR to `main` or `master`): runs `./gradlew build`, `test`, and **`buildPlugin`**.
+- **Release** (when you push a tag **`v*`**): runs **`buildPlugin`** with **`-Pblamely.release=true`**, then attaches the ZIP to a GitHub Release.
 
 Full checklist: **[RELEASING.md](RELEASING.md)**.
 
@@ -100,7 +100,7 @@ To publish a new release:
    git push origin v1.1.0
    ```
 
-3. The **Release** workflow builds an **obfuscated** plugin ZIP and publishes it on GitHub.
+3. The **Release** workflow builds the plugin ZIP and publishes it on GitHub.
 
 ## Pushing notes to remote (automatic)
 
@@ -118,6 +118,7 @@ Notes are pushed to the remote **automatically** when you push:
 - **Auto-install Blamely git hooks on project open** ↔ `blamely.autoInstallHook`
 - **Generate report.yml on document save** ↔ `blamely.reportOnSave`
 - **AI suggestion timeout (ms)** ↔ `blamely.suggestionTimeout`
+- **Authorship CLI timeout (ms)** ↔ `blamely.authorshipTimeoutMs` (default `60000`; the `BLAMELY_AUTHORSHIP_TIMEOUT_MS` env var overrides it)
 - **Exclude path patterns** ↔ `blamely.excludePatterns` (one per line; substring match on project-relative paths)
 - **Additional exclude patterns** ↔ `blamely.additionalExcludePatterns` (merged with the list above; default includes `.snap`)
 

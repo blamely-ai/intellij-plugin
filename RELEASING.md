@@ -4,7 +4,7 @@
 
 Keep **`src/main/resources/META-INF/plugin.xml`** `<version>` in sync with the Git tag (without leading `v`).
 
-## Local release build (obfuscated ZIP)
+## Local release build
 
 ```bash
 chmod +x release-build.sh
@@ -14,19 +14,17 @@ chmod +x release-build.sh
 Equivalent Gradle invocation:
 
 ```bash
-./gradlew clean buildPlugin -Pblamely.release=true -Pblamely.obfuscate=true
+./gradlew clean buildPlugin -Pblamely.release=true
 ```
 
 Artifact: **`build/distributions/blamely-<version>.zip`** (exact filename follows Gradle `buildPlugin` output).
 
 - **`-Pblamely.release=true`** — Kotlin strips some assertions for smaller bytecode.
-- **`-Pblamely.obfuscate=true`** — ProGuard renames non-kept symbols in the composed plugin JAR; entrypoints listed in **`proguard/blamely-release.pro`** stay stable (plugin.xml, services, actions, Gson models).
-
-Day-to-day dev/sandbox builds usually skip obfuscation (faster): `./gradlew buildPlugin` or `./build.sh`.
+- The plugin ships **unobfuscated by design** — Blamely is MIT-licensed open source.
 
 ## GitHub Release
 
-Workflow **`.github/workflows/release.yml`** runs on tags **`v*`** and uploads the ZIP from the same obfuscated **`buildPlugin`** command.
+Workflow **`.github/workflows/release.yml`** runs on tags **`v*`** and uploads the ZIP from the same **`buildPlugin`** command.
 
 1. Commit any version/changelog updates on `main`.
 2. Create an annotated tag matching `plugin.xml` (example for version **1.1.0**):
@@ -36,7 +34,7 @@ Workflow **`.github/workflows/release.yml`** runs on tags **`v*`** and uploads t
    git push origin v1.1.0
    ```
 
-3. The **Release** workflow builds with obfuscation and publishes the asset.
+3. The **Release** workflow builds the plugin ZIP and publishes the asset.
 
 ## JetBrains Marketplace
 
