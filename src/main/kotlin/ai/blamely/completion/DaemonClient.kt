@@ -43,6 +43,8 @@ data class EditPayload(
     // Branch the editor was on when the edit was made. The daemon scopes
     // attribution by branch-based work session; if empty it resolves from repo.
     val branch: String? = null,
+    // repoPath stays canonical; filesystem/session state belongs to this checkout.
+    val worktreePath: String? = null,
 )
 
 // DaemonClient posts attribution events to the blamely daemon's /edit endpoint.
@@ -95,9 +97,10 @@ class DaemonClient {
      * the file as it looked BEFORE an AI agent rewrote it, including lines the
      * human typed since the last apply. Mirrors the VS Code plugin's
      * DaemonClient.putSnapshot. Fire-and-forget: best-effort, failures ignored.
+     * checkoutPath must be the active worktree, not its canonical repository ID.
      */
-    fun putSnapshot(repoPath: String, filePath: String, content: String): Boolean {
-        val body = encodeSnapshotJson(repoPath, filePath, content).toByteArray(Charsets.UTF_8)
+    fun putSnapshot(checkoutPath: String, filePath: String, content: String): Boolean {
+        val body = encodeSnapshotJson(checkoutPath, filePath, content).toByteArray(Charsets.UTF_8)
         val sock = CliPaths.readDaemonSocket()
         return try {
             if (sock != null) {
@@ -227,13 +230,14 @@ class DaemonClient {
 // encodeJson hand-rolls the JSON envelope so the plugin doesn't grow a
 // dependency on a JSON library for this one POST. The shape is small and
 // fully under our control; only string-escaping needs care.
-private fun encodeJson(p: EditPayload): String {
+internal fun encodeJson(p: EditPayload): String {
     val sb = StringBuilder()
     sb.append('{')
     sb.append("\"tool\":").append(quote(p.tool))
     p.confidence?.let { sb.append(",\"confidence\":").append(quote(it)) }
     p.genType?.let { sb.append(",\"gen_type\":").append(quote(it)) }
     sb.append(",\"repo_path\":").append(quote(p.repoPath))
+    p.worktreePath?.let { sb.append(",\"worktree_path\":").append(quote(it)) }
     sb.append(",\"file_path\":").append(quote(p.filePath))
     p.model?.let { sb.append(",\"model\":").append(quote(it)) }
     if (p.suggestedLines > 0) {
@@ -268,7 +272,7 @@ private fun encodeJson(p: EditPayload): String {
 }
 
 // encodeSnapshotJson builds the {repo,file,content} body for PUT /snapshot.
-private fun encodeSnapshotJson(repo: String, file: String, content: String): String =
+internal fun encodeSnapshotJson(repo: String, file: String, content: String): String =
     buildString {
         append('{')
         append("\"repo\":").append(quote(repo))

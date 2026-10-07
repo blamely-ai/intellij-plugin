@@ -267,6 +267,7 @@ class CompletionDetector(private val project: Project) : Disposable {
             confidence = "high",
             genType = "chat",
             repoPath = CliRepoId.get(repoRoot) ?: repoRoot,
+            worktreePath = repoRoot,
             filePath = relPath,
             suggestedLines = lineCount.toLong(),
             lines = lineRanges,
@@ -530,6 +531,7 @@ class CompletionDetector(private val project: Project) : Disposable {
                 confidence = "high", // an action proved it
                 genType = genType,
                 repoPath = repoId,
+                worktreePath = repoRoot,
                 filePath = relPath,
                 suggestedLines = (band.second - band.first + 1).toLong(),
                 lines = lineRanges,
@@ -551,7 +553,7 @@ class CompletionDetector(private val project: Project) : Disposable {
                 // diff baseline, so the chat watcher can narrow a wide apply to the
                 // genuinely-new lines. Mirrors VS Code's post-send putSnapshot.
                 if (chatApply && prevFull != null && prevFull.length <= DetectorPaths.MAX_FILE_BYTES) {
-                    daemon.putSnapshot(repoId, relPath, prevFull)
+                    daemon.putSnapshot(repoRoot, relPath, prevFull)
                 }
                 // Save THIS document, then refresh — in that order. The authoritative
                 // CliDataService.refresh() runs `git diff HEAD` (disk) to constrain a
@@ -694,6 +696,7 @@ class CompletionDetector(private val project: Project) : Disposable {
                 confidence = "high",
                 genType = "human",
                 repoPath = repoId,
+                worktreePath = repoRoot,
                 filePath = relPath,
                 lines = lineRanges,
                 rawMeta = """{"source":"intellij_plugin","signal":"clipboard_paste"}""",
