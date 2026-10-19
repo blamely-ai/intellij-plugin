@@ -334,13 +334,20 @@ object GitUtils {
      * both reduce to "src/index.ts") — an absolute path is unambiguous, so a project
      * spanning several git repos can store every file's blame in one map. Canonicalized
      * so the producer (repoRoot + relPath) and the gutter (VirtualFile.path) agree even
-     * when the repo lives under a symlinked path.
+     * when the repo lives under a symlinked path. toRealPath first: canonicalFile does
+     * not resolve a Windows junction or mount, so through such an alias the editor's
+     * key (the alias path) and the repo-wide key (git's real path) differed, the file
+     * sat in the map twice and the status bar counted its lines twice.
      */
     fun blameKey(absolutePath: String): String =
         try {
-            Platform.normalizePath(File(absolutePath).canonicalFile.path)
+            Platform.normalizePath(File(absolutePath).toPath().toRealPath().toString())
         } catch (_: Exception) {
-            Platform.normalizePath(absolutePath)
+            try {
+                Platform.normalizePath(File(absolutePath).canonicalFile.path)
+            } catch (_: Exception) {
+                Platform.normalizePath(absolutePath)
+            }
         }
 
     /**

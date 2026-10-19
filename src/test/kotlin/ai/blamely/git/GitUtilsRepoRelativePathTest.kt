@@ -79,6 +79,16 @@ class GitUtilsRepoRelativePathTest {
         assertEquals("README.md", GitUtils.toRepoRelativePath(root, lowerDrive, askGit = false))
     }
 
+    @Test
+    fun `blameKey is the same through the alias and the real path`() {
+        // The editor keys a file by the path it was opened under; the repo-wide pass
+        // by git's real path. Different keys put the file in the map twice.
+        assertEquals(
+            GitUtils.blameKey(File(real, "src/deep/a.kt").path),
+            GitUtils.blameKey(File(alias, "src/deep/a.kt").path),
+        )
+    }
+
     private fun runGit(cwd: File, vararg args: String) {
         // core.hooksPath= keeps an installed Blamely's global post-commit hook from
         // recording this throwaway repo in the user's real database.
