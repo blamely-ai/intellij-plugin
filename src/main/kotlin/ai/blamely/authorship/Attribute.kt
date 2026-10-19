@@ -50,6 +50,8 @@ fun attribute(prior: WorkingLog?, baseline: String, newContent: String, author: 
     // movedFrom[i] = old index a new line was MOVED from (relocated identical
     // content), or -1.
     val movedFrom = detectMoves(oldLines, newLines, matched)
+    // Runs of lines a formatter split or joined (see detectReflows).
+    val reflows = detectReflows(oldLines, newLines, matched, movedFrom)
 
     val perLine = ArrayList<Author>(newLines.size)
     for (i in newLines.indices) {
@@ -62,9 +64,22 @@ fun attribute(prior: WorkingLog?, baseline: String, newContent: String, author: 
             }
         )
     }
+    val reflowed = BooleanArray(newLines.size)
+    for (r in reflows) {
+        // A reflowed run keeps its author only when the old lines had ONE author; a
+        // split/join across authors can't say whose each new line is, so it stays
+        // with the editor, as before. Identical to the Go and TS ports.
+        val shared = priorAuthorOr(prior, r.old[0] + 1)
+        if (!r.old.all { priorAuthorOr(prior, it + 1) == shared }) continue
+        for (ni in r.new) {
+            perLine[ni] = shared
+            reflowed[ni] = true
+        }
+    }
     // overrode[i] = the author a CHANGED line replaced, when its type differs from
     // the new author (audit marker; does not change who owns the line now).
     val overrode = detectOverrode(prior, matched, movedFrom, oldLines.size, author)
+    for (i in overrode.indices) if (reflowed[i]) overrode[i] = null // a reflow replaced nothing
     return WorkingLog(
         schema = WORKING_LOG_SCHEMA,
         file = prior?.file ?: "",
@@ -93,6 +108,49 @@ private fun detectMoves(oldLines: List<String>, newLines: List<String>, matched:
     }
     return moved
 }
+
+private class ReflowRun(val old: List<Int>, val new: List<Int>)
+
+/** detectReflows finds the gaps of the LCS alignment that a formatter only reshaped:
+ *  the old lines left in a gap (not matched, not moved away) and the new lines in it
+ *  (not matched, not moved in) read the same once joined and compared with reflowKey.
+ *  Prettier and `eslint --fix` split a long call or object literal over several
+ *  lines, join short ones, and add or drop separators doing it — no one authored
+ *  anything, so the new lines keep the old lines' author. Walks the gaps exactly like
+ *  detectOverrode; identical to the Go and TS ports. */
+private fun detectReflows(oldLines: List<String>, newLines: List<String>, matched: IntArray, movedFrom: IntArray): List<ReflowRun> {
+    val consumedOld = BooleanArray(oldLines.size)
+    for (mf in movedFrom) if (mf >= 0) consumedOld[mf] = true
+    val runs = ArrayList<ReflowRun>()
+    val m = matched.size
+    var oldCursor = 0
+    var i = 0
+    while (i < m) {
+        if (matched[i] >= 0) {
+            oldCursor = matched[i] + 1
+            i++
+            continue
+        }
+        var gapNewEnd = i
+        while (gapNewEnd < m && matched[gapNewEnd] < 0) gapNewEnd++
+        val gapOldEnd = if (gapNewEnd < m) matched[gapNewEnd] else oldLines.size
+        val newRun = (i until gapNewEnd).filter { movedFrom[it] < 0 }
+        val oldRun = (oldCursor until gapOldEnd).filter { !consumedOld[it] }
+        if (newRun.isNotEmpty() && oldRun.isNotEmpty()) {
+            val k = reflowKey(oldLines, oldRun)
+            if (k.isNotEmpty() && k == reflowKey(newLines, newRun)) runs.add(ReflowRun(oldRun, newRun))
+        }
+        oldCursor = gapOldEnd
+        i = gapNewEnd
+    }
+    return runs
+}
+
+/** reflowKey: lines[idx…] joined as a formatter sees them — each line normalized
+ *  (normalizeLineForMatch), then every `,` and `;` dropped, since splitting or joining
+ *  lines adds and removes separators between items. Identical to the Go/TS ports. */
+private fun reflowKey(lines: List<String>, idx: List<Int>): String =
+    idx.joinToString("") { normalizeLineForMatch(lines[it]) }.replace(",", "").replace(";", "")
 
 /** detectOverrode finds replace pairs and records the replaced author when its type
  *  differs from the new author. Walks the LCS gap by gap and pairs, positionally, the
@@ -150,11 +208,21 @@ private fun splitLines(s: String): List<String> {
 
 /** For each NEW line, the OLD line index it is unchanged from (LCS match) or -1.
  *  Standard LCS DP + backtrack; identical to the Go/TS implementations. */
-// normalizeLineForMatch reduces a line to its whitespace-insensitive form by
-// REMOVING all whitespace (git diff -w semantics) — indentation, trailing, and
-// operator spacing (`x=1` ↔ `x = 1`) all read as reflow and keep the prior author.
-// MUST match the Go and TypeScript ports exactly (the golden vectors enforce it).
-private fun normalizeLineForMatch(s: String): String = s.filterNot { it.isWhitespace() }
+// normalizeLineForMatch reduces a line to the form a code formatter can't change, so
+// a line that changed only in formatting keeps its prior author: REMOVE all
+// whitespace (git diff -w semantics); treat `"` and the backtick as `'` (quote style);
+// `(x)=>` as `x=>` (arrowParens); drop trailing `;` and `,` (semicolons, trailing
+// commas). MUST match the Go and TypeScript ports exactly (the golden vectors enforce it).
+private fun normalizeLineForMatch(s: String): String =
+    s.filterNot { it.isWhitespace() }
+        .replace('"', '\'')
+        .replace('`', '\'')
+        .replace(ARROW_PARAM_PARENS, "$1=>")
+        .trimEnd(';', ',')
+
+// A lone parenthesized arrow parameter, `(x)=>`; ASCII identifier classes only, so
+// the three regex engines agree.
+private val ARROW_PARAM_PARENS = Regex("""\(([A-Za-z_$][A-Za-z0-9_$]*)\)=>""")
 
 /** The largest middle region (between the common prefix and suffix) whose LCS
  *  table alignLines keeps whole: IntArray, 64 MB. Larger middles go through
