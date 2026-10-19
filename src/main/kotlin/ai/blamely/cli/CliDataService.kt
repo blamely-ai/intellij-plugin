@@ -313,12 +313,18 @@ class CliDataService(private val project: Project) : Disposable {
         repoStates: Map<String, WorkingTreeState>,
     ): List<LineBlame> {
         val entries = ai.blamely.authorship.workingLogToLineBlame(wl)
-        val bestRoot = repoRoots
-            .filter { absPath == it || absPath.startsWith(it + File.separator) }
-            .maxByOrNull { it.length }
-            ?: return entries
+        // Matched through toRepoRelativePath, not a string prefix: git reports roots
+        // as `C:/…` while the check appended File.separator (`\`), so on Windows it
+        // never matched and the gutter went unscoped; and a work tree opened through
+        // an alias shares no prefix with git's real path at all. git is asked only
+        // when no root matches cheaply, so a multi-repo project doesn't spawn one
+        // process per root.
+        val (bestRoot, rel) = sequenceOf(false, true).firstNotNullOfOrNull { askGit ->
+            repoRoots
+                .mapNotNull { root -> GitUtils.toRepoRelativePath(root, absPath, askGit)?.let { root to it } }
+                .maxByOrNull { it.first.length }
+        } ?: return entries
         val state = repoStates[File(bestRoot).path] ?: return entries
-        val rel = GitUtils.toRepoRelativePath(bestRoot, absPath) ?: return entries
         val byFile = hashMapOf(rel to entries)
         scopeToUncommittedWorkingTree(byFile, state.changedSets, state.untrackedFiles)
         return byFile[rel] ?: emptyList()

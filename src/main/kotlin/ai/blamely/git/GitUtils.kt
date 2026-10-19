@@ -343,18 +343,79 @@ object GitUtils {
             Platform.normalizePath(absolutePath)
         }
 
-    /** Path relative to git repo root (matches oobeya-cli / daemon `file_path` keys). */
-    fun toRepoRelativePath(repoRoot: String, absolutePath: String): String? {
+    /**
+     * Path relative to git repo root, slash-separated — the path git itself uses for
+     * the file (matches the CLI / daemon `file_path` keys) — or null when the file is
+     * not inside that work tree. Mirrors the CLI's gitutil.Rel.
+     *
+     * canonicalFile alone is not enough when the work tree is reached through an
+     * alias: git reports the top level by its real path while the IDE names files by
+     * the path the user opened (a junction, or a Windows profile on a mounted volume),
+     * and Java's canonicalization does not resolve junctions, so the relative path
+     * walked out with `..` and the file went untracked. After the canonical attempt
+     * this resolves both sides with toRealPath (junctions and mounts), and as a last
+     * resort asks git: `--show-prefix` from the nearest existing ancestor names the
+     * directory as git does, and the top level reported with it confirms it is the
+     * same work tree. git is never spawned on the EDT, nor with [askGit] false (for
+     * callers probing several candidate roots).
+     */
+    fun toRepoRelativePath(repoRoot: String, absolutePath: String, askGit: Boolean = true): String? {
         if (repoRoot.isBlank() || absolutePath.isBlank()) return null
+        relInside(canonical(repoRoot), canonical(absolutePath))?.let { return it }
+        relInside(realPathExisting(repoRoot), realPathExisting(absolutePath))?.let { return it }
+        if (!askGit || ApplicationManager.getApplication()?.isDispatchThread == true) return null
+        val (dir, rest) = existingAncestor(File(absolutePath)) ?: return null
+        // Not trimmed by run(): at the top level the prefix line is present but empty.
+        val lines = run(dir.path, "rev-parse", "--path-format=absolute", "--show-toplevel", "--show-prefix")
+            ?.lines() ?: return null
+        val top = lines.getOrNull(0)?.trim().orEmpty()
+        if (top.isEmpty() || !sameDir(top, repoRoot)) return null
+        val prefix = lines.getOrNull(1)?.trim().orEmpty()
+        return (prefix + rest).trimEnd('/').ifEmpty { null }
+    }
+
+    /** [file] relative to [root] when it lies strictly inside it, slash-separated. */
+    private fun relInside(root: File?, file: File?): String? {
+        if (root == null || file == null) return null
+        val rel = file.relativeToOrNull(root)?.path ?: return null
+        if (rel.isEmpty() || rel == ".." || rel.startsWith("..${File.separator}") || File(rel).isAbsolute) return null
+        return Platform.normalizePath(rel)
+    }
+
+    private fun canonical(p: String): File? = try { File(p).canonicalFile } catch (_: Exception) { null }
+
+    /** The nearest existing directory at or above [file], and [file]'s slash-separated
+     *  path below it. A file not yet written (or a new subtree) still resolves. */
+    private fun existingAncestor(file: File): Pair<File, String>? {
+        var cur: File? = file.absoluteFile
+        var rest = ""
+        while (cur != null) {
+            if (cur.isDirectory) return cur to rest
+            rest = if (rest.isEmpty()) cur.name else "${cur.name}/$rest"
+            cur = cur.parentFile
+        }
+        return null
+    }
+
+    /** toRealPath (junctions, mounts and symlinks resolved) that also works for a path
+     *  whose leaf does not exist yet: the nearest existing ancestor is resolved and the
+     *  remainder re-attached. */
+    private fun realPathExisting(p: String): File? {
+        val (dir, rest) = existingAncestor(File(p)) ?: return null
         return try {
-            val root = File(repoRoot).canonicalFile
-            val file = File(absolutePath).canonicalFile
-            val rel = file.relativeToOrNull(root)?.path ?: return null
-            if (rel.isEmpty() || rel.startsWith("..")) null
-            else Platform.normalizePath(rel)
+            val real = dir.toPath().toRealPath().toFile()
+            if (rest.isEmpty()) real else File(real, rest)
         } catch (_: Exception) {
             null
         }
+    }
+
+    /** Whether [a] and [b] name the same directory once resolved; case-insensitive on
+     *  Windows, as the file system is. */
+    private fun sameDir(a: String, b: String): Boolean {
+        val ra = realPathExisting(a)?.path ?: return false
+        val rb = realPathExisting(b)?.path ?: return false
+        return if (File.separatorChar == '\\') ra.equals(rb, ignoreCase = true) else ra == rb
     }
 
     fun getBranch(project: Project): String? {
