@@ -111,13 +111,15 @@ private fun detectMoves(oldLines: List<String>, newLines: List<String>, matched:
 
 private class ReflowRun(val old: List<Int>, val new: List<Int>)
 
-/** detectReflows finds the gaps of the LCS alignment that a formatter only reshaped:
- *  the old lines left in a gap (not matched, not moved away) and the new lines in it
- *  (not matched, not moved in) read the same once joined and compared with reflowKey.
- *  Prettier and `eslint --fix` split a long call or object literal over several
- *  lines, join short ones, and add or drop separators doing it — no one authored
- *  anything, so the new lines keep the old lines' author. Walks the gaps exactly like
- *  detectOverrode; identical to the Go and TS ports. */
+/** detectReflows finds the runs of the LCS alignment's gaps that a formatter only
+ *  reshaped: old lines left in a gap (not matched, not moved away) and new lines in it
+ *  (not matched, not moved in) that read the same once joined and compared with
+ *  reflowLineKey. Prettier and `eslint --fix` split a long call or object literal over
+ *  several lines, join short ones, and add or drop separators doing it — no one
+ *  authored anything, so the new lines keep the old lines' author. One gap often holds
+ *  several such runs, and a genuine change in one must not cost the others their
+ *  author, so reflowChunks cuts the gap at the line boundaries the two sides share.
+ *  Walks the gaps exactly like detectOverrode; identical to the Go and TS ports. */
 private fun detectReflows(oldLines: List<String>, newLines: List<String>, matched: IntArray, movedFrom: IntArray): List<ReflowRun> {
     val consumedOld = BooleanArray(oldLines.size)
     for (mf in movedFrom) if (mf >= 0) consumedOld[mf] = true
@@ -137,8 +139,7 @@ private fun detectReflows(oldLines: List<String>, newLines: List<String>, matche
         val newRun = (i until gapNewEnd).filter { movedFrom[it] < 0 }
         val oldRun = (oldCursor until gapOldEnd).filter { !consumedOld[it] }
         if (newRun.isNotEmpty() && oldRun.isNotEmpty()) {
-            val k = reflowKey(oldLines, oldRun)
-            if (k.isNotEmpty() && k == reflowKey(newLines, newRun)) runs.add(ReflowRun(oldRun, newRun))
+            runs.addAll(reflowChunks(oldLines, newLines, oldRun, newRun))
         }
         oldCursor = gapOldEnd
         i = gapNewEnd
@@ -146,11 +147,90 @@ private fun detectReflows(oldLines: List<String>, newLines: List<String>, matche
     return runs
 }
 
-/** reflowKey: lines[idx…] joined as a formatter sees them — each line normalized
- *  (normalizeLineForMatch), then every `,` and `;` dropped, since splitting or joining
- *  lines adds and removes separators between items. Identical to the Go/TS ports. */
-private fun reflowKey(lines: List<String>, idx: List<Int>): String =
-    idx.joinToString("") { normalizeLineForMatch(lines[it]) }.replace(",", "").replace(";", "")
+/** reflowChunks splits one gap (old lines gapOld, new lines gapNew) into the runs a
+ *  formatter only reshaped. Joined, the two sides' reflowLineKeys read the same up to
+ *  their longest common prefix and from their longest common suffix; a line boundary
+ *  both sides share inside the prefix (walking forward) or the suffix (walking back
+ *  from the end, over what the prefix left) closes a run. Whatever is left between the
+ *  two holds a genuine change and stays out. Lines whose key is empty (blank lines)
+ *  join the run next to them, never form one. Offsets are in UTF-16 units here, bytes
+ *  in Go; a boundary only depends on the text up to it being equal, so the three ports
+ *  cut the same runs. */
+private fun reflowChunks(oldLines: List<String>, newLines: List<String>, gapOld: List<Int>, gapNew: List<Int>): List<ReflowRun> {
+    val (oldOff, oldText) = reflowOffsets(oldLines, gapOld)
+    val (newOff, newText) = reflowOffsets(newLines, gapNew)
+    val runs = ArrayList<ReflowRun>()
+
+    var prefix = 0
+    while (prefix < oldText.length && prefix < newText.length && oldText[prefix] == newText[prefix]) prefix++
+    var a = 0 // where the open run starts
+    var b = 0
+    var i = 1
+    var j = 1
+    while (i <= gapOld.size && j <= gapNew.size) {
+        val v = oldOff[i]
+        val w = newOff[j]
+        if (v < w) { i++; continue }
+        if (w < v) { j++; continue }
+        if (v == 0) { i++; j++; continue }
+        if (v > prefix) break
+        while (i < gapOld.size && oldOff[i + 1] == v) i++
+        while (j < gapNew.size && newOff[j + 1] == v) j++
+        runs.add(ReflowRun(gapOld.subList(a, i), gapNew.subList(b, j)))
+        a = i
+        b = j
+        i++
+        j++
+    }
+
+    // From the back, over what the front left. The distance of line k is how far it
+    // starts from the end of its side.
+    val oldEnd = oldOff[gapOld.size]
+    val newEnd = newOff[gapNew.size]
+    var suffix = 0
+    while (suffix < oldEnd - oldOff[a] && suffix < newEnd - newOff[b] &&
+        oldText[oldText.length - 1 - suffix] == newText[newText.length - 1 - suffix]) suffix++
+    var ea = gapOld.size // where the open run ends
+    var eb = gapNew.size
+    i = gapOld.size - 1
+    j = gapNew.size - 1
+    while (i >= a && j >= b) {
+        val v = oldEnd - oldOff[i]
+        val w = newEnd - newOff[j]
+        if (v < w) { i--; continue }
+        if (w < v) { j--; continue }
+        if (v == 0) { i--; j--; continue }
+        if (v > suffix) break
+        while (i > a && oldOff[i - 1] == oldOff[i]) i--
+        while (j > b && newOff[j - 1] == newOff[j]) j--
+        runs.add(ReflowRun(gapOld.subList(i, ea), gapNew.subList(j, eb)))
+        ea = i
+        eb = j
+        i--
+        j--
+    }
+    return runs
+}
+
+/** reflowOffsets joins the reflowLineKeys of lines[idx…]; off[k] is where line idx[k]
+ *  starts in the joined text (off[idx.size] is its length). */
+private fun reflowOffsets(lines: List<String>, idx: List<Int>): Pair<IntArray, String> {
+    val off = IntArray(idx.size + 1)
+    val text = StringBuilder()
+    for ((k, i) in idx.withIndex()) {
+        text.append(reflowLineKey(lines[i]))
+        off[k + 1] = text.length
+    }
+    return off to text.toString()
+}
+
+/** reflowLineKey: a line as a formatter sees it, for comparing joined runs — normalized
+ *  (normalizeLineForMatch), then every `,` `;` `(` `)` dropped, since splitting or
+ *  joining lines adds and removes separators between items, and Prettier wraps an
+ *  expression it breaks over lines in parentheses (`return (`…`);`) or drops ones it
+ *  finds redundant. Identical to the Go/TS ports. */
+private fun reflowLineKey(line: String): String =
+    normalizeLineForMatch(line).filterNot { it == ',' || it == ';' || it == '(' || it == ')' }
 
 /** detectOverrode finds replace pairs and records the replaced author when its type
  *  differs from the new author. Walks the LCS gap by gap and pairs, positionally, the
