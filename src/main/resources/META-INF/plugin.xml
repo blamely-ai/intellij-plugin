@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.8.5</version>
+  <version>1.8.6</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
@@ -98,6 +98,14 @@ blamely doctor    # full self-check
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>1.8.6</h3>
+    <ul>
+      <li><b>Formatting no longer turns AI code into yours</b> — when a formatter reformatted AI-written code, on save or from the terminal, the reformatted lines were counted as your own work. Changing quotes, semicolons, commas or parentheses, or splitting and joining lines, no longer changes who wrote the code.</li>
+      <li><b>The gutter shows only your current changes on Windows</b> — lines you had not touched could be marked, sometimes as AI. It now works on every system.</li>
+      <li><b>Projects opened through a linked or mounted folder are tracked correctly</b> — on some corporate Windows machines, AI work was counted as yours and the lines you typed did not show as yours. Both are now recorded and shown correctly, and the status bar no longer counts such a file twice.</li>
+      <li><b>Lines you wrote just before an AI edit stay yours</b> — your own changes are no longer credited to an assistant that edits the file right after you.</li>
+      <li><b>The gutter no longer marks a line you didn't touch</b> — adding a line at the end of a file without a final newline no longer marks the line before it.</li>
+    </ul>
     <h3>1.8.5</h3>
     <ul>
       <li><b>Editing very large files no longer freezes the IDE</b> — a small change to a very large file could make the plugin use a huge amount of memory and bring the IDE to a halt. It now stays light however large the file is, and very large changes are attributed more accurately too.</li>
