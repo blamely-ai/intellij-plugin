@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>ai.blamely</id>
   <name>Blamely</name>
-  <version>1.8.6</version>
+  <version>1.8.7</version>
   <vendor email="support@blamely.ai" url="https://blamely.ai">Blamely</vendor>
 
   <description><![CDATA[
@@ -98,6 +98,14 @@ blamely doctor    # full self-check
   ]]></description>
 
   <change-notes><![CDATA[
+    <h3>1.8.7</h3>
+    <ul>
+      <li><b>GitHub Copilot Chat is credited again</b> — with Copilot for JetBrains 1.18 and later, code Copilot wrote in chat and agent mode was counted as your own work. It is now credited to Copilot.</li>
+      <li><b>Claude Code no longer takes lines you hadn't committed yet</b> — when Claude edited a file that already had changes of yours, some of those lines could be credited to Claude. Now only what Claude actually writes counts.</li>
+      <li><b>An AI assistant running a command no longer takes your lines</b> — when an assistant changed a file by running a terminal command, your own lines in that file could be credited to it. Now only what the command actually changed counts.</li>
+      <li><b>New and updated AI tools are credited even before Blamely knows them</b> — when an AI tool changes the way it reports its work after an update, that work is still credited to the tool instead of to you.</li>
+      <li><b>Uninstalling Blamely no longer switches off your other git hooks</b> — your project's own hooks, and Husky's, keep working after you remove Blamely.</li>
+    </ul>
     <h3>1.8.6</h3>
     <ul>
       <li><b>Formatting no longer turns AI code into yours</b> — when a formatter reformatted AI-written code, on save or from the terminal, the reformatted lines were counted as your own work. Changing quotes, semicolons, commas or parentheses, or splitting and joining lines, no longer changes who wrote the code.</li>
